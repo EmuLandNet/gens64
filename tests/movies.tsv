@@ -1,0 +1,16 @@
+# Sync regression movies. Paths are relative to the media directory (movietest.py --media).
+# name	system	rom	movie	[savestate; if empty and the movie needs one: <movie>[GMV].gst or <movie>.gst]
+alien3	md	Alien 3 (UE) (REV00) [!].gen	Alien 3 (UE) (REV00) [!] [John Brain]/Alien 3 (UE) (REV00) [!].gmv
+castle	md	Castle of Illusion Starring Mickey Mouse (UE) [!].gen	Castle of Illusion Starring Mickey Mouse (UE) [!].gmv
+comixzone	md	Comix Zone (U) [!].bin	Comix Zone (U) [!].gmv
+sonic1	md	Sonic The Hedgehog (W) (REV01) [!].gen	Sonic The Hedgehog (W) (REV01) [!] [Kostey D.].gmv
+flashback1	md	Flashback - The Quest for Identity (USA) (En,Fr).gen	Flashback - The Quest for Identity (USA) (En,Fr)/Flashback - The Quest for Identity (U) [!] - Level 1.gmv
+flashback2	md	Flashback - The Quest for Identity (USA) (En,Fr).gen	Flashback - The Quest for Identity (USA) (En,Fr)/Flashback - The Quest for Identity (U) [!] - Level 2.gmv
+flashback3	md	Flashback - The Quest for Identity (USA) (En,Fr).gen	Flashback - The Quest for Identity (USA) (En,Fr)/Flashback - The Quest for Identity (U) [!] - Level 3.gmv
+flashback4	md	Flashback - The Quest for Identity (USA) (En,Fr).gen	Flashback - The Quest for Identity (USA) (En,Fr)/Flashback - The Quest for Identity (U) [!] - Level 4.gmv
+flashback5	md	Flashback - The Quest for Identity (USA) (En,Fr).gen	Flashback - The Quest for Identity (USA) (En,Fr)/Flashback - The Quest for Identity (U) [!] - Level 5.gmv
+flashback6	md	Flashback - The Quest for Identity (USA) (En,Fr).gen	Flashback - The Quest for Identity (USA) (En,Fr)/Flashback - The Quest for Identity (U) [!] - Level 6.gmv
+flashback7	md	Flashback - The Quest for Identity (USA) (En,Fr).gen	Flashback - The Quest for Identity (USA) (En,Fr)/Flashback - The Quest for Identity (U) [!] - Level 7.gmv
+terminator	cd	Terminator,_The_(U)(iso+mp3)/Terminator, The (U).iso	Terminator,_The_(U)(iso+mp3).gmv
+sonic32x	32x	Sonic the Hedgehog 32X (Enhance).32x	Sonic the Hedgehog 32X (Enhance).gmv
+doom32x	32x	Doom (Europe).32x	Doom (Europe).gmv
