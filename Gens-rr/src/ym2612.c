@@ -2395,6 +2395,26 @@ void YM2612_Update(int **buf, int length)
    #include "stdint.h"
 #endif
 
+/* gens64: savestates store AR/DR/SR/RR as int offsets from AR_TAB/DR_TAB. When a rate pointer points to
+   NULL_RATE (a different global array), the stored offset depends on how the compiler laid out the
+   globals. Official MSVC builds (and the states they wrote) have NULL_RATE at AR_TAB+2176 and
+   DR_TAB+15888 ints. Encode/decode NULL_RATE pointers with those MSVC offsets so states stay
+   interchangeable with official builds regardless of this build's memory layout. */
+#define MSVC_NULL_RATE_FROM_AR_TAB 2176
+#define MSVC_NULL_RATE_FROM_DR_TAB 15888
+static int* YM_RatePtrFromState(intptr_t rel, int* base, intptr_t msvcNullOff)
+{
+   if (rel >= msvcNullOff && rel < msvcNullOff + 32)
+      return (int*)NULL_RATE + (rel - msvcNullOff);
+   return base + rel;
+}
+static intptr_t YM_RatePtrToState(int* p, int* base, intptr_t msvcNullOff)
+{
+   if (p >= (int*)NULL_RATE && p < (int*)NULL_RATE + 32)
+      return msvcNullOff + (p - (int*)NULL_RATE);
+   return p - base;
+}
+
 int YM2612_Restore_Full(const unsigned char SAVE[sizeof(ym2612_)])
 {
    int channel = 0;
@@ -2408,10 +2428,10 @@ int YM2612_Restore_Full(const unsigned char SAVE[sizeof(ym2612_)])
       for(slot = 0 ; slot < 4 ; slot++)
       {
          YM2612.CHANNEL[channel].SLOT[slot].DT = (int*)((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].DT + (int*)&DT_TAB);
-         YM2612.CHANNEL[channel].SLOT[slot].AR = (int*)((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].AR + (int*)&AR_TAB);
-         YM2612.CHANNEL[channel].SLOT[slot].DR = (int*)((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].DR + (int*)&DR_TAB);
-         YM2612.CHANNEL[channel].SLOT[slot].SR = (int*)((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].SR + (int*)&DR_TAB);
-         YM2612.CHANNEL[channel].SLOT[slot].RR = (int*)((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].RR + (int*)&DR_TAB);
+         YM2612.CHANNEL[channel].SLOT[slot].AR = YM_RatePtrFromState((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].AR, (int*)AR_TAB, MSVC_NULL_RATE_FROM_AR_TAB);
+         YM2612.CHANNEL[channel].SLOT[slot].DR = YM_RatePtrFromState((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].DR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
+         YM2612.CHANNEL[channel].SLOT[slot].SR = YM_RatePtrFromState((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].SR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
+         YM2612.CHANNEL[channel].SLOT[slot].RR = YM_RatePtrFromState((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].RR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
       }
    }
 
@@ -2433,10 +2453,10 @@ int YM2612_Save_Full(unsigned char SAVE[sizeof(ym2612_)])
       for(slot = 0 ; slot < 4 ; slot++)
       {
          ymp->CHANNEL[channel].SLOT[slot].DT = (int*)((int*)ymp->CHANNEL[channel].SLOT[slot].DT - (int*)&DT_TAB);
-         ymp->CHANNEL[channel].SLOT[slot].AR = (int*)((int*)ymp->CHANNEL[channel].SLOT[slot].AR - (int*)&AR_TAB);
-         ymp->CHANNEL[channel].SLOT[slot].DR = (int*)((int*)ymp->CHANNEL[channel].SLOT[slot].DR - (int*)&DR_TAB);
-         ymp->CHANNEL[channel].SLOT[slot].SR = (int*)((int*)ymp->CHANNEL[channel].SLOT[slot].SR - (int*)&DR_TAB);
-         ymp->CHANNEL[channel].SLOT[slot].RR = (int*)((int*)ymp->CHANNEL[channel].SLOT[slot].RR - (int*)&DR_TAB);
+         ymp->CHANNEL[channel].SLOT[slot].AR = (int*)YM_RatePtrToState(ymp->CHANNEL[channel].SLOT[slot].AR, (int*)AR_TAB, MSVC_NULL_RATE_FROM_AR_TAB);
+         ymp->CHANNEL[channel].SLOT[slot].DR = (int*)YM_RatePtrToState(ymp->CHANNEL[channel].SLOT[slot].DR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
+         ymp->CHANNEL[channel].SLOT[slot].SR = (int*)YM_RatePtrToState(ymp->CHANNEL[channel].SLOT[slot].SR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
+         ymp->CHANNEL[channel].SLOT[slot].RR = (int*)YM_RatePtrToState(ymp->CHANNEL[channel].SLOT[slot].RR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
       }
    }
 
