@@ -9,6 +9,11 @@
 #include "luascript.h"
 
 #define uint32 unsigned int
+/* gens64: under MSVC these globals have C++ linkage (?Debug@@3HA, ?Current_PC@@3IA) and are
+   distinct from the extern "C" Debug (Gens.cpp) and Current_PC (Debug.cpp). GCC/clang do not
+   mangle variable names, so rename them to keep them separate. */
+#define Debug tracer_Debug
+#define Current_PC tracer_Current_PC
 
 extern FILE* fp_trace;
 extern FILE* fp_call;
