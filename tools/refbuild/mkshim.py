@@ -9,7 +9,7 @@ def write(name, text):
     p = os.path.join(ci, name)
     if not os.path.exists(p) or open(p).read() != text:
         open(p, 'w').write(text)
-write('svnrev.h', '#define SVN_REV "%s"\n' % rev)
+write('svnrev.h', '#define SVN_REV "%s"\n#include "gens64_version.h"\n' % rev)
 write('StdAfx.h', '#ifndef __STDAFX_H\n#define __STDAFX_H\n#include "%s/7z/CPP/Common/MyWindows.h"\n#include "%s/7z/CPP/Common/NewHandler.h"\n#endif\n' % (root, root))
 write('MyAES.h', '#include "%s/7z/CPP/7zip/Crypto/MyAes.h"\n' % root)
 links = {'BaseTsd.h': os.path.join(mingw_inc, 'basetsd.h')}

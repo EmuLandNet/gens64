@@ -20,7 +20,11 @@ extern "C" {
 #define GENS_RR_VERSION "Gens11"
 
 #ifndef _DEBUG
-	#define SUB_STRING "svn" SVN_REV
+	#ifdef GENS64_TAG
+		#define SUB_STRING "svn" SVN_REV GENS64_TAG /* gens64: show build revision and ported modules */
+	#else
+		#define SUB_STRING "svn" SVN_REV
+	#endif
 #else
 	#define SUB_STRING " debug"
 #endif

@@ -26,6 +26,16 @@ execute_process(COMMAND ${Python3_EXECUTABLE} ${TOOLS}/mkshim.py ${R} ${GEN}/ci 
                         /usr/i686-w64-mingw32/include
                 COMMAND_ERROR_IS_FATAL ANY)
 
+# --- gens64 version tag (window title, About box): git revision + asm modules ported to C ---------
+set(GENS_ORIGINAL_ASM_MODULES blit gfx_cd io Mem_M68k Mem_S68k Mem_SH2 Mem_Z80 Misc pwm SH2a vdp_32X vdp_io vdp_rend z80)
+set(GENS_PORTED_MODULES ${GENS_ORIGINAL_ASM_MODULES})
+list(REMOVE_ITEM GENS_PORTED_MODULES ${GENS_ASM_MODULES})
+set(GENS_VERSION_H ${GEN}/ci/gens64_version.h)
+add_custom_target(gens64_version
+  COMMAND ${CMAKE_COMMAND} -DROOT=${PROJECT_SOURCE_DIR} -DOUT=${GENS_VERSION_H}
+          "-DPORTED=${GENS_PORTED_MODULES}" -P ${TOOLS}/version.cmake
+  BYPRODUCTS ${GENS_VERSION_H} COMMENT "gens64 version tag" VERBATIM)
+
 # --- assembly: original NASMW.EXE under Wine -------------------------------------------------------
 set(WINE_STAMP ${GEN}/wineprefix.stamp)   # initialise the prefix once, before parallel NASMW runs
 add_custom_command(OUTPUT ${WINE_STAMP}
@@ -67,11 +77,11 @@ set_source_files_properties(${GENS_ASM_OBJS} PROPERTIES EXTERNAL_OBJECT TRUE GEN
 file(GLOB GENS_RES_FILES ${R}/resource/*)
 set(res_obj ${GEN}/Gens.res.o)
 add_custom_command(OUTPUT ${res_obj}
-  COMMAND ${Python3_EXECUTABLE} ${TOOLS}/mkrc.py ${R}/src/Gens.rc ${R}/resource ${GEN}
+  COMMAND ${Python3_EXECUTABLE} ${TOOLS}/mkrc.py ${R}/src/Gens.rc ${R}/resource ${GEN} ${GENS_VERSION_H}
   COMMAND ${CMAKE_RC_COMPILER} -I ${R}/src -I ${R} -I ${GEN}/ci -DWIN32 -D_WIN32_WINNT=0x0501
           ${GEN}/Gens_build.rc -O coff -o ${res_obj}
   WORKING_DIRECTORY ${R}
-  DEPENDS ${R}/src/Gens.rc ${R}/src/resource.h ${GENS_RES_FILES} ${TOOLS}/mkrc.py ${TOOLS}/fix_ico.py
+  DEPENDS ${R}/src/Gens.rc ${R}/src/resource.h ${GENS_RES_FILES} ${TOOLS}/mkrc.py ${TOOLS}/fix_ico.py ${GENS_VERSION_H}
   COMMENT "Resources" VERBATIM)
 set_source_files_properties(${res_obj} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
@@ -82,6 +92,7 @@ set_source_files_properties(${GENS_SRC_CXX} src/CCnet.c src/cd_file.c src/cd_sys
 
 # --- the exe -----------------------------------------------------------------------------------------
 add_executable(Gens WIN32 ${GENS_C_CXX_SOURCES} ${GENS_7Z_SOURCES} ${GENS_ASM_OBJS} ${res_obj})
+add_dependencies(Gens gens64_version)
 set_target_properties(Gens PROPERTIES OUTPUT_NAME Gens RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 target_include_directories(Gens PRIVATE ${GEN}/ci ${R}/src ${R}/dependencies ${R}/dependencies/DirectX ${R}/7z/CPP ${R})
 target_compile_definitions(Gens PRIVATE _WIN32_WINNT=0x0501 WIN32 NDEBUG _WINDOWS _CRT_SECURE_NO_DEPRECATE EXTRACT_ONLY _NO_CRYPTO)
