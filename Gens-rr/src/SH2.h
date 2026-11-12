@@ -45,7 +45,7 @@ extern "C" {
 #endif
 
 
-#ifndef __GNUC__
+#if !defined(__GNUC__) || defined(_WIN32) /* gens64: asm expects MSVC __fastcall */
 
 #define FASTCALL				__fastcall
 #define DECL_FASTCALL(type, name)	type FASTCALL name
