@@ -1,3 +1,4 @@
+#include "hashlog.h" // gens64
 #include "gens.h"
 
 #include <windows.h>
@@ -2542,6 +2543,7 @@ const char* GensPlayMovie(const char* filename, bool silent)
 		tempfilename[1023] = 0;
 
 		int gmiRV = LoadSubMovie(tempfilename);
+		Gens64_SelectMovieState(&SubMovie, tempfilename); // gens64: play "from savestate" movies from the command line too
 		if(SubMovie.Ok!=0 && (SubMovie.UseState==0 || SubMovie.StateOk!=0) && (SubMovie.StateRequired==0 || SubMovie.StateOk!=0))
 		{
 			SubMovie.ClearSRAM = true;

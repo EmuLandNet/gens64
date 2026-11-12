@@ -75,6 +75,11 @@ add_custom_command(OUTPUT ${res_obj}
   COMMENT "Resources" VERBATIM)
 set_source_files_properties(${res_obj} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
+# gens64: MessageBox -> Gens64_MessageBox (non-blocking in -batch mode)
+file(GLOB GENS_SRC_CXX RELATIVE ${R} ${R}/src/*.cpp)
+set_source_files_properties(${GENS_SRC_CXX} src/CCnet.c src/cd_file.c src/cd_sys.c
+  PROPERTIES COMPILE_OPTIONS "-include;${R}/src/gens64_msgbox.h")
+
 # --- the exe -----------------------------------------------------------------------------------------
 add_executable(Gens WIN32 ${GENS_C_CXX_SOURCES} ${GENS_7Z_SOURCES} ${GENS_ASM_OBJS} ${res_obj})
 set_target_properties(Gens PROPERTIES OUTPUT_NAME Gens RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})

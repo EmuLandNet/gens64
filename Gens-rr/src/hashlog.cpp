@@ -18,6 +18,14 @@
 //   Sega CD graphics ASIC (gfx_cd.asm): Stamp_Map_Adr, Buffer_Adr, Vector_Adr (host pointers into
 //     Word RAM) -> offsets from Ram_Word_2M; Jmp_Adr (code pointer) -> offset from Calcul_Rot_Comp
 //
+// Batch playback (also here, used by the same per-frame hook, see Gens64_AfterFrame):
+//   -moviestate <file.gst>  savestate for -play; when a movie requires one and none is given, look
+//                           next to the movie for "<name>[GMV].gst", then "<name>.gst"
+//   -batch                  every frame rendered and no waiting for audio (Frame_Skip = 0), i.e.
+//                           deterministic and faster than real time; exit when the movie ends
+//   -stopframe <N>          exit after frame N
+// On exit the hash log gets a final "END <frame>" line. Exit skips saving the configuration.
+//
 // Debugging: environment variable GENS_HASHDUMP="<dir>,<from>,<to>" also writes the normalised
 // state of frames from..to to <dir>/<frame>.gst for byte-level comparison.
 
@@ -32,6 +40,7 @@
 #include "z80.h"
 #include "SH2.h"
 #include "gfx_cd.h"
+#include <windows.h>
 
 extern "C" struct S68000CONTEXT main68k_context;
 extern "C" struct S68000CONTEXT sub68k_context;
@@ -53,9 +62,10 @@ static unsigned long long fnv1a64(const unsigned char *p, unsigned int len)
 	return h;
 }
 
+static long lastFrame = 0;
 static void closeHashLog(void)
 {
-	if (hashFile) { fclose(hashFile); hashFile = NULL; }
+	if (hashFile) { fprintf(hashFile, "END %ld\n", lastFrame); fclose(hashFile); hashFile = NULL; }
 }
 
 int HashLog_Open(const char *fileName)
@@ -163,6 +173,7 @@ void HashLog_OnFrame(int rendered)
 	if (_32X_Started)
 		sprintf(x32, "%016llx", fnv1a64(p, G32X_LENGTH_EX));
 
+	lastFrame = (long)FrameCount;
 	fprintf(hashFile, "%lu %016llx %s %s %c\n", (unsigned long)FrameCount, hg, cd, x32, rendered ? 'R' : 'F');
 	if ((FrameCount & 63) == 0) fflush(hashFile);
 
@@ -172,5 +183,96 @@ void HashLog_OnFrame(int rendered)
 		sprintf(name, "%s/%lu.gst", dumpDir, (unsigned long)FrameCount);
 		FILE *f = fopen(name, "wb");
 		if (f) { fwrite(hashBuf, 1, len, f); fclose(f); }
+	}
+}
+
+// ---------------------------------------------------------------------------------------------
+// batch playback
+
+extern int Frame_Skip;
+
+static char movieStateFile[1024];
+static long stopFrame = -1;
+static int batchMode = 0;
+
+void Gens64_SetMovieState(const char *stateFile)
+{
+	strncpy(movieStateFile, stateFile, sizeof(movieStateFile) - 1);
+}
+
+static int fileExists(const char *name)
+{
+	FILE *f = fopen(name, "rb");
+	if (!f) return 0;
+	fclose(f);
+	return 1;
+}
+
+void Gens64_SelectMovieState(typeMovie *movie, const char *movieFile)
+{
+	if (!movie->Ok) return;
+	char name[1100];
+	if (movieStateFile[0])
+		strcpy(name, movieStateFile);
+	else if (movie->StateRequired)
+	{
+		char base[1024];
+		strncpy(base, movieFile, sizeof(base) - 1); base[sizeof(base) - 1] = 0;
+		char *dot = strrchr(base, '.');
+		if (dot && !stricmp(dot, ".gmv")) *dot = 0;
+		sprintf(name, "%s[GMV].gst", base);
+		if (!fileExists(name))
+			sprintf(name, "%s.gst", base);
+	}
+	else
+		return;
+	GetStateInfo(name, movie);
+	movie->UseState = 1;
+	if (!movie->StateOk)
+		fprintf(stderr, "movie savestate \"%s\" not found or invalid\n", name);
+}
+
+void Gens64_SetStopFrame(long frame)
+{
+	stopFrame = frame;
+}
+
+void Gens64_SetBatch(int on)
+{
+	batchMode = on;
+	if (on) Frame_Skip = 0; // fixed frame skip: every frame rendered, no waiting for the sound buffer
+}
+
+static void finish(void)
+{
+	closeHashLog();
+	ExitProcess(0); // skips WM_CLOSE handling, so the configuration is not saved
+}
+
+void Gens64_AfterFrame(int rendered)
+{
+	HashLog_OnFrame(rendered);
+	if (stopFrame >= 0 && (long)FrameCount >= stopFrame)
+		finish();
+	if (batchMode && MainMovie.Status == MOVIE_FINISHED)
+		finish();
+}
+
+extern "C" int WINAPI Gens64_MessageBox(HWND hWnd, LPCSTR text, LPCSTR caption, UINT type)
+{
+	if (!batchMode)
+		return MessageBoxA(hWnd, text, caption, type);
+	fprintf(stderr, "[batch] %s: %s\n", caption ? caption : "", text ? text : "");
+	if (hashFile) fprintf(hashFile, "# dialog: %s\n", caption ? caption : "");
+	// what pressing Enter on the dialog would do
+	int second = (type & MB_DEFMASK) == MB_DEFBUTTON2, third = (type & MB_DEFMASK) == MB_DEFBUTTON3;
+	switch (type & MB_TYPEMASK)
+	{
+		case MB_OKCANCEL:       return second ? IDCANCEL : IDOK;
+		case MB_YESNO:          return second ? IDNO : IDYES;
+		case MB_YESNOCANCEL:    return third ? IDCANCEL : second ? IDNO : IDYES;
+		case MB_RETRYCANCEL:    return second ? IDCANCEL : IDRETRY;
+		case MB_ABORTRETRYIGNORE: return third ? IDIGNORE : second ? IDRETRY : IDABORT;
+		default:                return IDOK;
 	}
 }

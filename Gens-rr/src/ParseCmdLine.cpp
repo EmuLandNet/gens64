@@ -29,7 +29,7 @@ void ParseCmdLine(LPSTR lpCmdLine, HWND HWnd)
 	int argLength = argumentList.size();	//Size of command line argument
 
 	//List of valid commandline args
-	string argCmds[] = {"-cfg", "-rom", "-play", "-readwrite", "-loadstate", "-pause", "-lua", "-hashlog", ""};	//Hint:  to add new commandlines, start by inserting them here.
+	string argCmds[] = {"-cfg", "-rom", "-play", "-readwrite", "-loadstate", "-pause", "-lua", "-hashlog", "-moviestate", "-stopframe", ""};	//Hint:  to add new commandlines, start by inserting them here.
 
 	//Strings that will get parsed:
 	string CfgToLoad = "";		//Cfg filename
@@ -40,6 +40,8 @@ void ParseCmdLine(LPSTR lpCmdLine, HWND HWnd)
 	string FileToLoad = "";		//Any file
 	string PauseGame = "";		//adelikat: If user puts anything after -pause it will flag true, documentation will probably say put "1".  There is no case for "-paused 0" since, to my knowledge, it would serve no purpose
 	string HashLogFile = "";	//gens64: per-frame state hash log
+	string MovieStateFile = "";	//gens64: savestate for -play
+	string StopFrame = "";		//gens64: exit after this frame
 	string ReadWrite = "";		//adelikat: Read Only is the default so this will be the same situation as above, any value will set to read+write status
 
 	//Temps for finding string list
@@ -96,7 +98,13 @@ void ParseCmdLine(LPSTR lpCmdLine, HWND HWnd)
 		case 7:	//-hashlog (gens64)
 			HashLogFile = newCommand;
 			break;
-		case 8: //  (a filename on its own, this must come BEFORE any other options on the commandline)
+		case 8:	//-moviestate (gens64)
+			MovieStateFile = newCommand;
+			break;
+		case 9:	//-stopframe (gens64)
+			StopFrame = newCommand;
+			break;
+		case 10: //  (a filename on its own, this must come BEFORE any other options on the commandline)
 			if(newCommand[0] != '-')
 				FileToLoad = newCommand;
 			break;
@@ -108,6 +116,9 @@ void ParseCmdLine(LPSTR lpCmdLine, HWND HWnd)
 	// gens64: hash log first, so that it covers every emulated frame
 	if (HashLogFile[0] && !HashLog_Open(HashLogFile.c_str()))
 		fprintf(stderr, "failed to open hash log \"%s\"\n", HashLogFile.c_str());
+	if (MovieStateFile[0]) Gens64_SetMovieState(MovieStateFile.c_str());
+	if (StopFrame[0]) Gens64_SetStopFrame(atol(StopFrame.c_str()));
+	if (argumentList.find("-batch") != string::npos) Gens64_SetBatch(1); // flag, no value needed
 
 	// anything (rom, movie, cfg, luascript, etc.)
 	if (FileToLoad[0])

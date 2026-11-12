@@ -179,7 +179,7 @@ int Update_Frame_Hook()
 		#endif
 	#endif
 
-	HashLog_OnFrame(1); // gens64
+	Gens64_AfterFrame(1); // gens64
 
 	CallRegisteredLuaFunctions(LUACALL_AFTEREMULATION);
 
@@ -195,7 +195,7 @@ int Update_Frame_Fast_Hook()
 
 	int retval = Update_Frame_Fast();
 
-	HashLog_OnFrame(0); // gens64
+	Gens64_AfterFrame(0); // gens64
 
 	CallRegisteredLuaFunctions(LUACALL_AFTEREMULATION);
 	Update_RAM_Search();
