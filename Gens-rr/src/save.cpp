@@ -1468,6 +1468,35 @@ void Export_Genesis(unsigned char * Data)
 #endif
 }
 
+// gens64: the savestate stores CDC.Buffer as ((32 * 1024 * 2) + 2352) bytes, but Mem_S68k.asm only
+// allocates (16 * 1024 * 2) + 2352 bytes for it. The rest of the block is whatever memory follows:
+// the last variables of Mem_S68k.asm (LED_Status .. CD_Access_Timer, real emulation state), alignment
+// padding, then the start of the next object, which in official builds is Mem_SH2.asm (_32X_Rom).
+// Copy exactly those bytes explicitly, so the format and its side effects match official builds
+// whatever the link order is.
+#define CDC_BUFFER_BLOCK_SIZE ((32 * 1024 * 2) + 2352)
+#define CDC_BUFFER_REAL_SIZE ((16 * 1024 * 2) + 2352)
+#define CDC_BUFFER_TAIL_VARS_SIZE 0x2C // LED_Status .. CD_Access_Timer in Mem_S68k.asm
+#define CDC_BUFFER_PAD_SIZE 0x0C      // up to the 64-byte aligned start of Mem_SH2.asm's .bss
+static void CDCBufferBlock_Export(unsigned char *dst)
+{
+	memcpy(dst, CDC.Buffer, CDC_BUFFER_REAL_SIZE);
+	dst += CDC_BUFFER_REAL_SIZE;
+	memcpy(dst, &LED_Status, CDC_BUFFER_TAIL_VARS_SIZE);
+	dst += CDC_BUFFER_TAIL_VARS_SIZE;
+	memset(dst, 0, CDC_BUFFER_PAD_SIZE);
+	dst += CDC_BUFFER_PAD_SIZE;
+	memcpy(dst, _32X_Rom, CDC_BUFFER_BLOCK_SIZE - CDC_BUFFER_REAL_SIZE - CDC_BUFFER_TAIL_VARS_SIZE - CDC_BUFFER_PAD_SIZE);
+}
+static void CDCBufferBlock_Import(const unsigned char *src)
+{
+	memcpy(CDC.Buffer, src, CDC_BUFFER_REAL_SIZE);
+	src += CDC_BUFFER_REAL_SIZE;
+	memcpy(&LED_Status, src, CDC_BUFFER_TAIL_VARS_SIZE);
+	src += CDC_BUFFER_TAIL_VARS_SIZE + CDC_BUFFER_PAD_SIZE;
+	memcpy(_32X_Rom, src, CDC_BUFFER_BLOCK_SIZE - CDC_BUFFER_REAL_SIZE - CDC_BUFFER_TAIL_VARS_SIZE - CDC_BUFFER_PAD_SIZE);
+}
+
 int Import_SegaCD(unsigned char * Data) 
 {
 	S68000CONTEXT Context_sub68K;
@@ -1621,7 +1650,7 @@ int Import_SegaCD(unsigned char * Data)
 			
 			if(Version >= 9) offset += 4; // alignment for performance
 
-			ImportDataAuto(CDC.Buffer, Data, offset, ((32 * 1024 * 2) + 2352)); //Modif N. - added the *2 because the buffer appears to be that large
+			CDCBufferBlock_Import(Data + offset); offset += CDC_BUFFER_BLOCK_SIZE; //Modif N. - added the *2 because the buffer appears to be that large (gens64: see CDCBufferBlock_Import)
 		//CDC end
 	//CDD & CDC Data end
 
@@ -1855,7 +1884,7 @@ void Export_SegaCD(unsigned char * Data)
 			
 			if(Version >= 9) offset += 4; // alignment for performance
 
-			ExportDataAuto(CDC.Buffer, Data, offset, ((32 * 1024 * 2) + 2352)); //Modif N. - added the *2 because the buffer appears to be that large
+			CDCBufferBlock_Export(Data + offset); offset += CDC_BUFFER_BLOCK_SIZE; //Modif N. - added the *2 because the buffer appears to be that large (gens64: see CDCBufferBlock_Export)
 		//CDC end
 	//CDD & CDC Data end
 
