@@ -19,7 +19,10 @@ s = re.sub(r'\nIDD_CONTROLLER DLGINIT\nBEGIN\n.*?\nEND\n', '\n', s, flags=re.S)
 s = s.replace('"resource\\\\', '"' + res + '/')
 if ver:
     d = dict(re.findall(r'#define (GENS64_\w+) "([^"]*)"', open(ver).read()))
-    old = 'Sega 32X emulator\\n\\nWin 9X / ME / 2000 / XP'
+    # The About text box holds about seven lines, so the module list (which grows)
+    # goes to the title bar; the About box shows the count.
+    old = 'Sega Genesis / Megadrive,\\nSega CD / Mega CD,\\nSega 32X emulator\\n\\nWin 9X / ME / 2000 / XP'
     assert old in s, 'About box text not found'
-    s = s.replace(old, 'Sega 32X emulator\\n\\ngens64 %s\\nC: %s' % (d['GENS64_REV'], d['GENS64_PORTED']))
+    n = len(d['GENS64_PORTED'].split())
+    s = s.replace(old, 'Genesis / Sega CD / 32X\\n\\ngens64 %s\\nasm to C: %d of 15\\n(list in title bar)' % (d['GENS64_REV'], n))
 open(os.path.join(out, 'Gens_build.rc'), 'wb').write(s.encode('latin1'))
