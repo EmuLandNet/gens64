@@ -48,7 +48,7 @@ void ParseCmdLine(LPSTR lpCmdLine, HWND HWnd)
 
 	//--------------------------------------------------------------------------------------------
 	//Commandline parsing loop
-	for (int x = 0; x < (sizeof argCmds / sizeof string); x++)
+	for (int x = 0; x < (sizeof argCmds / sizeof(string)); x++)
 	{
 		if (argumentList.find(argCmds[x]) != string::npos)
 		{

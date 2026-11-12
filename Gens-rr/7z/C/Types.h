@@ -83,9 +83,9 @@ typedef int Bool;
 #define False 0
 
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(_WIN32) /* gens64: keep __stdcall thread procs */
 
-#if _MSC_VER >= 1300
+#if defined(_MSC_VER) && _MSC_VER >= 1300
 #define MY_NO_INLINE __declspec(noinline)
 #else
 #define MY_NO_INLINE

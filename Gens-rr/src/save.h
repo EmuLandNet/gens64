@@ -33,7 +33,7 @@ extern unsigned int FrameBuffer32[336 * 240];
 #ifdef _MSC_VER
 	#define ALIGN16 __declspec(align(16)) // 16-byte alignment speeds up memcpy for size >= 0x100 (as of VS2005, if SSE2 is supported at runtime)
 #else
-	#define ALIGN16 // __attribute__((aligned(16)))
+	#define ALIGN16 __attribute__((aligned(16))) /* gens64: match MSVC */
 #endif
 
 extern ALIGN16 unsigned char State_Buffer[MAX_STATE_FILE_LENGTH];

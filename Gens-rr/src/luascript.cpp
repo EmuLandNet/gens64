@@ -175,7 +175,7 @@ static const char* luaCallIDStrings [] =
 	"CALL_HOTKEY_15",
 	"CALL_HOTKEY_16",
 };
-static const int _makeSureWeHaveTheRightNumberOfStrings [sizeof(luaCallIDStrings)/sizeof(*luaCallIDStrings) == LUACALL_COUNT ? 1 : 0];
+static const int _makeSureWeHaveTheRightNumberOfStrings [sizeof(luaCallIDStrings)/sizeof(*luaCallIDStrings) == LUACALL_COUNT ? 1 : 0] = {0};
 
 static const char* luaMemHookTypeStrings [] =
 {
@@ -187,7 +187,7 @@ static const char* luaMemHookTypeStrings [] =
 	"MEMHOOK_READ_SUB",
 	"MEMHOOK_EXEC_SUB",
 };
-static const int _makeSureWeHaveTheRightNumberOfStrings2 [sizeof(luaMemHookTypeStrings)/sizeof(*luaMemHookTypeStrings) == LUAMEMHOOK_COUNT ? 1 : 0];
+static const int _makeSureWeHaveTheRightNumberOfStrings2 [sizeof(luaMemHookTypeStrings)/sizeof(*luaMemHookTypeStrings) == LUAMEMHOOK_COUNT ? 1 : 0] = {0};
 
 void StopScriptIfFinished(int uid, bool justReturned = false);
 void SetSaveKey(LuaContextInfo& info, const char* key);
@@ -641,10 +641,10 @@ DEFINE_LUA_FUNCTION(input_popup, "message[,type=\"yesno\"[,icon=\"question\"]]")
 	return doPopup(L, "yesno", "question");
 }
 
-const char *prompt_str = new char[];
-const char *prompt_default = new char[];
+const char *prompt_str = new char[1]; /* gens64: MSVC accepted new char[] */
+const char *prompt_default = new char[1]; /* gens64: MSVC accepted new char[] */
 int prompt_maxlength;
-char *prompt_result = new char[];
+char *prompt_result = new char[1]; /* gens64: MSVC accepted new char[] */
 
 LRESULT CALLBACK LuaPromptProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
@@ -4823,8 +4823,8 @@ struct TieredRegion
 
 		bool Contains(unsigned int address, int size) const
 		{
-			std::vector<Island>::const_iterator iter = islands.begin();
-			std::vector<Island>::const_iterator end = islands.end();
+			typename std::vector<Island>::const_iterator iter = islands.begin();
+			typename std::vector<Island>::const_iterator end = islands.end();
 			for(; iter != end; ++iter)
 				if(iter->Contains(address, size))
 					return true;
@@ -4847,7 +4847,7 @@ struct TieredRegion
 
 	TieredRegion()
 	{
-		Calculate(std::vector<unsigned int>());
+		std::vector<unsigned int> empty; Calculate(empty); /* gens64 */
 	}
 
 	__forceinline int NotEmpty()

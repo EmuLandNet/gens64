@@ -255,7 +255,7 @@ MMIOINFO *pmmioinfoOut // (IN)
 			} 
 		} 
 
-	*((BYTE*)pmmioinfoOut->pchNext)++ = *((BYTE*)pbSrc+cT); 
+	*((BYTE*)pmmioinfoOut->pchNext) = *((BYTE*)pbSrc+cT); pmmioinfoOut->pchNext = (HPSTR)((BYTE*)pmmioinfoOut->pchNext + 1); /* gens64: lvalue cast */ 
 	(*cbActualWrite)++; 
 	} 
 

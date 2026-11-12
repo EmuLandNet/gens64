@@ -98,12 +98,8 @@ WRes Semaphore_Close(CSemaphore *p) { return MyCloseHandle(&p->handle); }
 WRes CriticalSection_Init(CCriticalSection *p)
 {
   /* InitializeCriticalSection can raise only STATUS_NO_MEMORY exception */
-  __try
-  {
-    InitializeCriticalSection(p);
-    /* InitializeCriticalSectionAndSpinCount(p, 0); */
-  }
-  __except (EXCEPTION_EXECUTE_HANDLER) { return 1; }
+  /* gens64: SEH __try unsupported by clang on i686-mingw */
+  InitializeCriticalSection(p);
   return 0;
 }
 
