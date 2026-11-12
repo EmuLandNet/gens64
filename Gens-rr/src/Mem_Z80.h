@@ -27,19 +27,19 @@ unsigned short __fastcall Z80_ReadW_YM2612(unsigned int Adr);
 unsigned short __fastcall Z80_ReadW_PSG(unsigned int Adr);
 unsigned short __fastcall Z80_ReadW_68K_Ram(unsigned int Adr);
 
-void __fastcall Z80_WriteB_Bad(unsigned int Adr, unsigned char Data);
-void __fastcall Z80_WriteB_Ram(unsigned int Adr, unsigned char Data);
-void __fastcall Z80_WriteB_Bank(unsigned int Adr, unsigned char Data);
-void __fastcall Z80_WriteB_YM2612(unsigned int Adr, unsigned char Data);
-void __fastcall Z80_WriteB_PSG(unsigned int Adr, unsigned char Data);
-void __fastcall Z80_WriteB_68K_Ram(unsigned int Adr, unsigned char Data);
+void __fastcall Z80_WriteB_Bad(unsigned int Adr, unsigned int Data);
+void __fastcall Z80_WriteB_Ram(unsigned int Adr, unsigned int Data);
+void __fastcall Z80_WriteB_Bank(unsigned int Adr, unsigned int Data);
+void __fastcall Z80_WriteB_YM2612(unsigned int Adr, unsigned int Data);
+void __fastcall Z80_WriteB_PSG(unsigned int Adr, unsigned int Data);
+void __fastcall Z80_WriteB_68K_Ram(unsigned int Adr, unsigned int Data);
 
-void __fastcall Z80_WriteW_Bad(unsigned int Adr, unsigned short Data);
-void __fastcall Z80_WriteW_Bank(unsigned int Adr, unsigned short Data);
-void __fastcall Z80_WriteW_Ram(unsigned int Adr, unsigned short Data);
-void __fastcall Z80_WriteW_YM2612(unsigned int Adr, unsigned short Data);
-void __fastcall Z80_WriteW_PSG(unsigned int Adr, unsigned short Data);
-void __fastcall Z80_WriteW_68K_Ram(unsigned int Adr, unsigned short Data);
+void __fastcall Z80_WriteW_Bad(unsigned int Adr, unsigned int Data);
+void __fastcall Z80_WriteW_Bank(unsigned int Adr, unsigned int Data);
+void __fastcall Z80_WriteW_Ram(unsigned int Adr, unsigned int Data);
+void __fastcall Z80_WriteW_YM2612(unsigned int Adr, unsigned int Data);
+void __fastcall Z80_WriteW_PSG(unsigned int Adr, unsigned int Data);
+void __fastcall Z80_WriteW_68K_Ram(unsigned int Adr, unsigned int Data);
 
 
 #ifdef __cplusplus
