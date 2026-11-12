@@ -52,6 +52,7 @@ set(GENS_C_CXX_SOURCES
   src/ggenie.cpp
   src/gm2_structs.cpp
   src/guidraw.cpp
+  src/hashlog.cpp
   src/LC89510.c
   src/luascript.cpp
   src/luascript_window.cpp

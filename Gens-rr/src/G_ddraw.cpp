@@ -1,3 +1,4 @@
+#include "hashlog.h" // gens64
 #include <stdio.h>
 #include <math.h>
 #include "G_ddraw.h"
@@ -178,6 +179,8 @@ int Update_Frame_Hook()
 		#endif
 	#endif
 
+	HashLog_OnFrame(1); // gens64
+
 	CallRegisteredLuaFunctions(LUACALL_AFTEREMULATION);
 
 	CallRegisteredLuaFunctions(LUACALL_AFTEREMULATIONGUI);
@@ -191,6 +194,8 @@ int Update_Frame_Fast_Hook()
 	// in order for joypad.get() and joypad.set() to work as expected
 
 	int retval = Update_Frame_Fast();
+
+	HashLog_OnFrame(0); // gens64
 
 	CallRegisteredLuaFunctions(LUACALL_AFTEREMULATION);
 	Update_RAM_Search();

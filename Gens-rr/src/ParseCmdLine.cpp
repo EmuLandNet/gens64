@@ -10,6 +10,7 @@
 #include "movie.h"
 #include "save.h"
 #include "G_ddraw.h"
+#include "hashlog.h" // gens64
 
 using namespace std;
 
@@ -28,7 +29,7 @@ void ParseCmdLine(LPSTR lpCmdLine, HWND HWnd)
 	int argLength = argumentList.size();	//Size of command line argument
 
 	//List of valid commandline args
-	string argCmds[] = {"-cfg", "-rom", "-play", "-readwrite", "-loadstate", "-pause", "-lua", ""};	//Hint:  to add new commandlines, start by inserting them here.
+	string argCmds[] = {"-cfg", "-rom", "-play", "-readwrite", "-loadstate", "-pause", "-lua", "-hashlog", ""};	//Hint:  to add new commandlines, start by inserting them here.
 
 	//Strings that will get parsed:
 	string CfgToLoad = "";		//Cfg filename
@@ -38,6 +39,7 @@ void ParseCmdLine(LPSTR lpCmdLine, HWND HWnd)
 	vector<string> ScriptsToLoad;	//Lua script filenames
 	string FileToLoad = "";		//Any file
 	string PauseGame = "";		//adelikat: If user puts anything after -pause it will flag true, documentation will probably say put "1".  There is no case for "-paused 0" since, to my knowledge, it would serve no purpose
+	string HashLogFile = "";	//gens64: per-frame state hash log
 	string ReadWrite = "";		//adelikat: Read Only is the default so this will be the same situation as above, any value will set to read+write status
 
 	//Temps for finding string list
@@ -91,7 +93,10 @@ void ParseCmdLine(LPSTR lpCmdLine, HWND HWnd)
 		case 6:	//-lua
 			ScriptsToLoad.push_back(newCommand);
 			break;
-		case 7: //  (a filename on its own, this must come BEFORE any other options on the commandline)
+		case 7:	//-hashlog (gens64)
+			HashLogFile = newCommand;
+			break;
+		case 8: //  (a filename on its own, this must come BEFORE any other options on the commandline)
 			if(newCommand[0] != '-')
 				FileToLoad = newCommand;
 			break;
@@ -100,6 +105,10 @@ void ParseCmdLine(LPSTR lpCmdLine, HWND HWnd)
 	//--------------------------------------------------------------------------------------------
 	//Execute commands
 	
+	// gens64: hash log first, so that it covers every emulated frame
+	if (HashLogFile[0] && !HashLog_Open(HashLogFile.c_str()))
+		fprintf(stderr, "failed to open hash log \"%s\"\n", HashLogFile.c_str());
+
 	// anything (rom, movie, cfg, luascript, etc.)
 	if (FileToLoad[0])
 	{
