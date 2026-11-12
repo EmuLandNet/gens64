@@ -15,6 +15,7 @@
 
 #include "lua.h"
 
+#define GENS64_LAPI_GETTOP_DEF
 #include "lapi.h"
 #include "ldebug.h"
 #include "ldo.h"

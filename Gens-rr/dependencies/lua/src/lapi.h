@@ -14,8 +14,14 @@
 
 LUAI_FUNC void luaA_pushobject (lua_State *L, const TValue *o);
 
-_inline LUA_API int lua_gettop (lua_State *L) {
+/* gens64: MSVC emitted an external definition for this _inline function; GCC/clang (gnu89/MS __inline)
+   do not, so define it out-of-line in lapi.c instead. */
+#ifdef GENS64_LAPI_GETTOP_DEF
+LUA_API int lua_gettop (lua_State *L) {
   return cast_int(L->top - L->base);
 }
+#else
+LUA_API int (lua_gettop) (lua_State *L);
+#endif
 
 #endif
