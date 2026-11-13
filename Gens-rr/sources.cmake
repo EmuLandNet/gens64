@@ -53,6 +53,7 @@ set(GENS_C_CXX_SOURCES
   src/gm2_structs.cpp
   src/guidraw.cpp
   src/hashlog.cpp
+  src/io_asm.c
   src/Mem_Z80.c
   src/LC89510.c
   src/luascript.cpp
@@ -242,4 +243,4 @@ set(GENS_7Z_SOURCES
   7z/CPP/7zip/Archive/Tar/TarRegister.cpp
   7z/CPP/7zip/Archive/Zip/ZipRegister.cpp
 )
-set(GENS_ASM_MODULES blit gfx_cd io Mem_M68k Mem_S68k Mem_SH2 Misc SH2a vdp_32X vdp_io vdp_rend z80)
+set(GENS_ASM_MODULES blit gfx_cd Mem_M68k Mem_S68k Mem_SH2 Misc SH2a vdp_32X vdp_io vdp_rend z80)
