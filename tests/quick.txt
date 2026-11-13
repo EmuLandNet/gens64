@@ -1,0 +1,8 @@
+# Default quick set for movietest.py run --quick (the full set takes much longer).
+# A line with '*' picks one matching movie at random on each run, so the levels rotate.
+contra*
+flashback*
+sonic1
+terminator
+sonic32x
+doom32x

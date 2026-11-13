@@ -3,12 +3,13 @@
 -hashlog) and compare the per-frame state hashes with the references in tests/hashes/.
 
   tools/movietest.py run    --exe build/ref/Gens.exe --media <dir> [--cd-bios F] [--32x-bios-dir D]
-                            [-j N] [--only name,...] [--update] [--max-frames N]
+                            [-j N] [--only name,...|--quick] [--update] [--max-frames N]
   tools/movietest.py list
 
 --media      directory the rom/movie paths in movies.tsv are relative to
 --cd-bios    Sega CD BIOS (used for US/EU/JP); needed for "cd" movies
 --32x-bios-dir  directory with the three 32X BIOS files (names containing 68000 / Master / Slave)
+--quick      run tests/quick.txt (one random contra*/flashback* level per run) instead of all movies
 --update     write the hashes of this run as the new references
 --max-frames stop each movie after N frames (quick smoke test; compared against the reference prefix)
 
@@ -20,7 +21,7 @@ Reference format (tests/hashes/<name>.hash.gz): header lines starting with '#', 
 frame: "<frame> <genesis> <segacd> <32x>" with each section hash shortened to 8 hex digits ('-' if
 the system is not active).
 """
-import argparse, concurrent.futures, glob, gzip, os, shutil, subprocess, sys, time
+import argparse, concurrent.futures, fnmatch, glob, gzip, os, random, shutil, subprocess, sys, time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TESTS = os.path.join(ROOT, 'tests')
@@ -177,6 +178,8 @@ def main():
     r.add_argument('--32x-bios-dir', dest='x32_bios_dir')
     r.add_argument('-j', '--jobs', type=int, default=max(1, (os.cpu_count() or 2) // 2))
     r.add_argument('--only')
+    r.add_argument('--quick', action='store_true')
+    r.add_argument('--allow-no-sound', action='store_true')
     r.add_argument('--update', action='store_true')
     r.add_argument('--max-frames', type=int)
     r.add_argument('--workdir', default=os.path.join(ROOT, 'build', 'movietest'))
@@ -190,13 +193,27 @@ def main():
             print('%-12s %-4s %s  (%s)' % (t['name'], t['system'], t['movie'],
                                           '%d ref frames' % len(ref) if ref else 'no reference'))
         return 0
+    if args.only and args.quick:
+        ap.error('--only and --quick are exclusive')
+    if args.quick:
+        names = set()
+        for pat in open(os.path.join(TESTS, 'quick.txt'), encoding='utf-8'):
+            pat = pat.strip()
+            if not pat or pat.startswith('#'):
+                continue
+            match = [t['name'] for t in tests if fnmatch.fnmatch(t['name'], pat)]
+            if not match:
+                ap.error('quick.txt: no movie matches %r' % pat)
+            names.add(random.choice(match) if '*' in pat else match[0])
+        print('quick set: ' + ', '.join(sorted(names)), flush=True)
+        tests = [t for t in tests if t['name'] in names]
     if args.only:
         names = set(args.only.split(','))
         tests = [t for t in tests if t['name'] in names]
     if args.update and args.max_frames:
         ap.error('--update with --max-frames would store truncated references')
-    if subprocess.run(['pactl', 'info'], capture_output=True).returncode != 0:
-        print('warning: no PulseAudio server found; without sound YM2612 hashes will differ', file=sys.stderr)
+    if subprocess.run(['pactl', 'info'], capture_output=True).returncode != 0 and not args.allow_no_sound:
+        ap.error('no PulseAudio server found: without sound YM2612 hashes differ (--allow-no-sound to run anyway)')
 
     failed = 0
     with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
