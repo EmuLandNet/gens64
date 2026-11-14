@@ -4,6 +4,5 @@ contra*
 flashback*
 sonic1
 terminator
-sonic32x
-doom32x
 doomres32x
+spiderman32x
