@@ -1,8 +1,9 @@
 # Default quick set for movietest.py run --quick (the full set takes much longer).
-# A line with '*' picks one matching movie at random on each run, so the levels rotate.
+# A line with a pattern ('*', '[...]') picks one matching movie at random on each run, so the levels rotate.
+# Kept short: flashback only levels 1 and 5 (~32-38k frames), comixzone instead of the full Sonic 1.
 contra*
-flashback*
-sonic1
+flashback[15]
+comixzone
 terminator
 doomres32x
 spiderman32x

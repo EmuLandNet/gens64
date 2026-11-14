@@ -9,7 +9,8 @@
 --media      directory the rom/movie paths in movies.tsv are relative to
 --cd-bios    Sega CD BIOS (used for US/EU/JP); needed for "cd" movies
 --32x-bios-dir  directory with the three 32X BIOS files (names containing 68000 / Master / Slave)
---quick      run tests/quick.txt (one random contra*/flashback* level per run) instead of all movies
+--systems    keep only movies of the given systems (md, cd, 32x), combines with --quick
+--quick      run tests/quick.txt (one random contra*/flashback[15] level per run) instead of all movies
 --update     write the hashes of this run as the new references
 --max-frames stop each movie after N frames (quick smoke test; compared against the reference prefix)
 
@@ -176,9 +177,10 @@ def main():
     r.add_argument('--media', required=True)
     r.add_argument('--cd-bios')
     r.add_argument('--32x-bios-dir', dest='x32_bios_dir')
-    r.add_argument('-j', '--jobs', type=int, default=max(1, (os.cpu_count() or 2) // 2))
+    r.add_argument('-j', '--jobs', type=int, default=max(1, os.cpu_count() or 1))
     r.add_argument('--only')
     r.add_argument('--quick', action='store_true')
+    r.add_argument('--systems', help='only movies of these systems, e.g. md or md,32x (for modules used in one mode)')
     r.add_argument('--allow-no-sound', action='store_true')
     r.add_argument('--update', action='store_true')
     r.add_argument('--max-frames', type=int)
@@ -204,9 +206,12 @@ def main():
             match = [t['name'] for t in tests if fnmatch.fnmatch(t['name'], pat)]
             if not match:
                 ap.error('quick.txt: no movie matches %r' % pat)
-            names.add(random.choice(match) if '*' in pat else match[0])
+            names.add(random.choice(match) if any(c in pat for c in '*?[') else match[0])
         print('quick set: ' + ', '.join(sorted(names)), flush=True)
         tests = [t for t in tests if t['name'] in names]
+    if args.systems:
+        systems = set(args.systems.split(','))
+        tests = [t for t in tests if t['system'] in systems]
     if args.only:
         names = set(args.only.split(','))
         tests = [t for t in tests if t['name'] in names]
