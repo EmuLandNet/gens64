@@ -24,6 +24,10 @@ extern int XS, YS, DXS, DYS, XD, YD, XD_Mul, H_Dot;
 void Init_RS_GFX(void);
 int Calcul_Rot_Comp(void);
 
+/* gens64: savestate form of Stamp_Map_Adr, Buffer_Adr, Vector_Adr, Jmp_Adr (official build values) */
+void Gens64_GFX_State_Export(unsigned int v[4]);
+void Gens64_GFX_State_Import(const unsigned int v[4]);
+
 #ifdef __cplusplus
 };
 #endif

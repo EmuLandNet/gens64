@@ -1697,20 +1697,26 @@ int Import_SegaCD(unsigned char * Data)
 		offset = preBramExOffset + sizeof(Ram_Backup_Ex);
 
 		ImportDataAuto(&Rot_Comp, Data, offset, sizeof(Rot_Comp));
-		ImportDataAuto(&Stamp_Map_Adr, Data, offset, 4);
-		ImportDataAuto(&Buffer_Adr, Data, offset, 4);
-		ImportDataAuto(&Vector_Adr, Data, offset, 4);
-		ImportDataAuto(&Jmp_Adr, Data, offset, 4);
-		ImportDataAuto(&Float_Part, Data, offset, 4);
-		ImportDataAuto(&Draw_Speed, Data, offset, 4);
-		ImportDataAuto(&XS, Data, offset, 4);
-		ImportDataAuto(&YS, Data, offset, 4);
-		ImportDataAuto(&DXS, Data, offset, 4);
-		ImportDataAuto(&DYS, Data, offset, 4);
-		ImportDataAuto(&XD, Data, offset, 4);
-		ImportDataAuto(&YD, Data, offset, 4);
-		ImportDataAuto(&XD_Mul, Data, offset, 4);
-		ImportDataAuto(&H_Dot, Data, offset, 4);
+		{
+			// gens64: the graphics ASIC keeps host pointers (into Word RAM and to its drawing routine);
+			// states hold them as the official r341 build has them, see gfx_cd_asm.c
+			unsigned int gfxPtr[4];
+			ImportDataAuto(&gfxPtr[0], Data, offset, 4);
+			ImportDataAuto(&gfxPtr[1], Data, offset, 4);
+			ImportDataAuto(&gfxPtr[2], Data, offset, 4);
+			ImportDataAuto(&gfxPtr[3], Data, offset, 4);
+			ImportDataAuto(&Float_Part, Data, offset, 4);
+			ImportDataAuto(&Draw_Speed, Data, offset, 4);
+			ImportDataAuto(&XS, Data, offset, 4);
+			ImportDataAuto(&YS, Data, offset, 4);
+			ImportDataAuto(&DXS, Data, offset, 4);
+			ImportDataAuto(&DYS, Data, offset, 4);
+			ImportDataAuto(&XD, Data, offset, 4);
+			ImportDataAuto(&YD, Data, offset, 4);
+			ImportDataAuto(&XD_Mul, Data, offset, 4);
+			ImportDataAuto(&H_Dot, Data, offset, 4);
+			Gens64_GFX_State_Import(gfxPtr);
+		}
 
 		ImportDataAuto(&Context_sub68K.cycles_needed, Data, offset, 44);
 		ImportDataAuto(&Rom_Data[0x72], Data, offset, 2); 	//Sega CD games can overwrite the low two bytes of the Horizontal Interrupt vector
@@ -1930,10 +1936,14 @@ void Export_SegaCD(unsigned char * Data)
 
 
 		ExportDataAuto(&Rot_Comp, Data, offset, sizeof(Rot_Comp));
-		ExportDataAuto(&Stamp_Map_Adr, Data, offset, 4);
-		ExportDataAuto(&Buffer_Adr, Data, offset, 4);
-		ExportDataAuto(&Vector_Adr, Data, offset, 4);
-		ExportDataAuto(&Jmp_Adr, Data, offset, 4);
+		{
+			unsigned int gfxPtr[4];	// gens64: official-build values, see gfx_cd_asm.c
+			Gens64_GFX_State_Export(gfxPtr);
+			ExportDataAuto(&gfxPtr[0], Data, offset, 4);
+			ExportDataAuto(&gfxPtr[1], Data, offset, 4);
+			ExportDataAuto(&gfxPtr[2], Data, offset, 4);
+			ExportDataAuto(&gfxPtr[3], Data, offset, 4);
+		}
 		ExportDataAuto(&Float_Part, Data, offset, 4);
 		ExportDataAuto(&Draw_Speed, Data, offset, 4);
 		ExportDataAuto(&XS, Data, offset, 4);
