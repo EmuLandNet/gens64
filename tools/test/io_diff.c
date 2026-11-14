@@ -3,7 +3,8 @@
  * Build (see tools/test/io_diff.sh): the original io.obj with every symbol prefixed by "orig_",
  * linked with src/io_asm.c. Both sides get the same random controller state; then the same random
  * sequence of port reads/writes, Fix_Controllers and Make_IO_Table runs on each, comparing the read
- * values, the 448-byte controller block, Lag_Frame and the ecx/edx preservation the asm callers need.
+ * values and the 448-byte controller block and Lag_Frame. (The C functions are called directly: the asm
+ * thunks keeping ecx/edx for asm callers are gone.)
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,7 +23,8 @@ extern void orig_make(void) __asm__("orig_Make_IO_Table");
 
 extern unsigned char Controller_1_State[448];
 extern unsigned char Lag_Frame;
-extern void RD_Controller_1(void), RD_Controller_2(void), WR_Controller_1(void), WR_Controller_2(void);
+unsigned int RD_Controller_1(void), RD_Controller_2(void);
+void WR_Controller_1(unsigned int), WR_Controller_2(unsigned int);
 void Fix_Controllers(void);
 void Make_IO_Table(void);
 
@@ -97,21 +99,20 @@ int main(int argc, char **argv)
 
 		for (i = 0; i < 64; i++, step++)
 		{
-			unsigned int op = rnd() % 16, ra, rc, c1, d1, c2, d2, arg;
+			unsigned int op = rnd() % 16, ra, rc, c1, d1, arg;
 			const char *what;
 			switch (op)
 			{
 			case 0: case 1: case 2: case 3: case 4: case 5:
 				what = (op & 1) ? "RD_Controller_2" : "RD_Controller_1";
 				ra = call_rd((op & 1) ? orig_rd2 : orig_rd1, &c1, &d1);
-				rc = call_rd((op & 1) ? RD_Controller_2 : RD_Controller_1, &c2, &d2);
+				rc = (op & 1) ? RD_Controller_2() : RD_Controller_1();
 				reads++;
 				if (((unsigned int *)orig_blk)[(op & 1) ? 21 : 4] & 0x10)
 					tp_reads++;
-				if (ra != rc || c2 != 0x11111111 || d2 != 0x22222222)
+				if (ra != rc)
 				{
-					printf("MISMATCH %s step %ld: asm %08x c %08x (c ecx %08x edx %08x)\n",
-					       what, step, ra, rc, c2, d2);
+					printf("MISMATCH %s step %ld: asm %08x c %08x\n", what, step, ra, rc);
 					return 1;
 				}
 				break;
@@ -119,13 +120,11 @@ int main(int argc, char **argv)
 				what = (op & 1) ? "WR_Controller_2" : "WR_Controller_1";
 				arg = (rnd() & 1) ? (rnd() & 0xFF) : rnd();
 				ra = call_wr((op & 1) ? orig_wr2 : orig_wr1, arg, &c1, &d1);
-				rc = call_wr((op & 1) ? WR_Controller_2 : WR_Controller_1, arg, &c2, &d2);
-				if ((ra & 0xFF) != (rc & 0xFF) || c2 != 0x11111111 || d2 != 0x22222222)
-				{
-					printf("MISMATCH %s step %ld: al asm %02x c %02x (ecx %08x edx %08x)\n",
-					       what, step, ra & 0xFF, rc & 0xFF, c2, d2);
-					return 1;
-				}
+				if (op & 1)
+					WR_Controller_2(arg);
+				else
+					WR_Controller_1(arg);
+				(void)ra;
 				break;
 			case 13: case 14:
 				what = "Fix_Controllers";

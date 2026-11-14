@@ -19,7 +19,7 @@ typedef unsigned int u32;
 
 #define PCM_CHIP_SIZE (16 + 8 * 44)
 #define VARS \
-	X(rot, 36, "Rot_Comp.Reg_58", "orig_Rot_Comp.Reg_58") \
+	X(rot, 36, "_Rot_Comp", "orig_Rot_Comp.Reg_58") \
 	X(cd_timer, 4, "_CD_Timer_Counter", "orig__CD_Timer_Counter") \
 	X(pcm, PCM_CHIP_SIZE, "_PCM_Chip", "orig__PCM_Chip") \
 	X(ram_pcm, 0x10000 + 16, "_Ram_PCM", "orig__Ram_PCM")
@@ -170,8 +170,16 @@ void regcall(void *fn, u32 adr, u32 data, u32 *out);
 
 extern u8 o_RB[] __asm__("orig_S68K_RB"), o_RW[] __asm__("orig_S68K_RW"), o_WB[] __asm__("orig_S68K_WB");
 extern u8 o_WW[] __asm__("orig_S68K_WW"), o_TIM[] __asm__("orig_Update_SegaCD_Timer");
-extern u8 p_RB[] __asm__("_S68K_RB"), p_RW[] __asm__("_S68K_RW"), p_WB[] __asm__("_S68K_WB");
-extern u8 p_WW[] __asm__("_S68K_WW"), p_TIM[] __asm__("_Update_SegaCD_Timer");
+/* port side: plain C functions, called the way Starscream's C translation does (star2c): its ecx/edx
+   are kept across the call, except that S68K_RW may give ecx through gens64_s68k_ecx(_set) */
+#define PKEEP(n, f) "_" #n ":\n\tpushl %ecx\n\tpushl %edx\n\tpushl 16(%esp)\n\tpushl 16(%esp)\n\tcall _" #f "\n\taddl $8, %esp\n\tpopl %edx\n\tpopl %ecx\n\tret\n"
+__asm__(".text\n"
+	PKEEP(pw_RB, S68K_RB) PKEEP(pw_WB, S68K_WB) PKEEP(pw_WW, S68K_WW) PKEEP(pw_TIM, Update_SegaCD_Timer)
+	"_pw_RW:\n\tpushl %ecx\n\tpushl %edx\n\tmovl $0, _gens64_s68k_ecx_set\n\tpushl 16(%esp)\n\tpushl 16(%esp)\n"
+	"\tcall _S68K_RW\n\taddl $8, %esp\n\tpopl %edx\n\tpopl %ecx\n"
+	"\tcmpl $0, _gens64_s68k_ecx_set\n\tje 1f\n\tmovl _gens64_s68k_ecx, %ecx\n1:\tret\n");
+extern u8 p_RB[] __asm__("_pw_RB"), p_RW[] __asm__("_pw_RW"), p_WB[] __asm__("_pw_WB");
+extern u8 p_WW[] __asm__("_pw_WW"), p_TIM[] __asm__("_pw_TIM");
 static void *entry[2][5];
 static const char *opname[5] = { "RB", "RW", "WB", "WW", "TIMER" };
 

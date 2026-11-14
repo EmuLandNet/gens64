@@ -1,10 +1,10 @@
 /* gens64: Z80 memory map, C port of Mem_Z80.asm (r341).
  *
  * Bit-exact replacement: same symbols and calling conventions, same quirks.
- *  - Handlers are __fastcall (address in ecx, data in edx), called from z80.asm through the
- *    M_Z80 tables (Cpu_Z80.c) and from Mem_M68k.asm through Z80_ReadB_Table / Z80_WriteB_Table.
- *    The full 32-bit ecx/edx values are passed on exactly as the asm did (callees such as
- *    PSG_Write take an int).
+ *  - Handlers are __fastcall (address, data), called by the Z80 core through the M_Z80 tables
+ *    (Cpu_Z80.c) and by Mem_M68k through Z80_ReadB_Table / Z80_WriteB_Table. The full 32-bit
+ *    values are passed on as the asm did (callees such as PSG_Write take an int). What the asm
+ *    read handlers left in eax/ecx/edx for the Z80 core is given by Z80_Read_Regs.
  *  - Some asm handlers reused ecx/edx after calling C code compiled by MSVC. Where that matters
  *    the behaviour of the official MSVC build is reproduced (checked in its disassembly):
  *      Z80_WriteW_YM2612: YM2612_Write leaves ecx/edx untouched for register 0 and 2 writes, so the
@@ -32,16 +32,12 @@ extern unsigned int Read_VDP_H_Counter(void);
 extern unsigned int Read_VDP_V_Counter(void);
 
 /* Ram_Z80 and Bank_Z80 are adjacent, as in the asm .bss: a word access at 0x1FFF touches the low
-   byte of Bank_Z80. Mem_M68k.asm also refers to undecorated names: provide those as aliases. */
+   byte of Bank_Z80. */
 struct gens64_z80mem { unsigned char ram[8 * 1024]; int bank; };
 __attribute__((aligned(64), nocommon)) struct gens64_z80mem gens64_z80mem;
 __asm__(
 	".globl _Ram_Z80\n.set _Ram_Z80, _gens64_z80mem\n"
-	".globl Ram_Z80\n.set Ram_Z80, _gens64_z80mem\n"
-	".globl _Bank_Z80\n.set _Bank_Z80, _gens64_z80mem+8192\n"
-	".globl Bank_Z80\n.set Bank_Z80, _gens64_z80mem+8192\n"
-	".globl Z80_ReadB_Table\n.set Z80_ReadB_Table, _Z80_ReadB_Table\n"
-	".globl Z80_WriteB_Table\n.set Z80_WriteB_Table, _Z80_WriteB_Table\n");
+	".globl _Bank_Z80\n.set _Bank_Z80, _gens64_z80mem+8192\n");
 
 static void unverified(const char *what)
 {
@@ -102,25 +98,45 @@ unsigned short __fastcall Z80_ReadW_YM2612(unsigned int Adr)
 	return (unsigned char)YM2612_Read();
 }
 
-/* Outside 0x7F04-0x7F09 the asm returns with only al cleared ("mov al, 0"): ah keeps what eax
-   held on entry (the Z80 core's F register), and z80.asm stores the whole ax. That needs asm. */
-unsigned short __fastcall gens64_Z80_ReadW_PSG_io(unsigned int Adr);
-__asm__(
-	".text\n.globl @Z80_ReadW_PSG@4\n"
-	"@Z80_ReadW_PSG@4:\n"
-	"	cmpl $0x7F04, %ecx\n	jb 1f\n"
-	"	cmpl $0x7F09, %ecx\n	ja 1f\n"
-	"	jmp @gens64_Z80_ReadW_PSG_io@4\n"
-	"1:	movb $0, %al\n	ret\n");
-
-unsigned short __fastcall gens64_Z80_ReadW_PSG_io(unsigned int Adr)
+/* Outside 0x7F04-0x7F09 the asm returned with only al cleared ("mov al, 0"): ah kept what eax held
+   on entry. Z80_Read_Regs gives the Z80 core that value (its F register); here (C callers) 0. */
+unsigned short __fastcall Z80_ReadW_PSG(unsigned int Adr)
 {
+	if (Adr < 0x7F04 || Adr > 0x7F09) return 0;
 	if (Adr < 0x7F08) return (unsigned short)Read_VDP_Status();
 	{
 		unsigned int v = Read_VDP_V_Counter() & 0xFF;
 		unsigned int h = Read_VDP_H_Counter() & 0xFF;
 		return (unsigned short)((v << 8) | h);
 	}
+}
+
+/* Registers the asm read handlers left to the Z80 core (z80_asm.c), which goes on using ecx (CH:
+   the memory region of the next access, e.g. BIT b,(HL)) and edx (upper bits of later data):
+   fn = the handler, word = word read, v = its result, af = eax on entry (A | F << 8), adr = ecx on
+   entry; *ecx / *edx = the registers before the call, updated; returns eax as the asm left it. */
+unsigned int Z80_Read_Regs(void *fn, int word, unsigned int v, unsigned int af, unsigned int adr,
+                           unsigned int *ecx, unsigned int *edx)
+{
+	if (fn == (void *)Z80_ReadB_Ram || fn == (void *)Z80_ReadW_Ram)
+		*ecx = adr & 0x1FFF;
+	else if (fn == (void *)Z80_ReadB_YM2612 || fn == (void *)Z80_ReadW_YM2612)
+		*ecx = adr & 3;
+	else if (fn == (void *)Z80_ReadB_68K_Ram)
+		*ecx = (adr & 0x7FFF) + (unsigned int)Bank_Z80;
+	else if (fn == (void *)Z80_ReadW_68K_Ram)
+	{
+		*ecx = (adr & 0x7FFF) + (unsigned int)Bank_Z80 + 1;
+		*edx = (*edx & ~0xFFu) | (v & 0xFF);
+	}
+	else if (fn == (void *)Z80_ReadW_PSG)
+	{
+		if (adr < 0x7F04 || adr > 0x7F09)
+			return af & 0xFF00;
+		if (adr >= 0x7F08)
+			*ecx = (*ecx & ~0xFFu) | (v >> 8);
+	}
+	return v;
 }
 
 unsigned short __fastcall Z80_ReadW_68K_Ram(unsigned int Adr)

@@ -29,8 +29,7 @@ __attribute__((aligned(64))) struct gens64_32x_vdp gens64_32x_vdp = { { 0 } };
 typedef char gens64_32x_vdp_check[(sizeof(struct gens64_32x_vdp) == 0xA0818) ? 1 : -1];
 
 #define X32_ALIAS(name, off) \
-	".globl __" #name "\n.set __" #name ", _gens64_32x_vdp+" #off "\n" \
-	".globl _" #name "\n.set _" #name ", _gens64_32x_vdp+" #off "\n"
+	".globl __" #name "\n.set __" #name ", _gens64_32x_vdp+" #off "\n"
 __asm__(
 	X32_ALIAS(32X_Palette_16B, 0x0)
 	X32_ALIAS(32X_Palette_32B, 0x20000)

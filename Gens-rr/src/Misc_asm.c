@@ -250,9 +250,7 @@ __attribute__((aligned(64))) unsigned char gens64_misc_data[MISC_DATA_PADDED] =
 	0x1F, 0xF8, 0x1F, 0xF8, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
 };
-__asm__(
-	".globl _Small_Font_Data\n.set _Small_Font_Data, _gens64_misc_data\n"
-	".globl Small_Font_Data\n.set Small_Font_Data, _gens64_misc_data\n");
+__asm__(".globl _Small_Font_Data\n.set _Small_Font_Data, _gens64_misc_data\n");
 
 #define FONT (gens64_misc_data)
 #define PAL_BLANC_15 0xA9C
@@ -270,10 +268,6 @@ __asm__(
 #define MASK_OFF 0xC9C
 
 int CPU_Model = 0, Have_MMX = 0, MMX_Enable = 0;
-__asm__(
-	".globl CPU_Model\n.set CPU_Model, _CPU_Model\n"
-	".globl Have_MMX\n.set Have_MMX, _Have_MMX\n"
-	".globl MMX_Enable\n.set MMX_Enable, _MMX_Enable\n");
 
 typedef unsigned char u8;
 typedef unsigned short u16;

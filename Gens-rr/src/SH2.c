@@ -61,7 +61,7 @@ typedef enum __ifmt
 } _IFMT;
 
 
-typedef void SH2_INST_CALL();
+typedef SH2_INST SH2_INST_CALL;
 
 
 typedef struct
@@ -362,40 +362,43 @@ PACKED_OP_TAB InitOpDS[] =
 /*******************************/
 
 
-UINT8 FASTCALL Def_READB(UINT32 adr)
+UINT32 Def_READB(UINT32 adr, UINT32 data, UINT32 eax, SH2_CONTEXT *ctx)
 {
 	SH2_LOG1("SH2 read byte at %.8X\n", adr)
 
 	return 0;
 }
 
-UINT16 FASTCALL Def_READW(UINT32 adr)
+UINT32 Def_READW(UINT32 adr, UINT32 data, UINT32 eax, SH2_CONTEXT *ctx)
 {
 	SH2_LOG1("SH2 read word at %.8X\n", adr)
 
 	return 0;
 }
 
-UINT32 FASTCALL Def_READL(UINT32 adr)
+UINT32 Def_READL(UINT32 adr, UINT32 data, UINT32 eax, SH2_CONTEXT *ctx)
 {
 	SH2_LOG1("SH2 read long at %.8X\n", adr)
 
 	return 0;
 }
 
-void FASTCALL Def_WRITEB(UINT32 adr, UINT8 data)
+UINT32 Def_WRITEB(UINT32 adr, UINT32 data, UINT32 eax, SH2_CONTEXT *ctx)
 {
 	SH2_LOG2("SH2 write byte %.2X at %.8X\n", data, adr)
+	return 0;
 }
 
-void FASTCALL Def_WRITEW(UINT32 adr, UINT16 data)
+UINT32 Def_WRITEW(UINT32 adr, UINT32 data, UINT32 eax, SH2_CONTEXT *ctx)
 {
 	SH2_LOG2("SH2 write word %.4X at %.8X\n", data, adr)
+	return 0;
 }
 
-void FASTCALL Def_WRITEL(UINT32 adr, UINT32 data)
+UINT32 Def_WRITEL(UINT32 adr, UINT32 data, UINT32 eax, SH2_CONTEXT *ctx)
 {
 	SH2_LOG2("SH2 write long %.8X at %.8X\n", data, adr)
+	return 0;
 }
 
 

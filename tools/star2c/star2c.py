@@ -671,7 +671,7 @@ class Gen:
             hk = '_cd'
         else:
             o.append('u32 M68K_RB(u32);\nu32 M68K_RW(u32);\nvoid M68K_WB(u32, u32);\nvoid M68K_WW(u32, u32);\n')
-            o.append('#ifndef STAR_INT_ACK\n#define STAR_INT_ACK gens64_Int_Ack\n#endif\nu32 STAR_INT_ACK(void);\n')
+            o.append('#ifndef STAR_INT_ACK\n#define STAR_INT_ACK Int_Ack\n#endif\nu32 STAR_INT_ACK(void);\n')
             hk = ''
         for h in ('exec', 'read_byte', 'read_word', 'read_dword', 'write_byte', 'write_word', 'write_dword'):
             o.append('void hook_%s%s(void);\n' % (h, hk))
@@ -730,10 +730,9 @@ class Gen:
         params = ', '.join('u32 a%d' % i for i in range(len(args))) or 'void'
         cname = '%s%s' % (p, name)
         if rt == 'eax':
-            cname = 'gens64_%s%s' % (p, name)
-            params = 'u32 a_eax'
+            params = 'u32 a_eax'   # (the asm took the argument in eax)
         s = []
-        s.append('%s %s(%s)\n{\n' % ('u32' if rt in ('u32', 'eax') else 'void', cname, params))
+        s.append('%s %s(%s)\n{\n' % ('u32' if rt == 'u32' else 'void', cname, params))
         s.append('\tu32 r, s[8];\n\tFL sf = Fg;\n\tSAVE_REGS(s);\n\tif (!esp)\n\t\tesp = (u32)(stack_mem + sizeof(stack_mem));\n')
         if rt == 'eax':
             s.append('\teax = a_eax;\n')
@@ -747,11 +746,7 @@ class Gen:
         if args:
             s.append('\tesp += %d;\n' % (4 * len(args)))
         s.append('\tr = eax;\n\tRESTORE_REGS(s);\n\tFg = sf;\n')
-        s.append('\treturn r;\n}\n' if rt in ('u32', 'eax') else '\t(void)r;\n}\n')
-        if rt == 'eax':
-            # asm entry taking the argument in eax
-            s.append('__asm__(".globl _%s%s\\n_%s%s:\\n\\tpushl %%ecx\\n\\tpushl %%edx\\n\\tpushl %%eax\\n'
-                     '\\tcall _%s\\n\\taddl $4, %%esp\\n\\tpopl %%edx\\n\\tpopl %%ecx\\n\\tret\\n");\n' % (p, name, p, name, cname))
+        s.append('\treturn r;\n}\n' if rt == 'u32' else '\t(void)r;\n}\n')
         return ''.join(s)
 
 

@@ -26,6 +26,8 @@ unsigned short __fastcall Z80_ReadW_Bank(unsigned int Adr);
 unsigned short __fastcall Z80_ReadW_YM2612(unsigned int Adr);
 unsigned short __fastcall Z80_ReadW_PSG(unsigned int Adr);
 unsigned short __fastcall Z80_ReadW_68K_Ram(unsigned int Adr);
+unsigned int Z80_Read_Regs(void *fn, int word, unsigned int v, unsigned int af, unsigned int adr,
+                           unsigned int *ecx, unsigned int *edx);
 
 void __fastcall Z80_WriteB_Bad(unsigned int Adr, unsigned int Data);
 void __fastcall Z80_WriteB_Ram(unsigned int Adr, unsigned int Data);

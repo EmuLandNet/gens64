@@ -72,10 +72,10 @@ __asm__(
 	".globl orig__main68k_interrupt\norig__main68k_interrupt:\n"
 	"\tmovl _nlog_o, %eax\n\tandl $63, %eax\n\tpushl 4(%esp)\n\tpopl _log_o(,%eax,4)\n"
 	"\tincl _nlog_o\n\txorl %eax, %eax\n\tret\n"
-	".globl _main68k_releaseCycles\n_main68k_releaseCycles:\n"
-	"\taddl %eax, _rel_c\n\tret\n"
 	".globl orig__main68k_releaseCycles\norig__main68k_releaseCycles:\n"
 	"\taddl %eax, _rel_o\n\tret\n");
+
+void main68k_releaseCycles(u32 c) { rel_c += c; }
 
 /* module state of both sides */
 #define BSS_SIZE 0x1070C
@@ -88,8 +88,9 @@ extern u8 o_genesis_started[] __asm__("orig_Genesis_Started");
 /* entry points */
 extern void Reset_VDP(void), Update_IRQ_Line(void), Set_VDP_Reg(int, int);
 extern u32 Update_DMA(void);
-extern void Read_VDP_Data(void), Read_VDP_Status(void), Read_VDP_H_Counter(void), Read_VDP_V_Counter(void);
-extern void Write_Byte_VDP_Data(void), Write_Word_VDP_Data(void), Write_VDP_Ctrl(void), Int_Ack(void);
+extern u32 Read_VDP_Data(void), Read_VDP_Status(void), Read_VDP_H_Counter(void), Read_VDP_V_Counter(void);
+extern void Write_Byte_VDP_Data(u32), Write_Word_VDP_Data(u32), Write_VDP_Ctrl(u32);
+extern u32 Int_Ack(void);
 extern void o_Reset_VDP(void) __asm__("orig_Reset_VDP");
 extern void o_Update_IRQ_Line(void) __asm__("orig_Update_IRQ_Line");
 extern void o_Set_VDP_Reg(int, int) __asm__("orig_Set_VDP_Reg");
@@ -114,6 +115,17 @@ static u32 call(fn_t f, u32 eax, int has_arg, u32 arg, u32 *c, u32 *d)
 		__asm__ volatile("call *%3" : "=a"(a), "=c"(*c), "=d"(*d)
 		                 : "S"(f), "0"(eax), "1"(0x11111111), "2"(0x22222222) : "ebx", "memory", "cc");
 	return a;
+}
+
+/* the C side is called directly (no thunks any more) */
+static u32 port_call(fn_t f, int has_arg, u32 arg)
+{
+	if (has_arg)
+	{
+		((void (*)(u32))f)(arg);
+		return 0;
+	}
+	return ((u32 (*)(void))f)();
 }
 
 static u32 rng = 77;
@@ -257,15 +269,13 @@ static void both(const char *what, fn_t fo, fn_t fc, int has_arg, u32 arg, long 
 {
 	u32 c, d;
 	call(fo, 0, has_arg, arg, &c, &d);
-	call(fc, 0, has_arg, arg, &c, &d);
-	if (c != 0x11111111 || d != 0x22222222)
-		report(what, step, "ecx/edx not preserved");
+	port_call(fc, has_arg, arg);
 	compare_state(what, step);
 }
 
 static void reg_write(u32 reg, u32 v, long step)
 {
-	both("Write_VDP_Ctrl (directed)", o_Write_VDP_Ctrl, Write_VDP_Ctrl, 1, 0x8000 | (reg << 8) | (v & 0xFF), step);
+	both("Write_VDP_Ctrl (directed)", o_Write_VDP_Ctrl, (fn_t)Write_VDP_Ctrl, 1, 0x8000 | (reg << 8) | (v & 0xFF), step);
 }
 
 /* a DMA set up explicitly: kind 0 memory -> VRAM/CRAM/VSRAM, 1 fill, 2 copy */
@@ -298,11 +308,11 @@ static void directed_dma(long step)
 	first = (addr & 0x3FFF) | ((cd & 3) << 14);
 	second = (addr >> 14) | ((cd & 0x3C) << 2);
 	if (get32(o_bss, OFF_CTRL) & 1)	/* finish a pending address set first */
-		both("Write_VDP_Ctrl (directed)", o_Write_VDP_Ctrl, Write_VDP_Ctrl, 1, 0, step);
-	both("Write_VDP_Ctrl (DMA first word)", o_Write_VDP_Ctrl, Write_VDP_Ctrl, 1, first, step);
-	both("Write_VDP_Ctrl (DMA second word)", o_Write_VDP_Ctrl, Write_VDP_Ctrl, 1, second, step);
+		both("Write_VDP_Ctrl (directed)", o_Write_VDP_Ctrl, (fn_t)Write_VDP_Ctrl, 1, 0, step);
+	both("Write_VDP_Ctrl (DMA first word)", o_Write_VDP_Ctrl, (fn_t)Write_VDP_Ctrl, 1, first, step);
+	both("Write_VDP_Ctrl (DMA second word)", o_Write_VDP_Ctrl, (fn_t)Write_VDP_Ctrl, 1, second, step);
 	if (kind == 1)
-		both("Write_Word_VDP_Data (fill)", o_Write_Word_VDP_Data, Write_Word_VDP_Data, 1, rnd(), step);
+		both("Write_Word_VDP_Data (fill)", o_Write_Word_VDP_Data, (fn_t)Write_Word_VDP_Data, 1, rnd(), step);
 	directed[kind][kind == 0 ? cls : 0]++;
 }
 
@@ -342,33 +352,33 @@ int main(int argc, char **argv)
 			switch (op)
 			{
 			case 0: case 1: case 2: case 3: case 4: case 5: case 6:
-				what = "Write_VDP_Ctrl"; fo = o_Write_VDP_Ctrl; fc = Write_VDP_Ctrl;
+				what = "Write_VDP_Ctrl"; fo = o_Write_VDP_Ctrl; fc = (fn_t)Write_VDP_Ctrl;
 				has_arg = 1; arg = ctrl_word(); check_eax = 0;
 				if ((arg & 0xC000) != 0x8000 && (get32(o_bss, OFF_CTRL) & 1))
 					dmas++;
 				break;
 			case 7: case 8: case 9: case 10:
-				what = "Write_Word_VDP_Data"; fo = o_Write_Word_VDP_Data; fc = Write_Word_VDP_Data;
+				what = "Write_Word_VDP_Data"; fo = o_Write_Word_VDP_Data; fc = (fn_t)Write_Word_VDP_Data;
 				has_arg = 1; arg = rnd(); check_eax = 0;
 				break;
 			case 11: case 12:
-				what = "Write_Byte_VDP_Data"; fo = o_Write_Byte_VDP_Data; fc = Write_Byte_VDP_Data;
+				what = "Write_Byte_VDP_Data"; fo = o_Write_Byte_VDP_Data; fc = (fn_t)Write_Byte_VDP_Data;
 				has_arg = 1; arg = rnd(); check_eax = 0;
 				break;
 			case 13: case 14:
-				what = "Read_VDP_Data"; fo = o_Read_VDP_Data; fc = Read_VDP_Data;
+				what = "Read_VDP_Data"; fo = o_Read_VDP_Data; fc = (fn_t)Read_VDP_Data;
 				break;
 			case 15: case 16:
-				what = "Read_VDP_Status"; fo = o_Read_VDP_Status; fc = Read_VDP_Status;
+				what = "Read_VDP_Status"; fo = o_Read_VDP_Status; fc = (fn_t)Read_VDP_Status; mask = 0xFFFF;	/* (the asm sets ax only) */
 				break;
 			case 17:
-				what = "Read_VDP_H_Counter"; fo = o_Read_VDP_H_Counter; fc = Read_VDP_H_Counter;
+				what = "Read_VDP_H_Counter"; fo = o_Read_VDP_H_Counter; fc = (fn_t)Read_VDP_H_Counter;
 				break;
 			case 18:
-				what = "Read_VDP_V_Counter"; fo = o_Read_VDP_V_Counter; fc = Read_VDP_V_Counter;
+				what = "Read_VDP_V_Counter"; fo = o_Read_VDP_V_Counter; fc = (fn_t)Read_VDP_V_Counter;
 				break;
 			case 19:
-				what = "Int_Ack"; fo = o_Int_Ack; fc = Int_Ack; mask = 0xFF;
+				what = "Int_Ack"; fo = o_Int_Ack; fc = (fn_t)Int_Ack; mask = 0xFF;
 				break;
 			case 20:
 				what = "Update_DMA";
@@ -397,9 +407,7 @@ int main(int argc, char **argv)
 			}
 			}
 			ra = call(fo, eax_in, has_arg, arg, &c, &d);
-			rc = call(fc, eax_in, has_arg, arg, &c, &d);
-			if (c != 0x11111111 || d != 0x22222222)
-				report(what, step, "ecx/edx not preserved");
+			rc = port_call(fc, has_arg, arg);
 			if (check_eax && (ra & mask) != (rc & mask))
 			{
 				char b[80];

@@ -122,7 +122,7 @@ unsigned SN##readOdometer     (void);                         \
 unsigned SN##tripOdometer     (void);                         \
 unsigned SN##controlOdometer  (int n);                        \
 void     SN##releaseTimeslice (void);                         \
-void     SN##releaseCycles    (void);                         \
+void     SN##releaseCycles    (unsigned int cycles);           \
 void     SN##addCycles        (int cycles);                   \
 unsigned SN##readPC           (void);                         \
 

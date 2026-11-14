@@ -65,14 +65,16 @@ extern struct {
 
 void Reset_VDP(void);
 unsigned int Update_DMA(void);
-unsigned short Read_VDP_Data(void);
-unsigned short Read_VDP_Status(void);
-unsigned char Read_VDP_H_Counter(void);
-unsigned char Read_VDP_V_Counter(void);
+unsigned int Read_VDP_Data(void);
+unsigned int Read_VDP_Status(void);
+unsigned int Read_VDP_H_Counter(void);
+unsigned int Read_VDP_V_Counter(void);
 int Write_Low_Byte_VDP_Data(unsigned char Data);
 int Write_High_Byte_VDP_Data(unsigned char Data);
-int Write_Word_VDP_Data(unsigned short Data);
-int Write_VDP_Ctrl(unsigned short Data);
+void Write_Byte_VDP_Data(unsigned int Data);
+void Write_Word_VDP_Data(unsigned int Data);
+void Write_VDP_Ctrl(unsigned int Data);
+unsigned int Int_Ack(void);
 int Set_VDP_Reg(int Num_Reg, int Val);
 void Update_IRQ_Line(void);
 

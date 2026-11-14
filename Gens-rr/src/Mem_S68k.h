@@ -30,10 +30,14 @@ extern unsigned int Font_COLOR;
 extern unsigned int Font_BITS;
 extern unsigned int CD_Access_Timer;
 
-unsigned char S68K_RB(unsigned int Adr);
-unsigned short S68K_RW(unsigned int Adr);
-void S68K_WB(unsigned int Adr, unsigned char Data);
-void S68K_WW(unsigned int Adr, unsigned short Data);
+/* gens64: S68K_RB / S68K_RW return eax as the read handler left it (Starscream uses all of it);
+   the macros give C/C++ callers the byte / word, as the narrow return types of the asm days did */
+unsigned int S68K_RB(unsigned int Adr);
+unsigned int S68K_RW(unsigned int Adr);
+#define S68K_RB(a) ((unsigned char)S68K_RB(a))
+#define S68K_RW(a) ((unsigned short)S68K_RW(a))
+void S68K_WB(unsigned int Adr, unsigned int Data);
+void S68K_WW(unsigned int Adr, unsigned int Data);
 
 #ifdef __cplusplus
 };

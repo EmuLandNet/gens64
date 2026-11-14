@@ -45,8 +45,7 @@ unsigned char Lag_Frame = 0;
 typedef char gens64_io_layout_check[(sizeof(struct gens64_io) == 448) ? 1 : -1];
 
 #define IO_ALIAS(name, off) \
-	".globl _" #name "\n.set _" #name ", _gens64_io+" off "\n" \
-	".globl " #name "\n.set " #name ", _gens64_io+" off "\n"
+	".globl _" #name "\n.set _" #name ", _gens64_io+" off "\n"
 #define PAD_ALIASES(p, base) \
 	IO_ALIAS(Controller_##p##_Type, base "+0") \
 	IO_ALIAS(Controller_##p##_Up, base "+4") \
@@ -201,7 +200,7 @@ static unsigned int team_player_2(void)
 	return read_pad(p, phase, P1.State & 0x40, P1.pad.Start, P1.pad.A);
 }
 
-unsigned int gens64_RD_Controller_1(void)
+unsigned int RD_Controller_1(void)
 {
 	Lag_Frame = 0;
 	if (P1.pad.Type & 0x10)
@@ -213,7 +212,7 @@ unsigned int gens64_RD_Controller_1(void)
 	return read_port(&P1);
 }
 
-unsigned int gens64_RD_Controller_2(void)
+unsigned int RD_Controller_2(void)
 {
 	Lag_Frame = 0;
 	if (P2.pad.Type & 0x10)
@@ -221,7 +220,7 @@ unsigned int gens64_RD_Controller_2(void)
 	return read_port(&P2);
 }
 
-void gens64_WR_Controller_1(unsigned int data)
+void WR_Controller_1(unsigned int data)
 {
 	unsigned char d = (unsigned char)data;
 
@@ -233,7 +232,7 @@ void gens64_WR_Controller_1(unsigned int data)
 	LOW_BYTE(P1.State) = d;
 }
 
-void gens64_WR_Controller_2(unsigned int data)
+void WR_Controller_2(unsigned int data)
 {
 	unsigned char d = (unsigned char)data;
 
@@ -247,24 +246,6 @@ void gens64_WR_Controller_2(unsigned int data)
 	LOW_BYTE(P2.State) = d;
 }
 
-/* The asm callers expect eax/ebx clobbered and ecx/edx preserved. */
-__asm__(
-	".pushsection .text\n"
-	".globl _RD_Controller_1\n.globl RD_Controller_1\n"
-	"_RD_Controller_1:\nRD_Controller_1:\n"
-	"\tpushl %ecx\n\tpushl %edx\n\tcall _gens64_RD_Controller_1\n\tpopl %edx\n\tpopl %ecx\n\tret\n"
-	".globl _RD_Controller_2\n.globl RD_Controller_2\n"
-	"_RD_Controller_2:\nRD_Controller_2:\n"
-	"\tpushl %ecx\n\tpushl %edx\n\tcall _gens64_RD_Controller_2\n\tpopl %edx\n\tpopl %ecx\n\tret\n"
-	".globl _WR_Controller_1\n.globl WR_Controller_1\n"
-	"_WR_Controller_1:\nWR_Controller_1:\n"
-	"\tpushl %ecx\n\tpushl %edx\n\tpushl 12(%esp)\n\tcall _gens64_WR_Controller_1\n"
-	"\taddl $4, %esp\n\tpopl %edx\n\tpopl %ecx\n\tmovb 4(%esp), %al\n\tret\n"
-	".globl _WR_Controller_2\n.globl WR_Controller_2\n"
-	"_WR_Controller_2:\nWR_Controller_2:\n"
-	"\tpushl %ecx\n\tpushl %edx\n\tpushl 12(%esp)\n\tcall _gens64_WR_Controller_2\n"
-	"\taddl $4, %esp\n\tpopl %edx\n\tpopl %ecx\n\tmovb 4(%esp), %al\n\tret\n"
-	".popsection\n");
 
 static void fix_delay(struct gens64_port *port)
 {

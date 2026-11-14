@@ -38,11 +38,6 @@ typedef unsigned int u32;
 	X(M_Z80, 16, "_M_Z80", "orig_M_Z80") \
 	X(M_SH2, 16, "_M_SH2", "orig_M_SH2") \
 	X(S_SH2, 16, "_S_SH2", "orig_S_SH2") \
-	X(COMM_Flag, 4, "COMM.Flag", "orig_COMM.Flag") \
-	X(COMM_Command, 16, "COMM.Command", "orig_COMM.Command") \
-	X(COMM_Status, 16, "COMM.Status", "orig_COMM.Status") \
-	X(CDC_RS0, 4, "CDC.RS0", "orig_CDC.RS0") \
-	X(CDC_Stop_Watch, 4, "CDC.Stop_Watch", "orig_CDC.Stop_Watch") \
 	X(x_Comm, 16, "__32X_Comm", "orig__32X_Comm") \
 	X(x_ADEN, 4, "__32X_ADEN", "orig__32X_ADEN") \
 	X(x_RES, 4, "__32X_RES", "orig__32X_RES") \
@@ -80,14 +75,29 @@ typedef unsigned int u32;
 	X(hook_value, 4, "_hook_value", "orig__hook_value") \
 	X(hook_pc, 4, "_hook_pc", "orig__hook_pc")
 
+/* Mem_S68k's variables that the port reaches in gens64_s68k_bss: XB(c name, size, offset, orig asm name) */
+#define BVARS \
+	XB(COMM_Flag, 4, 0x130000, "orig_COMM.Flag") \
+	XB(COMM_Command, 16, 0x130004, "orig_COMM.Command") \
+	XB(COMM_Status, 16, 0x130014, "orig_COMM.Status") \
+	XB(CDC_RS0, 4, 0x130058, "orig_CDC.RS0") \
+	XB(CDC_Stop_Watch, 4, 0x130068, "orig_CDC.Stop_Watch")
+u8 p_s68k_bss[0x130080] __asm__("_gens64_s68k_bss") __attribute__((aligned(16)));
+
 #define X(n, sz, pn, on) u8 P_##n[sz] __asm__(pn) __attribute__((aligned(16))); u8 O_##n[sz] __asm__(on) __attribute__((aligned(16)));
+#define XB(n, sz, off, on) u8 O_##n[sz] __asm__(on) __attribute__((aligned(16)));
 VARS
+BVARS
 #undef X
+#undef XB
 struct var { const char *name; u8 *v[2]; u32 size; };
 static struct var vars[] = {
 #define X(n, sz, pn, on) { #n, { O_##n, P_##n }, sz },
+#define XB(n, sz, off, on) { #n, { O_##n, p_s68k_bss + off }, sz },
 	VARS
+	BVARS
 #undef X
+#undef XB
 };
 #define NVARS (sizeof(vars) / sizeof(vars[0]))
 
@@ -238,7 +248,9 @@ u32 __fastcall s_z80_reset(void *c) { lg(28, ctx_id(c), 0); return val(); }
 u32 __fastcall s_sh2_reset(void *c, u32 m) { lg(29, ctx_id(c), m); return val(); }
 void __fastcall s_sh2_int(void *c, u32 l) { lg(30, ctx_id(c), l); }
 void __fastcall s_sh2_dma(void *c, u8 s) { lg(31, ctx_id(c), s); }
-#define ZR(i) u32 __fastcall s_zr##i(u32 a) { u32 v = val(); lg(32 + i, a, 0); return v; }
+/* Z80 byte handlers return the byte only (the port defines a word read of the window as that
+   byte, ah = 0; the original kept whatever the handler left in ah) */
+#define ZR(i) u32 __fastcall s_zr##i(u32 a) { u32 v = val() & 0xFF; lg(32 + i, a, 0); return v; }
 #define ZW(i) void __fastcall s_zw##i(u32 a, u32 d) { lg(40 + i, a, d & 0xFFFF); }
 ZR(0) ZR(1) ZR(2) ZR(3) ZR(4) ZR(5) ZR(6) ZR(7)
 ZW(0) ZW(1) ZW(2) ZW(3) ZW(4) ZW(5) ZW(6) ZW(7)
@@ -249,11 +261,11 @@ void *o_zwt[8] __asm__("orig_Z80_WriteB_Table") = { s_zw0, s_zw1, s_zw2, s_zw3, 
 
 /* Port side: plain C names (the port calls them from C). */
 #define PC0(n, s) __asm__(".globl _" #n "\n.set _" #n ", _" #s "\n");
-PC0(gens64_Read_VDP_Status, s_vdp_status) PC0(gens64_Read_VDP_Data, s_vdp_data)
-PC0(gens64_Read_VDP_H_Counter, s_vdp_hc) PC0(gens64_Read_VDP_V_Counter, s_vdp_vc)
-PC0(gens64_Write_Byte_VDP_Data, s_vdp_wb) PC0(gens64_Write_Word_VDP_Data, s_vdp_ww)
-PC0(gens64_Write_VDP_Ctrl, s_vdp_ctrl) PC0(gens64_RD_Controller_1, s_rd1) PC0(gens64_RD_Controller_2, s_rd2)
-PC0(gens64_WR_Controller_1, s_wr1) PC0(gens64_WR_Controller_2, s_wr2) PC0(main68k_readOdometer, s_odo)
+PC0(Read_VDP_Status, s_vdp_status) PC0(Read_VDP_Data, s_vdp_data)
+PC0(Read_VDP_H_Counter, s_vdp_hc) PC0(Read_VDP_V_Counter, s_vdp_vc)
+PC0(Write_Byte_VDP_Data, s_vdp_wb) PC0(Write_Word_VDP_Data, s_vdp_ww)
+PC0(Write_VDP_Ctrl, s_vdp_ctrl) PC0(RD_Controller_1, s_rd1) PC0(RD_Controller_2, s_rd2)
+PC0(WR_Controller_1, s_wr1) PC0(WR_Controller_2, s_wr2) PC0(main68k_readOdometer, s_odo)
 PC0(sub68k_reset, s_sub_reset) PC0(sub68k_interrupt, s_sub_int) PC0(M68K_Set_Prg_Ram, s_set_prg)
 PC0(MS68K_Set_Word_Ram, s_set_wram) PC0(M68K_Set_32X_Rom_Bank, s_set_bank) PC0(M68K_32X_Mode, s_32x_mode)
 PC0(_32X_Set_FB, s_set_fb) PC0(YM2612_Reset, s_ym_reset) PC0(PSG_Write, s_psg)
@@ -551,8 +563,8 @@ int main(int argc, char **argv)
 			if ((out[0][0] & m) != (out[1][0] & m))
 				snprintf(why, sizeof(why), "result %08X vs %08X", out[0][0], out[1][0]);
 			else if (out[1][3] != 0x33330000 || out[1][4] != 0x44440000 || out[1][5] != 0x55550000 ||
-			         out[1][6] != 0x66660000 || out[1][1] != 0x11110000)
-				snprintf(why, sizeof(why), "port registers ecx %08X ebx %08X", out[1][1], out[1][3]);
+			         out[1][6] != 0x66660000)
+				snprintf(why, sizeof(why), "port registers ebx %08X", out[1][3]);	/* plain C: ecx/edx are scratch */
 			else if (out[0][3] != 0x33330000 || out[0][4] != 0x44440000 || out[0][5] != 0x55550000 || out[0][6] != 0x66660000)
 				snprintf(why, sizeof(why), "orig registers ebx %08X", out[0][3]);
 			else if (nlog[0] != nlog[1] || memcmp(logv[0], logv[1], (nlog[0] < LOGN ? nlog[0] : LOGN) * 16))

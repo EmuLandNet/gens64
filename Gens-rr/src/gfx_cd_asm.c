@@ -34,7 +34,6 @@ int Table_Rot_Time[64] =
 	0x00009000, 0x00008F00, 0x00008E00, 0x00008D00, 0x00008C00, 0x00008B00, 0x00008A00, 0x00008900,
 	0x00008800, 0x00008700, 0x00008600, 0x00008500, 0x00008400, 0x00008300, 0x00008200, 0x00008100
 };
-__asm__(".globl Table_Rot_Time\n.set Table_Rot_Time, _Table_Rot_Time\n");
 
 /* ---- .bss ---- */
 enum { REG_58, REG_5A, REG_5C, REG_5E, REG_60, REG_62, REG_64, REG_66, ROTATION_RUNNING };
@@ -48,18 +47,9 @@ __attribute__((aligned(64))) struct gens64_gfx gens64_gfx = { { 0 } };
 typedef char gens64_gfx_check[(sizeof(struct gens64_gfx) == 0x5C) ? 1 : -1];
 
 #define GFX_ALIAS(name, off) \
-	".globl _" #name "\n.set _" #name ", _gens64_gfx+" #off "\n" \
-	".globl " #name "\n.set " #name ", _gens64_gfx+" #off "\n"
+	".globl _" #name "\n.set _" #name ", _gens64_gfx+" #off "\n"
 __asm__(
 	GFX_ALIAS(Rot_Comp, 0x00)
-	GFX_ALIAS(Rot_Comp.Reg_58, 0x00)
-	GFX_ALIAS(Rot_Comp.Reg_5A, 0x04)
-	GFX_ALIAS(Rot_Comp.Reg_5C, 0x08)
-	GFX_ALIAS(Rot_Comp.Reg_5E, 0x0C)
-	GFX_ALIAS(Rot_Comp.Reg_60, 0x10)
-	GFX_ALIAS(Rot_Comp.Reg_62, 0x14)
-	GFX_ALIAS(Rot_Comp.Reg_64, 0x18)
-	GFX_ALIAS(Rot_Comp.Reg_66, 0x1C)
 	GFX_ALIAS(Rotation_Running, 0x20)
 	GFX_ALIAS(Stamp_Map_Adr, 0x24)
 	GFX_ALIAS(Buffer_Adr, 0x28)

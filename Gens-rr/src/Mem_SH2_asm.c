@@ -3,13 +3,12 @@
  * (.bss: ROM image, SDRAM, boot ROMs, registers).
  *
  * Bit-exact with the asm (tools/test/sh2mem_diff.sh against the original object). Notes:
- *  - the handlers are called by the asm SH2 core through its tables as fastcall (ecx = address,
- *    edx = data) with ebp = the current SH2 context, and charge their I/O wait states to
- *    ctx->Cycle_IO. Asm thunks pass ecx, edx, eax and ebp to the C functions;
- *  - the caller only uses al / ax / eax of a byte / word / long read; eax on entry is the address
- *    >> 24 (SH2a.asm, non-GCC variant): the PWM pulse word registers set only ah and return that al;
- *  - ecx/edx/eax are clobbered (fastcall), as the core expects. The asm palette word write also
- *    clobbered ebx (never used by the core after a write): not kept.
+ *  - the handlers are called by the SH2 core through its tables (SH2_HANDLER: address, data, eax,
+ *    context; the asm convention was ecx, edx, eax and ebp) and charge their I/O wait states to
+ *    ctx->Cycle_IO;
+ *  - the caller only uses the low byte / word of a byte / word read; eax is what the core had there,
+ *    the address >> 24 (SH2a.asm, non-GCC variant): the PWM pulse word registers set only ah and
+ *    return that al.
  * Quirks kept: see docs/asm-quirks.md.
  */
 #include "SH2.h"
@@ -74,7 +73,7 @@ void __fastcall PWM_Set_Int(unsigned int int_time);
 #define BSS_SIZE 0x440D15
 __attribute__((aligned(64), nocommon)) u8 gens64_sh2mem_bss[BSS_SIZE];
 #define M (gens64_sh2mem_bss)
-#define MA(n, off) ".globl _" #n "\n.set _" #n ", _gens64_sh2mem_bss+" #off "\n.globl " #n "\n.set " #n ", _gens64_sh2mem_bss+" #off "\n"
+#define MA(n, off) ".globl _" #n "\n.set _" #n ", _gens64_sh2mem_bss+" #off "\n"
 __asm__(
 	MA(_32X_Rom, 0x000000) MA(_32X_Ram, 0x400000) MA(_32X_MSH2_Rom, 0x440000) MA(_32X_SSH2_Rom, 0x440800)
 	MA(_MSH2_Reg, 0x440C00) MA(_SSH2_Reg, 0x440C40) MA(_SH2_VDP_Reg, 0x440C80) MA(_32X_Comm, 0x440C90)
@@ -483,7 +482,7 @@ static void wl00(u32 a, u32 d, int slave, SH2_CONTEXT *ctx)
 
 /* ======================= exported handlers ======================= */
 /* C side: (address, edx, eax, context) */
-#define H(n) u32 gens64_##n(u32 a, u32 d, u32 eax, SH2_CONTEXT *ctx)
+#define H(n) u32 n(u32 a, u32 d, u32 eax, SH2_CONTEXT *ctx)
 #define UNUSED (void)d, (void)eax, (void)ctx
 
 H(MSH2_Read_Byte_00) { UNUSED; return rb00(a, 0, ctx); }
@@ -569,18 +568,3 @@ H(SH2_Write_Word_Ram)
 }
 H(SH2_Write_Long_Ram) { UNUSED; WR32(M + O_RAM + (a & 0x3FFFC), BSWAP(d)); return 0; }
 
-/* fastcall entry points (+ the undecorated and cdecl-decorated names of the asm DECLF):
-   ecx = address, edx = data, eax and ebp (current SH2 context) as the core leaves them */
-#define T(n, s) ".globl @" #n "@" #s "\n.globl _" #n "\n.globl " #n "\n@" #n "@" #s ":\n_" #n ":\n" #n ":\n" \
-	"\tpushl %ebp\n\tpushl %eax\n\tpushl %edx\n\tpushl %ecx\n\tcall _gens64_" #n "\n\taddl $16, %esp\n\tret\n"
-__asm__(".text\n"
-	T(MSH2_Read_Byte_00, 4) T(SSH2_Read_Byte_00, 4) T(MSH2_Read_Word_00, 4) T(SSH2_Read_Word_00, 4)
-	T(MSH2_Read_Long_00, 4) T(SSH2_Read_Long_00, 4) T(MSH2_Write_Byte_00, 8) T(SSH2_Write_Byte_00, 8)
-	T(MSH2_Write_Word_00, 8) T(SSH2_Write_Word_00, 8) T(MSH2_Write_Long_00, 8) T(SSH2_Write_Long_00, 8)
-	T(SH2_Read_Byte_Rom, 4) T(SH2_Read_Word_Rom, 4) T(SH2_Read_Long_Rom, 4)
-	T(SH2_Read_Byte_FB0, 4) T(SH2_Read_Byte_FB1, 4) T(SH2_Read_Word_FB0, 4) T(SH2_Read_Word_FB1, 4)
-	T(SH2_Read_Long_FB0, 4) T(SH2_Read_Long_FB1, 4)
-	T(SH2_Read_Byte_Ram, 4) T(SH2_Read_Word_Ram, 4) T(SH2_Read_Long_Ram, 4)
-	T(SH2_Write_Byte_FB0, 8) T(SH2_Write_Byte_FB1, 8) T(SH2_Write_Word_FB0, 8) T(SH2_Write_Word_FB1, 8)
-	T(SH2_Write_Long_FB0, 8) T(SH2_Write_Long_FB1, 8)
-	T(SH2_Write_Byte_Ram, 8) T(SH2_Write_Word_Ram, 8) T(SH2_Write_Long_Ram, 8));

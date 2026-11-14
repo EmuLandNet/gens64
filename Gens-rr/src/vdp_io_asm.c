@@ -76,8 +76,7 @@ __attribute__((aligned(64))) struct gens64_vdp gens64_vdp = { { 0 } };
 typedef char gens64_vdp_bss_check[(sizeof(struct gens64_vdp) == 0x1070C) ? 1 : -1];
 
 #define VDP_ALIAS(name, base, off) \
-	".globl _" #name "\n.set _" #name ", _" base "+" #off "\n" \
-	".globl " #name "\n.set " #name ", _" base "+" #off "\n"
+	".globl _" #name "\n.set _" #name ", _" base "+" #off "\n"
 __asm__(
 	VDP_ALIAS(Genesis_Started, "gens64_vdp_data", 0x140)
 	VDP_ALIAS(SegaCD_Started, "gens64_vdp_data", 0x144)
@@ -139,10 +138,10 @@ int main68k_interrupt(int level, int vector);
 
 static u32 vram_ptr(u32 off) { return (u32)(unsigned long)V.VRam + off; }
 
-/* main68k_releaseCycles takes its argument in eax */
+void main68k_releaseCycles(u32 c);
 static void release_cycles(u32 c)
 {
-	__asm__ volatile("call _main68k_releaseCycles" : "+a"(c) : : "memory", "cc");
+	main68k_releaseCycles(c);
 }
 
 /* ---- interrupt lines ---- */
@@ -157,8 +156,8 @@ void Update_IRQ_Line(void)
 		main68k_context[35 * 4] &= 0xF0;
 }
 
-/* returns the new interrupt level in al */
-u32 gens64_Int_Ack(void)
+/* returns the new interrupt level (Starscream uses al) */
+u32 Int_Ack(void)
 {
 	if ((B0(REG[R_SET2]) & 0x20) && (B0(V.VDP_Int) & 8))
 	{
@@ -507,7 +506,7 @@ static void write_data(u16 ax)
 	}
 }
 
-void gens64_Write_Byte_VDP_Data(u32 data)
+void Write_Byte_VDP_Data(u32 data)
 {
 	u8 d = (u8)data;
 	B0(V.Ctrl.Flag) = 0;
@@ -517,7 +516,7 @@ void gens64_Write_Byte_VDP_Data(u32 data)
 		write_data((u16)((d << 8) | d));
 }
 
-void gens64_Write_Word_VDP_Data(u32 data)
+void Write_Word_VDP_Data(u32 data)
 {
 	B0(V.Ctrl.Flag) = 0;
 	if (B0(V.Ctrl.DMA) & 0x4)
@@ -526,7 +525,7 @@ void gens64_Write_Word_VDP_Data(u32 data)
 		write_data((u16)data);
 }
 
-u32 gens64_Read_VDP_Data(void)
+u32 Read_VDP_Data(void)
 {
 	u32 addr = V.Ctrl.Address, acc = V.Ctrl.Access, hi = acc & 0xFFFF0000;
 
@@ -549,7 +548,7 @@ u32 gens64_Read_VDP_Data(void)
 
 /* ---- control port ---- */
 
-void gens64_Write_VDP_Ctrl(u32 data)
+void Write_VDP_Ctrl(u32 data)
 {
 	u32 first, second, e;
 
@@ -587,7 +586,7 @@ void gens64_Write_VDP_Ctrl(u32 data)
 
 /* ---- status and counters ---- */
 
-u32 gens64_Read_VDP_Status(void)
+u32 Read_VDP_Status(void)
 {
 	u16 st = W0(V.VDP_Status), n = (u16)((st ^ 0xFF00) & 0xFF9F);
 	if (!(n & 0x0008))
@@ -601,13 +600,13 @@ static u32 line_cycles(void)
 	return ((u32)main68k_readOdometer() - ((u32)Cycles_M68K - (u32)CPL_M68K)) & 0x1FF;
 }
 
-u32 gens64_Read_VDP_H_Counter(void)
+u32 Read_VDP_H_Counter(void)
 {
 	u32 c = line_cycles();
 	return V.H_Counter_Table[c * 2 + ((B0(REG[R_SET4]) & 0x81) ? 1 : 0)];
 }
 
-u32 gens64_Read_VDP_V_Counter(void)
+u32 Read_VDP_V_Counter(void)
 {
 	u32 c = line_cycles(), line;
 	u8 al, bl;
@@ -687,28 +686,3 @@ void Reset_VDP(void)
 	V.VSRam_Over[7] = 0;
 }
 
-/* Entry points called from asm: keep ecx/edx (and, where the asm did, the rest of eax). */
-#define THUNK0(name) \
-	".globl _" #name "\n.globl " #name "\n_" #name ":\n" #name ":\n" \
-	"\tpushl %ecx\n\tpushl %edx\n\tcall _gens64_" #name "\n\tpopl %edx\n\tpopl %ecx\n\tret\n"
-#define THUNK1(name) \
-	".globl _" #name "\n.globl " #name "\n_" #name ":\n" #name ":\n" \
-	"\tpushl %ecx\n\tpushl %edx\n\tpushl 12(%esp)\n\tcall _gens64_" #name "\n" \
-	"\taddl $4, %esp\n\tpopl %edx\n\tpopl %ecx\n\tret\n"
-__asm__(
-	".pushsection .text\n"
-	THUNK0(Read_VDP_Data)
-	THUNK0(Read_VDP_H_Counter)
-	THUNK0(Read_VDP_V_Counter)
-	THUNK1(Write_Byte_VDP_Data)
-	THUNK1(Write_Word_VDP_Data)
-	THUNK1(Write_VDP_Ctrl)
-	/* Read_VDP_Status sets ax only */
-	".globl _Read_VDP_Status\n.globl Read_VDP_Status\n_Read_VDP_Status:\nRead_VDP_Status:\n"
-	"\tpushl %ecx\n\tpushl %edx\n\tpushl %eax\n\tcall _gens64_Read_VDP_Status\n"
-	"\tmovw %ax, (%esp)\n\tpopl %eax\n\tpopl %edx\n\tpopl %ecx\n\tret\n"
-	/* Int_Ack (called by Starscream) sets al */
-	".globl _Int_Ack\n.globl Int_Ack\n_Int_Ack:\nInt_Ack:\n"
-	"\tpushl %ecx\n\tpushl %edx\n\tpushl %eax\n\tcall _gens64_Int_Ack\n"
-	"\tmovb %al, (%esp)\n\tpopl %eax\n\tpopl %edx\n\tpopl %ecx\n\tret\n"
-	".popsection\n");

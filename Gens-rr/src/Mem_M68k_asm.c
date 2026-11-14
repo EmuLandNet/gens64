@@ -5,8 +5,9 @@
  *  - The asm handlers received the address in ebx and the data in eax (and returned al/ax); here
  *    they are plain C functions. The jump tables keep the same layout and are still patched by C
  *    code (Cpu_68k.c, Cpu_SH2.c) and by the bank registers, so their entries are handler addresses.
- *  - M68K_RB/RW/WB/WW/WBC are called by Starscream, which keeps a word in ecx across two M68K_RW
- *    calls (readmemorydword) and expects ecx/edx preserved: asm thunks save them.
+ *  - M68K_RB/RW/WB/WW/WBC are plain C functions; Starscream keeps a word in ecx across two M68K_RW
+ *    calls (readmemorydword) and expects ecx/edx preserved: its C translation (star2c) keeps its
+ *    emulated registers across these calls.
  *  - Byte reads are used through al and word reads through ax by every caller, so only those bits
  *    are reproduced (upper bits of eax could differ).
  * Quirks kept: see docs/asm-quirks.md.
@@ -28,11 +29,12 @@ extern u32 Controller_1_Counter, Controller_1_Delay, Controller_2_Counter, Contr
 extern u8 Controller_1_COM[], Controller_2_COM[];
 extern Z80_CONTEXT M_Z80;
 extern SH2_CONTEXT M_SH2, S_SH2;
-extern u8 COMM_Flag[] __asm__("COMM.Flag");
-extern u8 COMM_Command[] __asm__("COMM.Command");
-extern u8 COMM_Status[] __asm__("COMM.Status");
-extern u8 CDC_RS0[] __asm__("CDC.RS0");
-extern u8 CDC_Stop_Watch[] __asm__("CDC.Stop_Watch");
+extern u8 gens64_s68k_bss[];	/* Mem_S68k_asm.c: COMM at 0x130000, CDC at 0x130058 */
+#define COMM_Flag (gens64_s68k_bss + 0x130000)
+#define COMM_Command (gens64_s68k_bss + 0x130004)
+#define COMM_Status (gens64_s68k_bss + 0x130014)
+#define CDC_RS0 (gens64_s68k_bss + 0x130058)
+#define CDC_Stop_Watch (gens64_s68k_bss + 0x130068)
 extern u8 _32X_Comm[], _32X_ADEN[], _32X_RES[], _32X_FM[], _32X_RV[], _32X_DREQ_ST[], _32X_DREQ_SRC[];
 extern u8 _32X_DREQ_DST[], _32X_DREQ_LEN[], _32X_FIFO_A[], _32X_FIFO_Block[], _32X_FIFO_Write[];
 extern u8 _32X_FIFO_Read[], _32X_MINT[], _32X_SINT[], _32X_Palette_16B[], _32X_Palette_32B[];
@@ -41,21 +43,21 @@ extern u8 PWM_FIFO_R[], PWM_FIFO_L[], PWM_FULL_TAB[], PWM_RP_R[], PWM_WP_R[], PW
 extern u8 PWM_Mode[], PWM_Cycle_Tmp[], PWM_FIFO_L_Tmp[], PWM_FIFO_R_Tmp[];
 extern u32 hook_address, hook_value, hook_pc;
 
-typedef u32 (__fastcall *z80_rb_t)(u32);	/* the full eax of a byte handler is kept (word reads) */
+typedef u32 (__fastcall *z80_rb_t)(u32);
 typedef void (__fastcall *z80_w_t)(u32, u32);
 extern void *Z80_ReadB_Table[], *Z80_WriteB_Table[];
 
-u32 gens64_Read_VDP_Data(void);
-u32 gens64_Read_VDP_Status(void);
-u32 gens64_Read_VDP_H_Counter(void);
-u32 gens64_Read_VDP_V_Counter(void);
-void gens64_Write_Byte_VDP_Data(u32);
-void gens64_Write_Word_VDP_Data(u32);
-void gens64_Write_VDP_Ctrl(u32);
-u32 gens64_RD_Controller_1(void);
-u32 gens64_RD_Controller_2(void);
-void gens64_WR_Controller_1(u32);
-void gens64_WR_Controller_2(u32);
+u32 Read_VDP_Data(void);
+u32 Read_VDP_Status(void);
+u32 Read_VDP_H_Counter(void);
+u32 Read_VDP_V_Counter(void);
+void Write_Byte_VDP_Data(u32);
+void Write_Word_VDP_Data(u32);
+void Write_VDP_Ctrl(u32);
+u32 RD_Controller_1(void);
+u32 RD_Controller_2(void);
+void WR_Controller_1(u32);
+void WR_Controller_2(u32);
 u32 main68k_readOdometer(void);
 int sub68k_reset(void);
 int sub68k_interrupt(int level, int vector);
@@ -101,7 +103,7 @@ __attribute__((aligned(64), nocommon)) struct gens64_m68k_bss gens64_m68k_bss;
 #define B gens64_m68k_bss
 /* names starting with L are assembler-private on i386 COFF: decorated alias only */
 #define ALIAS_(n, off) ".globl _" #n "\n.set _" #n ", _gens64_m68k_bss+" #off "\n"
-#define ALIAS(n, off) ".globl _" #n "\n.set _" #n ", _gens64_m68k_bss+" #off "\n.globl " #n "\n.set " #n ", _gens64_m68k_bss+" #off "\n"
+#define ALIAS(n, off) ALIAS_(n, off)
 __asm__(
 	ALIAS(Ram_68k, 0) ALIAS(Rom_Data, 0x10000) ALIAS(SRAM, 0x610000) ALIAS(Ram_Backup_Ex, 0x620000)
 	ALIAS(Genesis_Rom, 0x630000) ALIAS(_32X_Genesis_Rom, 0x630800) ALIAS(Rom_Size, 0x630900)
@@ -117,9 +119,11 @@ typedef u32 (*rd_t)(u32);
 typedef void (*wr_t)(u32, u32);
 
 /* bus request / Z80 reset / Z80 window, shared by the three systems */
+/* the byte; a word read gives it with ah = 0 (the asm kept what the Z80 byte handler left in ah:
+   see docs/asm-quirks.md) */
 static u32 z80_window_read(u32 a)
 {
-	return ((z80_rb_t)Z80_ReadB_Table[(a & 0x7000) >> 12])(a & 0x7FFF);
+	return ((z80_rb_t)Z80_ReadB_Table[(a & 0x7000) >> 12])(a & 0x7FFF) & 0xFF;
 }
 static u32 busreq_read_byte(u32 cycles_take)
 {
@@ -229,8 +233,8 @@ static u32 io_read_byte(u32 a, int ser)
 	switch ((a & 0xE) >> 1)
 	{
 	case 0: return md_spec();
-	case 1: return gens64_RD_Controller_1();
-	case 2: return gens64_RD_Controller_2();
+	case 1: return RD_Controller_1();
+	case 2: return RD_Controller_2();
 	case 3: return ser ? 0xFF : 0;
 	case 4: return Controller_1_COM[0];
 	case 5: return Controller_2_COM[0];
@@ -253,12 +257,12 @@ static u32 M68K_Read_Byte_VDP(u32 a)
 		return 0;
 	if (a < 0xC00008)
 	{
-		u32 s = gens64_Read_VDP_Status();
+		u32 s = Read_VDP_Status();
 		return (a & 1) ? (u8)s : (u8)(s >> 8);	/* high byte at the even address */
 	}
 	if (a > 0xC00009)
 		return 0;
-	return (a & 1) ? gens64_Read_VDP_H_Counter() : gens64_Read_VDP_V_Counter();
+	return (a & 1) ? Read_VDP_H_Counter() : Read_VDP_V_Counter();
 }
 
 /* ======================= read word ======================= */
@@ -301,8 +305,8 @@ static u32 io_read_word(u32 a, int ser)
 	switch ((a & 0xE) >> 1)
 	{
 	case 0: return md_spec_w();
-	case 1: return gens64_RD_Controller_1();
-	case 2: return gens64_RD_Controller_2();
+	case 1: return RD_Controller_1();
+	case 2: return RD_Controller_2();
 	case 3: return ser ? 0xFF00 : 0;
 	case 4: return RD32(Controller_1_COM);
 	case 5: return RD32(Controller_2_COM);
@@ -312,7 +316,7 @@ static u32 io_read_word(u32 a, int ser)
 static u32 M68K_Read_Word_Misc(u32 a)
 {
 	if (a <= 0xA0FFFF)
-		return (RD8(&B.Z80_State) & 6) ? 0 : z80_window_read(a);	/* byte handler, ax kept */
+		return (RD8(&B.Z80_State) & 6) ? 0 : z80_window_read(a);	/* byte handler: ah = 0 */
 	if (a == 0xA11100)
 		return busreq_read_word(CYCLE_FOR_TAKE_Z80_BUS_GENESIS, 1);
 	if (a > 0xA1000D)
@@ -323,13 +327,13 @@ static u32 M68K_Read_Word_VDP(u32 a)
 {
 	u32 v;
 	if (a <= 0xC00003)
-		return gens64_Read_VDP_Data();
+		return Read_VDP_Data();
 	if (a <= 0xC00007)
-		return gens64_Read_VDP_Status();
+		return Read_VDP_Status();
 	if (a > 0xC00009)
 		return 0;
-	v = gens64_Read_VDP_V_Counter();
-	return (gens64_Read_VDP_H_Counter() & 0xFF) | (v & 0xFF) << 8;
+	v = Read_VDP_V_Counter();
+	return (Read_VDP_H_Counter() & 0xFF) | (v & 0xFF) << 8;
 }
 
 /* ======================= write byte ======================= */
@@ -369,8 +373,8 @@ static void io_write(u32 a, u32 d, int word)
 {
 	switch ((a & 0xE) >> 1)
 	{
-	case 1: gens64_WR_Controller_1(d); break;
-	case 2: gens64_WR_Controller_2(d); break;
+	case 1: WR_Controller_1(d); break;
+	case 2: WR_Controller_2(d); break;
 	case 4: if (word) WR16(Controller_1_COM, d); else WR8(Controller_1_COM, d); break;
 	case 5: if (word) WR16(Controller_2_COM, d); else WR8(Controller_2_COM, d); break;
 	}
@@ -420,7 +424,7 @@ static void M68K_Write_Byte_Misc(u32 a, u32 d)
 static void M68K_Write_Byte_VDP(u32 a, u32 d)
 {
 	if (a <= 0xC00003)
-		gens64_Write_Byte_VDP_Data(d);
+		Write_Byte_VDP_Data(d);
 	else if (a == 0xC00011)
 		PSG_Write((int)d);
 }
@@ -476,9 +480,9 @@ static void M68K_Write_Word_Misc(u32 a, u32 d)
 static void M68K_Write_Word_VDP(u32 a, u32 d)
 {
 	if (a <= 0xC00003)
-		gens64_Write_Word_VDP_Data(d);
+		Write_Word_VDP_Data(d);
 	else if (a <= 0xC00007)
-		gens64_Write_VDP_Ctrl(d);
+		Write_VDP_Ctrl(d);
 }
 
 /* ======================= Sega CD ======================= */
@@ -639,8 +643,8 @@ static u32 M68K_Read_Word_Misc_CD(u32 a)
 		switch ((a & 0xE) >> 1)
 		{
 		case 0: return (u16)((u16)((u16)(B.Game_Mode + B.Game_Mode) | B.CPU_Mode) << 6 | B.Gen_Version);
-		case 1: return gens64_RD_Controller_1();
-		case 2: return gens64_RD_Controller_2();
+		case 1: return RD_Controller_1();
+		case 2: return RD_Controller_2();
 		case 4: return RD16(Controller_1_COM);
 		case 5: return RD16(Controller_2_COM);
 		default: return 0;
@@ -1428,7 +1432,7 @@ __attribute__((aligned(64))) struct gens64_m68k_data gens64_m68k_data = {
 	{ RB4(RB4(BAD_W)) },
 };
 #define D gens64_m68k_data
-#define DALIAS(n, f) ".globl _" #n "\n.set _" #n ", _gens64_m68k_data+" #f "\n.globl " #n "\n.set " #n ", _gens64_m68k_data+" #f "\n"
+#define DALIAS(n, f) ".globl _" #n "\n.set _" #n ", _gens64_m68k_data+" #f "\n"
 __asm__(
 	DALIAS(Genesis_M68K_Read_Byte_Table, 0x000) DALIAS(Genesis_M68K_Read_Word_Table, 0x080)
 	DALIAS(Genesis_M68K_Write_Byte_Table, 0x100) DALIAS(Genesis_M68K_Write_Byte_Cheat_Table, 0x140)
@@ -1509,15 +1513,15 @@ void Init_Memory_M68K(int System_ID)
 	}
 }
 
-u32 gens64_M68K_RB(u32 adr)
+u32 M68K_RB(u32 adr)
 {
 	return ((rd_t)D.RB[(adr & 0xF80000) >> 19])(adr & 0xFFFFFF);
 }
-u32 gens64_M68K_RW(u32 adr)
+u32 M68K_RW(u32 adr)
 {
 	return ((rd_t)D.RW[(adr & 0xF80000) >> 19])(adr & 0xFFFFFF);
 }
-void gens64_M68K_WBC(u32 adr, u32 data)
+void M68K_WBC(u32 adr, u32 data)
 {
 	hook_pc = 0;
 	hook_address = adr;
@@ -1525,19 +1529,13 @@ void gens64_M68K_WBC(u32 adr, u32 data)
 	hook_write_byte();
 	((wr_t)D.WBC[(adr & 0xF00000) >> 20])(adr & 0xFFFFFF, data & 0xFF);
 }
-void gens64_M68K_WB(u32 adr, u32 data)
+void M68K_WB(u32 adr, u32 data)
 {
 	((wr_t)D.WB[(adr & 0xF00000) >> 20])(adr & 0xFFFFFF, data & 0xFF);
 	Fix_Codes(adr & 0xFFFFFF, 1);
 }
-void gens64_M68K_WW(u32 adr, u32 data)
+void M68K_WW(u32 adr, u32 data)
 {
 	((wr_t)D.WW[(adr & 0xF00000) >> 20])(adr & 0xFFFFFF, data & 0xFFFF);
 	Fix_Codes(adr & 0xFFFFFF, 2);
 }
-/* cdecl entry points that keep ecx/edx (Starscream, asm callers) */
-#define THUNK(n) ".globl _" #n "\n.globl " #n "\n_" #n ":\n" #n ":\n" \
-	"\tpushl %ecx\n\tpushl %edx\n\tpushl 16(%esp)\n\tpushl 16(%esp)\n\tcall _gens64_" #n "\n\taddl $8, %esp\n" \
-	"\tpopl %edx\n\tpopl %ecx\n\tret\n"
-__asm__(".text\n" THUNK(M68K_RB) THUNK(M68K_RW) THUNK(M68K_WB) THUNK(M68K_WW) THUNK(M68K_WBC)
-	".globl Init_Memory_M68K\n.set Init_Memory_M68K, _Init_Memory_M68K\n");

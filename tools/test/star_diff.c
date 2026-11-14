@@ -38,6 +38,9 @@ u32 P(reset)(void);
 u32 P(exec)(u32);
 u32 P(interrupt)(u32, u32);
 u32 P(readOdometer)(void);
+#ifndef SUB
+void main68k_releaseCycles(u32);
+#endif
 u32 P(tripOdometer)(void);
 void P(addCycles)(u32);
 void P(SetContext)(void *);
@@ -156,7 +159,7 @@ static void call_release(u32 n)
 #ifndef SUB
 	u32 a = n;
 	if (side)
-		__asm__ volatile("call _main68k_releaseCycles" : "+a"(a) : : "ecx", "edx", "memory", "cc");
+		main68k_releaseCycles(a);
 	else
 		__asm__ volatile("call orig__main68k_releaseCycles" : "+a"(a) : : "ecx", "edx", "memory", "cc");
 #else

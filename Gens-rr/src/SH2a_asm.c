@@ -6,12 +6,13 @@
  *  - as in the asm, PC is kept as a host pointer (PC + Base_PC of its fetch region) and the opcode is
  *    read at PC - 4 in the "swapped" byte order (OP_Table / OPDS_Table are filled by SH2.c with these
  *    handlers, indexed by the swapped opcode);
- *  - the handlers of the memory tables keep the asm convention (fastcall, ebp = SH2 context, eax =
- *    region); they are called through gens64_sh2_mcall, which sets ecx, edx, eax and ebp;
+ *  - the handlers of the memory tables are C functions (SH2_HANDLER: address, data, eax, context);
+ *    eax is what the asm had in eax at the call: the region (address >> 24), or in DMA transfers the
+ *    handler address;
  *  - the core state that the asm kept in registers between instructions (esi = PC, edi = cycles, ebx
  *    = opcode, ecx = delay slot PC) lives in struct sh2_st;
- *  - the on-chip peripheral handlers (FF region, cache array) are exported with the asm convention
- *    (thunks) so that the tables, the DMA and the debug accessors keep working unchanged.
+ *  - TAS.B writes back v | 0x80 only: the asm passed on the upper bits of edx as the read handler
+ *    left them, which no byte write handler looks at.
  * Quirks kept: see docs/asm-quirks.md.
  */
 #include <string.h>
@@ -57,7 +58,7 @@ struct gens64_sh2_bss {
 	SH2_CONTEXT S_SH2;
 };
 __attribute__((aligned(64), nocommon)) struct gens64_sh2_bss gens64_sh2_bss;
-#define SA(n, f) ".globl _" #n "\n.set _" #n ", _gens64_sh2_bss+" #f "\n.globl " #n "\n.set " #n ", _gens64_sh2_bss+" #f "\n"
+#define SA(n, f) ".globl _" #n "\n.set _" #n ", _gens64_sh2_bss+" #f "\n"
 #define STR_(x) #x
 #define STR(x) STR_(x)
 __asm__(SA(OP_Table, 0) SA(OPDS_Table, 0x40000) SA(Set_SR_Table, 0x80000) SA(M_SH2, 0x81000) SA(S_SH2, 0x84740));
@@ -67,14 +68,8 @@ typedef char sh2_bss_s[(offsetof(struct gens64_sh2_bss, S_SH2) == 0x84740) ? 1 :
 #define OPDST (gens64_sh2_bss.OPDS_Table)
 #define SRT (gens64_sh2_bss.Set_SR_Table)
 
-/* call of a memory table handler with the asm convention: ecx = address, edx = data, eax, ebp = context */
-u32 gens64_sh2_mcall(void *fn, u32 ecx, u32 edx, u32 eax, SH2_CONTEXT *ctx);
-u32 gens64_sh2_edx;	/* edx as the handler left it (TAS.B writes it back with only dl replaced) */
-__asm__(".text\n.globl _gens64_sh2_mcall\n_gens64_sh2_mcall:\n"
-	"\tpushl %ebp\n\tpushl %ebx\n\tpushl %esi\n\tpushl %edi\n"
-	"\tmovl 24(%esp), %ecx\n\tmovl 28(%esp), %edx\n\tmovl 32(%esp), %eax\n\tmovl 36(%esp), %ebp\n"
-	"\tcall *20(%esp)\n\tmovl %edx, _gens64_sh2_edx\n"
-	"\tpopl %edi\n\tpopl %esi\n\tpopl %ebx\n\tpopl %ebp\n\tret\n");
+/* call of a memory table handler */
+#define MCALL(fn, a, d, eax, ctx) (((SH2_HANDLER *)(fn))((a), (d), (eax), (ctx)))
 
 /* ======================= core state ======================= */
 
@@ -98,7 +93,7 @@ static u32 rd_b(ST *s, u32 a)
 {
 	u32 r;
 	C->Cycle_IO = (u32)s->edi;
-	r = gens64_sh2_mcall((void *)C->Read_Byte[a >> 24], a, 0, a >> 24, C);
+	r = MCALL((void *)C->Read_Byte[a >> 24], a, 0, a >> 24, C);
 	s->edi = (s32)C->Cycle_IO;
 	return r;
 }
@@ -106,7 +101,7 @@ static u32 rd_w(ST *s, u32 a)
 {
 	u32 r;
 	C->Cycle_IO = (u32)s->edi;
-	r = gens64_sh2_mcall((void *)C->Read_Word[a >> 24], a, 0, a >> 24, C);
+	r = MCALL((void *)C->Read_Word[a >> 24], a, 0, a >> 24, C);
 	s->edi = (s32)C->Cycle_IO;
 	return r;
 }
@@ -114,26 +109,26 @@ static u32 rd_l(ST *s, u32 a)
 {
 	u32 r;
 	C->Cycle_IO = (u32)s->edi;
-	r = gens64_sh2_mcall((void *)C->Read_Long[a >> 24], a, 0, a >> 24, C);
+	r = MCALL((void *)C->Read_Long[a >> 24], a, 0, a >> 24, C);
 	s->edi = (s32)C->Cycle_IO;
 	return r;
 }
 static void wr_b(ST *s, u32 a, u32 d)
 {
 	C->Cycle_IO = (u32)s->edi;
-	gens64_sh2_mcall((void *)C->Write_Byte[a >> 24], a, d, a >> 24, C);
+	MCALL((void *)C->Write_Byte[a >> 24], a, d, a >> 24, C);
 	s->edi = (s32)C->Cycle_IO;
 }
 static void wr_w(ST *s, u32 a, u32 d)
 {
 	C->Cycle_IO = (u32)s->edi;
-	gens64_sh2_mcall((void *)C->Write_Word[a >> 24], a, d, a >> 24, C);
+	MCALL((void *)C->Write_Word[a >> 24], a, d, a >> 24, C);
 	s->edi = (s32)C->Cycle_IO;
 }
 static void wr_l(ST *s, u32 a, u32 d)
 {
 	C->Cycle_IO = (u32)s->edi;
-	gens64_sh2_mcall((void *)C->Write_Long[a >> 24], a, d, a >> 24, C);
+	MCALL((void *)C->Write_Long[a >> 24], a, d, a >> 24, C);
 	s->edi = (s32)C->Cycle_IO;
 }
 
@@ -416,7 +411,7 @@ static void div1_end(SH2_CONTEXT *c, u32 n, u32 rn, u8 q, int t_inv)
 	C->SR.T = (u8)((s32)((a ^ b) & (a ^ r)) < 0); RG[n] = r; RT(1); }
 #define I_SWAPB(RT) { u32 v = RG[M_]; RG[N_] = (v & 0xFFFF0000) | (v & 0xFF) << 8 | (v >> 8 & 0xFF); RT(1); }
 #define I_SWAPW(RT) { u32 v = RG[M_]; RG[N_] = v << 16 | v >> 16; RT(1); }
-#define I_TAS(RT) { u32 n = OP & 0xF; u8 v = (u8)rd_b(s, RG[n]); C->SR.T = (u8)(v == 0); wr_b(s, RG[n], (gens64_sh2_edx & ~0xFFu) | v | 0x80); RT(6); }
+#define I_TAS(RT) { u32 n = OP & 0xF; u8 v = (u8)rd_b(s, RG[n]); C->SR.T = (u8)(v == 0); wr_b(s, RG[n], v | 0x80); RT(6); }
 #define I_TST(RT) { C->SR.T = (u8)!(RG[M_] & RG[N_]); RT(1); }
 #define I_TSTI(RT) { C->SR.T = (u8)!(I8 & RG[0]); RT(1); }
 #define I_TSTM(RT) { u32 imm = I8; C->SR.T = (u8)!(rd_b(s, RG[0] + C->GBR) & imm); RT(4); }
@@ -424,7 +419,7 @@ static void div1_end(SH2_CONTEXT *c, u32 n, u32 rn, u8 q, int t_inv)
 #define I_XORI(RT) { RG[0] = I8 ^ RG[0]; RT(1); }
 #define I_XTRCT(RT) { u32 n = N_, m = RG[M_], v = RG[n]; RG[n] = (m & 0xFFFF) << 16 | v >> 16; RT(1); }
 
-#define BOTH(n) int op_##n(ST *s) I_##n(RET) int op_##n##_DS(ST *s) I_##n(RETDS)
+#define BOTH(n) int SH2I_##n(ST *s) I_##n(RET) int SH2I_##n##_DS(ST *s) I_##n(RETDS)
 BOTH(ADD) BOTH(ADDI) BOTH(ADDC) BOTH(ADDV) BOTH(AND) BOTH(ANDI) BOTH(ANDM) BOTH(CLRMAC) BOTH(CLRT)
 BOTH(CMPEQ) BOTH(CMPGE) BOTH(CMPGT) BOTH(CMPHI) BOTH(CMPHS) BOTH(CMPPL) BOTH(CMPPZ) BOTH(CMPSTR) BOTH(CMPIM)
 BOTH(DIV0S) BOTH(DIV0U) BOTH(DIV1) BOTH(DMULS) BOTH(DMULU) BOTH(DT) BOTH(EXTSB) BOTH(EXTSW) BOTH(EXTUB) BOTH(EXTUW)
@@ -452,20 +447,20 @@ static int branch_taken(ST *s, s32 disp)
 	OP = FETCH(s->esi - 4);
 	return s->edi < 0 ? QUIT : NEXT;
 }
-int op_BF(ST *s)
+int SH2I_BF(ST *s)
 {
 	if (C->SR.T & 1)
 		RET(1);
 	return branch_taken(s, SI8);
 }
-int op_BT(ST *s)
+int SH2I_BT(ST *s)
 {
 	if (!(C->SR.T & 1))
 		RET(1);
 	return branch_taken(s, SI8);
 }
 /* idle loop shortcuts ("dt Rn; bf -2" / "dt Rn; bf/s -3; nop"): Rn = 0, T = 1, cycles charged at once */
-int op_BFfast(ST *s)
+int SH2I_BFfast(ST *s)
 {
 	u32 prev, n;
 	s32 c;
@@ -490,7 +485,7 @@ int op_BFfast(ST *s)
 	OP = FETCH(s->esi - 4);
 	return NEXT;
 }
-int op_BFS(ST *s)
+int SH2I_BFS(ST *s)
 {
 	if (C->SR.T & 1)
 		RET(1);
@@ -498,7 +493,7 @@ int op_BFS(ST *s)
 	s->esi += (u32)(SI8 * 2 + 4);
 	GO_DS(3);
 }
-int op_BFSfast(ST *s)
+int SH2I_BFSfast(ST *s)
 {
 	u32 eax, prev, n;
 	s32 c, d = SI8;
@@ -524,7 +519,7 @@ int op_BFSfast(ST *s)
 	OP = FETCH(s->esi - 4);
 	return NEXT;
 }
-int op_BTS(ST *s)
+int SH2I_BTS(ST *s)
 {
 	if (!(C->SR.T & 1))
 		RET(1);
@@ -532,7 +527,7 @@ int op_BTS(ST *s)
 	s->esi += (u32)(SI8 * 2 + 4);
 	GO_DS(3);
 }
-int op_BRA(ST *s)
+int SH2I_BRA(ST *s)
 {
 	s->ecx = s->esi + 2;
 	s->esi += (u32)(DISP12 * 2 + 4);
@@ -551,29 +546,29 @@ static int bra_wait(ST *s, int match)
 	}
 	GO_DS(3);
 }
-int op_BRAfast1(ST *s)
+int SH2I_BRAfast1(ST *s)
 {
 	return bra_wait(s, FETCH(s->esi - 2) == SH2_NOP_CODE);
 }
-int op_BRAfast2(ST *s)
+int SH2I_BRAfast2(ST *s)
 {
 	return bra_wait(s, ((u32)FETCH(s->esi - 2) << 16 | FETCH(s->esi - 6)) == ((u32)SH2_NOP_CODE << 16 | SH2_NOP_CODE));
 }
-int op_BRAF(ST *s)
+int SH2I_BRAF(ST *s)
 {
 	s->ecx = s->esi + 2;
 	s->esi = s->esi - C->Base_PC + RG[OP & 0xF] + 4;
 	FAST_REBASE();
 	GO_DS(3);
 }
-int op_BSR(ST *s)
+int SH2I_BSR(ST *s)
 {
 	C->PR = s->esi - C->Base_PC;
 	s->ecx = s->esi + 2;
 	s->esi += (u32)(DISP12 * 2 + 4);
 	GO_DS(3);
 }
-int op_BSRF(ST *s)
+int SH2I_BSRF(ST *s)
 {
 	u32 pc = s->esi - C->Base_PC;
 	s->ecx = s->esi + 2;
@@ -582,14 +577,14 @@ int op_BSRF(ST *s)
 	FAST_REBASE();
 	GO_DS(3);
 }
-int op_JMP(ST *s)
+int SH2I_JMP(ST *s)
 {
 	s->ecx = s->esi + 2;
 	s->esi = RG[OP & 0xF] + 4;
 	FAST_REBASE();
 	GO_DS(3);
 }
-int op_JSR(ST *s)
+int SH2I_JSR(ST *s)
 {
 	C->PR = s->esi - C->Base_PC;
 	s->ecx = s->esi + 2;
@@ -597,7 +592,7 @@ int op_JSR(ST *s)
 	FAST_REBASE();
 	GO_DS(3);
 }
-int op_RTE(ST *s)
+int SH2I_RTE(ST *s)
 {
 	u32 ebx = s->esi + 2, sp = RG[15], pc;
 	RG[15] = sp + 8;
@@ -612,14 +607,14 @@ int op_RTE(ST *s)
 	FAST_REBASE();
 	GO_DS(6);
 }
-int op_RTS(ST *s)
+int SH2I_RTS(ST *s)
 {
 	s->ecx = s->esi + 2;
 	s->esi = C->PR + 4;
 	FAST_REBASE();
 	GO_DS(3);
 }
-int op_TRAPA(ST *s)
+int SH2I_TRAPA(ST *s)
 {
 	u32 imm = I8, sp = RG[15] - 8, sr = get_sr(C) & 0x3F3, vec;
 	RG[15] = sp;
@@ -630,22 +625,21 @@ int op_TRAPA(ST *s)
 	FAST_REBASE();
 	RET(12);
 }
-int op_SLEEP(ST *s)
+int SH2I_SLEEP(ST *s)
 {
 	C->Status = (C->Status & ~0xFFu) | (u8)(C->Status | SH2_HALTED);
 	s->edi = -1;
 	s->esi += 2;
 	return REALLY_QUIT;
 }
-#define op_SLEEP_DS op_SLEEP
-int op_ILLEGAL(ST *s)
+int SH2I_ILLEGAL(ST *s)
 {
 	C->Status = (C->Status & ~0xFFu) | (u8)(C->Status | SH2_DISABLE);
 	s->edi = -1;
 	return REALLY_QUIT;
 }
 /* sic: an illegal instruction in a delay slot halts (the normal one disables) */
-int op_ILLEGAL_DS(ST *s)
+int SH2I_ILLEGAL_DS(ST *s)
 {
 	s->esi = C->DS_PC;
 	C->Status = (C->Status & ~0xFFu) | (u8)(C->Status | SH2_HALTED);
@@ -653,31 +647,10 @@ int op_ILLEGAL_DS(ST *s)
 	return REALLY_QUIT;
 }
 
-#define EXPORT(n) ".globl _SH2I_" #n "\n.set _SH2I_" #n ", _op_" #n "\n.globl SH2I_" #n "\n.set SH2I_" #n ", _op_" #n "\n"
-#define EXPORT2(n) EXPORT(n) EXPORT(n##_DS)
-__asm__(
-	EXPORT2(ADD) EXPORT2(ADDI) EXPORT2(ADDC) EXPORT2(ADDV) EXPORT2(AND) EXPORT2(ANDI) EXPORT2(ANDM) EXPORT2(CLRMAC)
-	EXPORT2(CLRT) EXPORT2(CMPEQ) EXPORT2(CMPGE) EXPORT2(CMPGT) EXPORT2(CMPHI) EXPORT2(CMPHS) EXPORT2(CMPPL)
-	EXPORT2(CMPPZ) EXPORT2(CMPSTR) EXPORT2(CMPIM) EXPORT2(DIV0S) EXPORT2(DIV0U) EXPORT2(DIV1) EXPORT2(DMULS)
-	EXPORT2(DMULU) EXPORT2(DT) EXPORT2(EXTSB) EXPORT2(EXTSW) EXPORT2(EXTUB) EXPORT2(EXTUW) EXPORT2(LDCSR)
-	EXPORT2(LDCGBR) EXPORT2(LDCVBR) EXPORT2(LDCMSR) EXPORT2(LDCMGBR) EXPORT2(LDCMVBR) EXPORT2(LDSMACH)
-	EXPORT2(LDSMACL) EXPORT2(LDSPR) EXPORT2(LDSMMACH) EXPORT2(LDSMMACL) EXPORT2(LDSMPR) EXPORT2(MACL) EXPORT2(MACW)
-	EXPORT2(MOV) EXPORT2(MOVBS) EXPORT2(MOVWS) EXPORT2(MOVLS) EXPORT2(MOVBL) EXPORT2(MOVWL) EXPORT2(MOVLL)
-	EXPORT2(MOVBM) EXPORT2(MOVWM) EXPORT2(MOVLM) EXPORT2(MOVBP) EXPORT2(MOVWP) EXPORT2(MOVLP) EXPORT2(MOVBS0)
-	EXPORT2(MOVWS0) EXPORT2(MOVLS0) EXPORT2(MOVBL0) EXPORT2(MOVWL0) EXPORT2(MOVLL0) EXPORT2(MOVI) EXPORT2(MOVWI)
-	EXPORT2(MOVLI) EXPORT2(MOVBLG) EXPORT2(MOVWLG) EXPORT2(MOVLLG) EXPORT2(MOVBSG) EXPORT2(MOVWSG) EXPORT2(MOVLSG)
-	EXPORT2(MOVBS4) EXPORT2(MOVWS4) EXPORT2(MOVLS4) EXPORT2(MOVBL4) EXPORT2(MOVWL4) EXPORT2(MOVLL4) EXPORT2(MOVA)
-	EXPORT2(MOVT) EXPORT2(MULL) EXPORT2(MULS) EXPORT2(MULU) EXPORT2(NEG) EXPORT2(NEGC) EXPORT2(NOP) EXPORT2(NOT)
-	EXPORT2(OR) EXPORT2(ORI) EXPORT2(ORM) EXPORT2(ROTCL) EXPORT2(ROTCR) EXPORT2(ROTL) EXPORT2(ROTR) EXPORT2(SETT)
-	EXPORT2(SHAL) EXPORT2(SHAR) EXPORT2(SHLL) EXPORT2(SHLL2) EXPORT2(SHLL8) EXPORT2(SHLL16) EXPORT2(SHLR)
-	EXPORT2(SHLR2) EXPORT2(SHLR8) EXPORT2(SHLR16) EXPORT2(STCSR) EXPORT2(STCGBR) EXPORT2(STCVBR) EXPORT2(STCMSR)
-	EXPORT2(STCMGBR) EXPORT2(STCMVBR) EXPORT2(STSMACH) EXPORT2(STSMACL) EXPORT2(STSPR) EXPORT2(STSMMACH)
-	EXPORT2(STSMMACL) EXPORT2(STSMPR) EXPORT2(SUB) EXPORT2(SUBC) EXPORT2(SUBV) EXPORT2(SWAPB) EXPORT2(SWAPW)
-	EXPORT2(TAS) EXPORT2(TST) EXPORT2(TSTI) EXPORT2(TSTM) EXPORT2(XOR) EXPORT2(XORI) EXPORT2(XORM) EXPORT2(XTRCT)
-	EXPORT(BF) EXPORT(BT) EXPORT(BFfast) EXPORT(BFS) EXPORT(BFSfast) EXPORT(BTS) EXPORT(BRA) EXPORT(BRAfast1)
-	EXPORT(BRAfast2) EXPORT(BRAF) EXPORT(BSR) EXPORT(BSRF) EXPORT(JMP) EXPORT(JSR) EXPORT(RTE) EXPORT(RTS)
-	EXPORT(TRAPA) EXPORT(SLEEP) ".globl _SH2I_SLEEP_DS\n.set _SH2I_SLEEP_DS, _op_SLEEP\n.globl SH2I_SLEEP_DS\n.set SH2I_SLEEP_DS, _op_SLEEP\n"
-	EXPORT2(ILLEGAL));
+int SH2I_SLEEP_DS(ST *s)
+{
+	return SH2I_SLEEP(s);
+}
 
 /* ======================= SH2_Exec ======================= */
 
@@ -916,12 +889,12 @@ void __fastcall SH2_NMI(SH2_CONTEXT *ctx)
 void __fastcall SH2_DMA0_Request(SH2_CONTEXT *ctx, u8 state)
 {
 	ctx->DREQ0 = state;
-	gens64_sh2_mcall((void *)ctx->Write_Long[0xFF], 0xFFFFFF8C, ctx->CHCR0, 0, ctx);
+	MCALL((void *)ctx->Write_Long[0xFF], 0xFFFFFF8C, ctx->CHCR0, 0, ctx);
 }
 void __fastcall SH2_DMA1_Request(SH2_CONTEXT *ctx, u8 state)
 {
 	ctx->DREQ1 = state;
-	gens64_sh2_mcall((void *)ctx->Write_Long[0xFF], 0xFFFFFF9C, ctx->CHCR1, 0, ctx);
+	MCALL((void *)ctx->Write_Long[0xFF], 0xFFFFFF9C, ctx->CHCR1, 0, ctx);
 }
 void __fastcall SH2_FRT_Signal(SH2_CONTEXT *ctx)
 {
@@ -964,27 +937,17 @@ void __fastcall SH2_Set_MACH(SH2_CONTEXT *ctx, u32 v) { ctx->MACH = v; }
 void __fastcall SH2_Set_MACL(SH2_CONTEXT *ctx, u32 v) { ctx->MACL = v; }
 
 /* SH2_Read_x / SH2_Write_x (cdecl, from C): call the table handler of the address */
-UINT8 SH2_Read_Byte(SH2_CONTEXT *ctx, UINT32 a) { return (UINT8)gens64_sh2_mcall((void *)ctx->Read_Byte[a >> 24], a, 0, a >> 24, ctx); }
-UINT16 SH2_Read_Word(SH2_CONTEXT *ctx, UINT32 a) { return (UINT16)gens64_sh2_mcall((void *)ctx->Read_Word[a >> 24], a, 0, a >> 24, ctx); }
-UINT32 SH2_Read_Long(SH2_CONTEXT *ctx, UINT32 a) { return gens64_sh2_mcall((void *)ctx->Read_Long[a >> 24], a, 0, a >> 24, ctx); }
-void SH2_Write_Byte(SH2_CONTEXT *ctx, UINT32 a, UINT8 d) { gens64_sh2_mcall((void *)ctx->Write_Byte[a >> 24], a, d, a >> 24, ctx); }
-void SH2_Write_Word(SH2_CONTEXT *ctx, UINT32 a, UINT16 d) { gens64_sh2_mcall((void *)ctx->Write_Word[a >> 24], a, d, a >> 24, ctx); }
-void SH2_Write_Long(SH2_CONTEXT *ctx, UINT32 a, UINT32 d) { gens64_sh2_mcall((void *)ctx->Write_Long[a >> 24], a, d, a >> 24, ctx); }
+UINT8 SH2_Read_Byte(SH2_CONTEXT *ctx, UINT32 a) { return (UINT8)MCALL((void *)ctx->Read_Byte[a >> 24], a, 0, a >> 24, ctx); }
+UINT16 SH2_Read_Word(SH2_CONTEXT *ctx, UINT32 a) { return (UINT16)MCALL((void *)ctx->Read_Word[a >> 24], a, 0, a >> 24, ctx); }
+UINT32 SH2_Read_Long(SH2_CONTEXT *ctx, UINT32 a) { return MCALL((void *)ctx->Read_Long[a >> 24], a, 0, a >> 24, ctx); }
+void SH2_Write_Byte(SH2_CONTEXT *ctx, UINT32 a, UINT8 d) { MCALL((void *)ctx->Write_Byte[a >> 24], a, d, a >> 24, ctx); }
+void SH2_Write_Word(SH2_CONTEXT *ctx, UINT32 a, UINT16 d) { MCALL((void *)ctx->Write_Word[a >> 24], a, d, a >> 24, ctx); }
+void SH2_Write_Long(SH2_CONTEXT *ctx, UINT32 a, UINT32 d) { MCALL((void *)ctx->Write_Long[a >> 24], a, d, a >> 24, ctx); }
 
-#define FC(n, s) ".globl " #n "\n.set " #n ", @" #n "@" #s "\n.globl _" #n "\n.set _" #n ", @" #n "@" #s "\n"
-__asm__(FC(SH2_Exec, 8) FC(SH2_Reset, 8) FC(SH2_Enable, 4) FC(SH2_Disable, 4) FC(SH2_Read_Odo, 4) FC(SH2_Write_Odo, 8)
-	FC(SH2_Clear_Odo, 4) FC(SH2_Add_Cycles, 8) FC(SH2_Interrupt, 8) FC(SH2_Interrupt_Internal, 8) FC(SH2_NMI, 4)
-	FC(SH2_DMA0_Request, 8) FC(SH2_DMA1_Request, 8) FC(SH2_FRT_Signal, 4) FC(SH2_Get_R, 8) FC(SH2_Get_PC, 4)
-	FC(SH2_Get_SR, 4) FC(SH2_Get_GBR, 4) FC(SH2_Get_VBR, 4) FC(SH2_Get_PR, 4) FC(SH2_Get_MACH, 4) FC(SH2_Get_MACL, 4)
-	FC(SH2_Set_PC, 8) FC(SH2_Set_SR, 8) FC(SH2_Set_GBR, 8) FC(SH2_Set_VBR, 8) FC(SH2_Set_PR, 8) FC(SH2_Set_MACH, 8)
-	FC(SH2_Set_MACL, 8)
-	".globl SH2_Read_Byte\n.set SH2_Read_Byte, _SH2_Read_Byte\n.globl SH2_Read_Word\n.set SH2_Read_Word, _SH2_Read_Word\n"
-	".globl SH2_Read_Long\n.set SH2_Read_Long, _SH2_Read_Long\n.globl SH2_Write_Byte\n.set SH2_Write_Byte, _SH2_Write_Byte\n"
-	".globl SH2_Write_Word\n.set SH2_Write_Word, _SH2_Write_Word\n.globl SH2_Write_Long\n.set SH2_Write_Long, _SH2_Write_Long\n");
 
 /* ======================= on-chip peripherals (SH2_IO.inc) ======================= */
-/* handlers of the memory tables (asm convention through thunks): (address, edx, eax, context) */
-#define H(n) u32 gens64_##n(u32 a, u32 d, u32 eax, SH2_CONTEXT *c)
+/* handlers of the memory tables (SH2_HANDLER) */
+#define H(n) u32 n(u32 a, u32 d, u32 eax, SH2_CONTEXT *c)
 #define IOB(o) (c->IO_Reg[o])
 #define B8(f, i) (((u8 *)&c->f)[i])
 
@@ -1163,8 +1126,8 @@ H(SH2_Write_Word_FF)
 /* DMA: transfer through the context's handlers (asm convention: eax = the handler's own address) */
 static void dma_xfer(SH2_CONTEXT *c, void *rf, void *wf, u32 src, u32 dst)
 {
-	u32 v = gens64_sh2_mcall(rf, src, 0, (u32)rf, c);
-	gens64_sh2_mcall(wf, dst, v, (u32)wf, c);
+	u32 v = MCALL(rf, src, 0, (u32)rf, c);
+	MCALL(wf, dst, v, (u32)wf, c);
 }
 /* CHCRx write (also from DMAOR writes and SH2_DMAx_Request) */
 static void chcr_write(SH2_CONTEXT *c, int ch, u32 d)
@@ -1349,10 +1312,3 @@ H(SH2_Write_Long_FF)
 	return 0;
 }
 
-#define T(n, s) ".globl @" #n "@" #s "\n.globl _" #n "\n.globl " #n "\n@" #n "@" #s ":\n_" #n ":\n" #n ":\n" \
-	"\tpushl %ebp\n\tpushl %eax\n\tpushl %edx\n\tpushl %ecx\n\tcall _gens64_" #n "\n\taddl $16, %esp\n\tret\n"
-__asm__(".text\n"
-	T(SH2_Read_Byte_C0, 4) T(SH2_Read_Word_C0, 4) T(SH2_Read_Long_C0, 4)
-	T(SH2_Write_Byte_C0, 8) T(SH2_Write_Word_C0, 8) T(SH2_Write_Long_C0, 8)
-	T(SH2_Read_Byte_FF, 4) T(SH2_Read_Word_FF, 4) T(SH2_Read_Long_FF, 4)
-	T(SH2_Write_Byte_FF, 8) T(SH2_Write_Word_FF, 8) T(SH2_Write_Long_FF, 8));

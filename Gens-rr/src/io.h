@@ -148,10 +148,10 @@ extern unsigned int Controller_2D_Z;
 
 extern unsigned char Lag_Frame;
 
-unsigned char RD_Controller_1(void);
-unsigned char RD_Controller_2(void);
-unsigned char WR_Controller_1(unsigned char data);
-unsigned char WR_Controller_2(unsigned char data);
+unsigned int RD_Controller_1(void);
+unsigned int RD_Controller_2(void);
+void WR_Controller_1(unsigned int data);
+void WR_Controller_2(unsigned int data);
 void Fix_Controllers(void);
 void Make_IO_Table(void);
 

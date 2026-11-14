@@ -71,8 +71,7 @@ __attribute__((aligned(64))) struct gens64_rend gens64_rend = { { 0 } };
 typedef char gens64_rend_bss_check[(sizeof(struct gens64_rend) == 0xF88F0) ? 1 : -1];
 
 #define REND_ALIAS(name, base, off) \
-	".globl _" #name "\n.set _" #name ", _" base "+" #off "\n" \
-	".globl " #name "\n.set " #name ", _" base "+" #off "\n"
+	".globl _" #name "\n.set _" #name ", _" base "+" #off "\n"
 __asm__(
 	REND_ALIAS(TAB336, "gens64_rend_data", 0x0)
 	REND_ALIAS(TAB320, "gens64_rend_data", 0x3C0)

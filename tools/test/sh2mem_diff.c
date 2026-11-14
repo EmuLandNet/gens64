@@ -2,10 +2,11 @@
  *
  * Same scheme as m68k_diff.c: the original object is linked with its symbols prefixed "orig_"; each side
  * has its own module memory and its own copies of the external variables; the external functions
- * (_32X_Set_FB, SH2_DMA0_Request, PWM_Set_Cycle, PWM_Set_Int) are logging stubs. The handlers are called
- * as the asm SH2 core calls them: ecx = address, edx = data, eax = whatever, ebp = SH2 context (each
- * side has two fake contexts, master and slave; only Cycle_IO is used). Compared: al/ax/eax by access
- * size, Cycle_IO, ebx/esi/edi/ebp (ebx: not after the original's palette word write, which clobbers
+ * (_32X_Set_FB, SH2_DMA0_Request, PWM_Set_Cycle, PWM_Set_Int) are logging stubs. The original handlers
+ * are called as the asm SH2 core called them: ecx = address, edx = data, eax = whatever, ebp = SH2
+ * context; the port's are C functions (SH2_HANDLER) given the same four values (each side has two
+ * fake contexts, master and slave; only Cycle_IO is used). Compared: al/ax/eax by access size,
+ * Cycle_IO, ebx/esi/edi/ebp of the original (ebx: not after its palette word write, which clobbers
  * it), the logs and all memory.
  */
 #include <stdio.h>
@@ -138,7 +139,7 @@ void hcall(void *fn, u32 adr, u32 data, u32 eax, void *ctx, u32 *out);
 	Y(SH2_Write_Byte_FB0, 2, 1, 1) Y(SH2_Write_Byte_FB1, 2, 1, 1) Y(SH2_Write_Word_FB0, 2, 1, 2) \
 	Y(SH2_Write_Word_FB1, 2, 1, 2) Y(SH2_Write_Long_FB0, 2, 1, 4) Y(SH2_Write_Long_FB1, 2, 1, 4) \
 	Y(SH2_Write_Byte_Ram, 3, 1, 1) Y(SH2_Write_Word_Ram, 3, 1, 2) Y(SH2_Write_Long_Ram, 3, 1, 4)
-#define Y(n, k, w, s) extern u8 o_##n[] __asm__("orig_" #n); extern u8 p_##n[] __asm__(#n);
+#define Y(n, k, w, s) extern u8 o_##n[] __asm__("orig_" #n); extern u8 p_##n[] __asm__("_" #n);
 HANDLERS
 #undef Y
 struct handler { const char *name; void *fn[2]; int kind, write, size; };
@@ -270,7 +271,14 @@ int main(int argc, char **argv)
 			u8 *ctx = s ? (slave ? P_ssh2 : P_msh2) : (slave ? O_ssh2 : O_msh2);
 			side = s;
 			nlog[s] = 0;
-			hcall(hd->fn[s], a, d, eax, ctx, out[s]);
+			if (s)
+			{	/* port: plain C (SH2_HANDLER) */
+				out[1][0] = ((u32 (*)(u32, u32, u32, void *))hd->fn[1])(a, d, eax, ctx);
+				out[1][3] = 0x33330000; out[1][4] = 0x44440000; out[1][5] = 0x55550000;
+				out[1][6] = (u32)ctx;
+			}
+			else
+				hcall(hd->fn[s], a, d, eax, ctx, out[s]);
 		}
 		cov[h]++;
 		why[0] = 0;

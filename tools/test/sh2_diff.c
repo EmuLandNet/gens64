@@ -183,7 +183,8 @@ u32 t_wb(u32 a, u32 d, u32 eax, SH2_CONTEXT *c)
 	side = which(c);
 	if (!VEC_RO(a))
 		ram[side][a & 0x3FFFF] = (u8)d;
-	lg(4, a, dma_mask(d, 0xFF), c->Cycle_IO);	/* (full edx: the core passes register upper bits) */
+	lg(4, a, d & 0xFF, c->Cycle_IO);	/* (no real byte write handler looks above dl; TAS.B passes
+						   different upper bits: see SH2a_asm.c) */
 	effect(c);
 	(void)eax;
 	return 0;
@@ -240,34 +241,42 @@ u32 t_dw(u32 a, u32 d, u32 eax, SH2_CONTEXT *c)
 	(void)eax;
 	return 0;
 }
+u32 t_dwb(u32 a, u32 d, u32 eax, SH2_CONTEXT *c)
+{
+	return t_dw(a, d & 0xFF, eax, c);
+}
 /* fastcall-with-ebp thunks */
 #define TH(n) "\t.globl _" #n "_th\n_" #n "_th:\n\tpushl %ebp\n\tpushl %eax\n\tpushl %edx\n\tpushl %ecx\n\tcall _" #n "\n\taddl $16, %esp\n" \
 	"\tmovl $0x5C5C0001, %ecx\n\tmovl $0x5C5C0002, %edx\n\tret\n"
-__asm__(".text\n" TH(t_rb) TH(t_rw) TH(t_rl) TH(t_wb) TH(t_ww) TH(t_wl) TH(t_dr) TH(t_dw));
-extern u8 t_rb_th[], t_rw_th[], t_rl_th[], t_wb_th[], t_ww_th[], t_wl_th[], t_dr_th[], t_dw_th[];
+__asm__(".text\n" TH(t_rb) TH(t_rw) TH(t_rl) TH(t_wb) TH(t_ww) TH(t_wl) TH(t_dr) TH(t_dw) TH(t_dwb));
+extern u8 t_rb_th[], t_rw_th[], t_rl_th[], t_wb_th[], t_ww_th[], t_wl_th[], t_dr_th[], t_dw_th[], t_dwb_th[];
 
 static void map(SH2_CONTEXT *c, int s)
 {
 	int r;
+	/* original: asm convention (thunks); port: the C handlers themselves */
+	void *rb = s ? (void *)t_rb : t_rb_th, *rw = s ? (void *)t_rw : t_rw_th, *rl = s ? (void *)t_rl : t_rl_th;
+	void *wb = s ? (void *)t_wb : t_wb_th, *ww = s ? (void *)t_ww : t_ww_th, *wl = s ? (void *)t_wl : t_wl_th;
+	void *dr = s ? (void *)t_dr : t_dr_th, *dw = s ? (void *)t_dw : t_dw_th, *dwb = s ? (void *)t_dwb : t_dwb_th;
 	for (r = 0; r < 256; r++)
 	{
 		if (r == 0x06 || r == 0x26 || r == 0x00 || r == 0x20)
 		{
-			c->Read_Byte[r] = (SH2_RB *)t_rb_th;
-			c->Read_Word[r] = (SH2_RW *)t_rw_th;
-			c->Read_Long[r] = (SH2_RL *)t_rl_th;
-			c->Write_Byte[r] = (SH2_WB *)t_wb_th;
-			c->Write_Word[r] = (SH2_WW *)t_ww_th;
-			c->Write_Long[r] = (SH2_WL *)t_wl_th;
+			c->Read_Byte[r] = (SH2_RB *)rb;
+			c->Read_Word[r] = (SH2_RW *)rw;
+			c->Read_Long[r] = (SH2_RL *)rl;
+			c->Write_Byte[r] = (SH2_WB *)wb;
+			c->Write_Word[r] = (SH2_WW *)ww;
+			c->Write_Long[r] = (SH2_WL *)wl;
 		}
 		else if (r == 0x04 || r == 0x24)
 		{
-			c->Read_Byte[r] = (SH2_RB *)t_dr_th;
-			c->Read_Word[r] = (SH2_RW *)t_dr_th;
-			c->Read_Long[r] = (SH2_RL *)t_dr_th;
-			c->Write_Byte[r] = (SH2_WB *)t_dw_th;
-			c->Write_Word[r] = (SH2_WW *)t_dw_th;
-			c->Write_Long[r] = (SH2_WL *)t_dw_th;
+			c->Read_Byte[r] = (SH2_RB *)dr;
+			c->Read_Word[r] = (SH2_RW *)dr;
+			c->Read_Long[r] = (SH2_RL *)dr;
+			c->Write_Byte[r] = (SH2_WB *)dwb;
+			c->Write_Word[r] = (SH2_WW *)dw;
+			c->Write_Long[r] = (SH2_WL *)dw;
 		}
 	}
 	if (s)

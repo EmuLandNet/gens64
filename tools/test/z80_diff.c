@@ -1,10 +1,15 @@
 /* gens64: differential test of the z80.asm C port against the original asm object.
  * Side A runs the port, side B the original (symbols prefixed orig_). Each side has its own Z80
  * context, its own Ram_Z80 (8 KB, the bank dword and a tail, laid out like Mem_Z80) and fetches
- * pages 40-FF from a random code area; memory handlers for pages 40-FF are the same asm wrappers,
- * which log every call (AF, ecx and edx as received, odometer) and answer from a per-side random
- * sequence: returned eax (sometimes only al, keeping ah like Z80_ReadW_PSG), returned ecx/edx
- * (sometimes unchanged), and sometimes z80_Add_Cycles / z80_Interrupt / z80_NMI on the running Z80.
+ * pages 40-FF from a random code area; memory handlers for pages 40-FF log every call (ecx and edx
+ * as received, odometer) and answer from a per-side random sequence: returned eax (sometimes only
+ * al, keeping ah like Z80_ReadW_PSG), returned ecx/edx (sometimes unchanged), and sometimes
+ * z80_Add_Cycles / z80_Interrupt / z80_NMI on the running Z80. The original side uses asm wrappers
+ * (registers in and out); the port side plain fastcall handlers, the returned registers going
+ * through this test's Z80_Read_Regs (Mem_Z80.c's models the real handlers). Write handlers return
+ * random ecx/edx to the original too: the core must not depend on them, except for the data bits
+ * above the byte / word, which only reach later write handlers (logged masked: no real handler
+ * looks at them).
  * After every z80_Exec the return value, the context (PC/BasePC compared relative to the side),
  * the memories and the handler logs must match. Random states cover all prefixes, interrupt modes,
  * HALT and block instructions cut by the cycle budget. */
@@ -56,23 +61,26 @@ static struct rec logs[2][NLOG];
 static int nlog[2], side_effects = 1;
 static long stat_calls, stat_fx;
 
+static u32 pend_out[2];
+static int pend_keep, pend_edx_kept;
 u32 tl_handler(u32 code, u32 eax, u32 ecx, u32 edx, u32 *outs)
 {
-	int s = code >> 8, kind = code & 0xFF;
+	int s = code >> 8, kind = code & 0xFF, keep;
 	Z80_CONTEXT *z = s ? &ctxB : &ctxA;
 	unsigned r = hrnd(s), r2 = hrnd(s);
-	u32 ret;
 	if (nlog[s] < NLOG)
 	{
 		struct rec *l = &logs[s][nlog[s]++];
 		l->kind = kind;
-		l->ax = eax & 0xFFFF;
+		l->ax = 0;
 		l->ecx = ecx;
-		l->edx = edx;
+		/* reads get the address only; the write handlers look at the data byte / word only (the bits
+		   above it are what earlier handlers left in edx) */
+		l->edx = kind < 2 ? 0 : kind == 2 ? edx & 0xFF : edx & 0xFFFF;
 		l->odo = s ? o_Read_Odo(z) : z80_Read_Odo(z);
 	}
 	stat_calls++;
-	ret = (kind == 1 && (r & 3) == 0) ? (eax & 0xFFFFFF00u) | (r2 & 0xFF) : r2;	/* only al, like Z80_ReadW_PSG */
+	keep = kind == 1 && (r & 3) == 0;	/* only al, like Z80_ReadW_PSG */
 	outs[0] = (r & 0x30) ? hrnd(s) : ecx;
 	outs[1] = (r & 0xC0) ? hrnd(s) : edx;
 	if (side_effects && (r >> 8 & 0x1F) == 0)
@@ -86,11 +94,16 @@ u32 tl_handler(u32 code, u32 eax, u32 ecx, u32 edx, u32 *outs)
 		else
 			s ? o_NMI(z) : z80_NMI(z);
 	}
-	return ret;
+	if (!s)
+	{
+		pend_keep = keep;
+		pend_edx_kept = !(r & 0xC0);	/* the port's read handlers do not see edx */
+	}
+	return keep ? (eax & 0xFFFFFF00u) | (r2 & 0xFF) : r2;
 }
+/* original side: asm convention */
 #define HW(name, code) "_" #name ":\n	pushl $" #code "\n	jmp hw_common\n"
 __asm__(".text\n"
-	HW(hA_RB, 0x000) HW(hA_RW, 0x001) HW(hA_WB, 0x002) HW(hA_WW, 0x003)
 	HW(hB_RB, 0x100) HW(hB_RW, 0x101) HW(hB_WB, 0x102) HW(hB_WW, 0x103)
 	"hw_common:\n"
 	"	pushl %ebx\n	pushl %esi\n	pushl %edi\n	pushl %ebp\n"
@@ -101,7 +114,19 @@ __asm__(".text\n"
 	"	movl (%esp), %ecx\n	movl 4(%esp), %edx\n	addl $8, %esp\n"
 	"	popl %ebp\n	popl %edi\n	popl %esi\n	popl %ebx\n"
 	"	addl $4, %esp\n	ret\n");
-void hA_RB(void), hA_RW(void), hA_WB(void), hA_WW(void), hB_RB(void), hB_RW(void), hB_WB(void), hB_WW(void);
+void hB_RB(void), hB_RW(void), hB_WB(void), hB_WW(void);
+/* port side: C */
+static u32 __fastcall hA_RB(u32 a) { return tl_handler(0, 0, a, 0, pend_out); }
+static u32 __fastcall hA_RW(u32 a) { return tl_handler(1, 0, a, 0, pend_out); }
+static void __fastcall hA_WB(u32 a, u32 d) { tl_handler(2, 0, a, d, pend_out); }
+static void __fastcall hA_WW(u32 a, u32 d) { tl_handler(3, 0, a, d, pend_out); }
+u32 Z80_Read_Regs(void *fn, int word, u32 v, u32 af, u32 adr, u32 *ecx, u32 *edx)
+{
+	*ecx = pend_out[0];
+	if (!pend_edx_kept)
+		*edx = pend_out[1];
+	return pend_keep ? (af & 0xFFFFFF00u) | (v & 0xFF) : v;
+}
 
 static void setup(void)
 {

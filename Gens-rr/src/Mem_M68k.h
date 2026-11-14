@@ -56,12 +56,15 @@ extern int Gen_Mode;
 extern int Gen_Version;
 
 void Init_Memory_M68K(int System_ID);
-unsigned char M68K_RB(unsigned int Adr);
-unsigned short M68K_RW(unsigned int Adr);
-void M68K_WBR(unsigned int Adr, unsigned char Data);
-void M68K_WBC(unsigned int Adr, unsigned char Data);
-void M68K_WB(unsigned int Adr, unsigned char Data);
-void M68K_WW(unsigned int Adr, unsigned short Data);
+/* gens64: M68K_RB / M68K_RW return eax as the read handler left it (Starscream uses all of it);
+   the macros give C/C++ callers the byte / word, as the narrow return types of the asm days did */
+unsigned int M68K_RB(unsigned int Adr);
+unsigned int M68K_RW(unsigned int Adr);
+#define M68K_RB(a) ((unsigned char)M68K_RB(a))
+#define M68K_RW(a) ((unsigned short)M68K_RW(a))
+void M68K_WBC(unsigned int Adr, unsigned int Data);
+void M68K_WB(unsigned int Adr, unsigned int Data);
+void M68K_WW(unsigned int Adr, unsigned int Data);
 void Update_SegaCD_Timer(void);
 
 #ifdef __cplusplus

@@ -23,8 +23,7 @@ struct gens64_pwm
 __attribute__((aligned(64), nocommon)) struct gens64_pwm gens64_pwm;
 
 #define PWM_ALIAS(name, off) \
-	".globl _" #name "\n.set _" #name ", _gens64_pwm+" #off "\n" \
-	".globl " #name "\n.set " #name ", _gens64_pwm+" #off "\n"
+	".globl _" #name "\n.set _" #name ", _gens64_pwm+" #off "\n"
 __asm__(
 	PWM_ALIAS(PWM_FIFO_R, 0)
 	PWM_ALIAS(PWM_FIFO_L, 8)

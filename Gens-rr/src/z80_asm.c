@@ -8,8 +8,9 @@
  *    here A/F/HL live in the context (the asm wrote them back at every exit; nothing reads them in
  *    between), PC is a host address and edx/ecx are tracked because their full 32 bits reach the
  *    memory handlers (e.g. LD (IX+d),r passes IX's high byte in bits 8-15 of the data).
- *  - Memory handlers are called through gens64_z80_call with eax = AF, ecx, edx as the asm had
- *    them, and the registers they return are kept (some instructions use ecx/edx afterwards).
+ *  - Memory handlers are plain fastcall C functions (address = ecx, data = edx); the registers the
+ *    asm read handlers left (some instructions use ecx/edx afterwards, the PSG word read keeps ah)
+ *    come from Z80_Read_Regs (Mem_Z80.c), which models the original handlers explicitly.
  *  - The final odometer depends on bit 1 of edx when execution stops (z80_Cannot_Run test).
  * The emulator is single-instance and not reentrant (memory handlers never call back into it).
  */
@@ -34,24 +35,14 @@ typedef char gens64_z80_ctx_size[(sizeof(Z80_CONTEXT) == 0x146C) ? 1 : -1];
 __attribute__((aligned(64), nocommon)) struct gens64_z80 gens64_z80;
 __asm__(
 	".globl _M_Z80\n.set _M_Z80, _gens64_z80\n"
-	".globl M_Z80\n.set M_Z80, _gens64_z80\n"
-	".globl _Def_z80_Mem\n.set _Def_z80_Mem, _gens64_z80+0x1480\n"
-	".globl Def_z80_Mem\n.set Def_z80_Mem, _gens64_z80+0x1480\n");
+	".globl _Def_z80_Mem\n.set _Def_z80_Mem, _gens64_z80+0x1480\n");
 #define Def_z80_Mem (gens64_z80.mem)
 
-/* call a fastcall memory handler with eax/ecx/edx as given; returns them as the handler left them */
-struct gens64_z80_regs { u32 eax, ecx, edx; };
-void gens64_z80_call(void *fn, struct gens64_z80_regs *r);
-__asm__(
-	".text\n.globl _gens64_z80_call\n_gens64_z80_call:\n"
-	"	pushl %ebx\n	pushl %esi\n	pushl %edi\n	pushl %ebp\n"
-	"	movl 20(%esp), %ebx\n	movl 24(%esp), %esi\n"
-	"	pushl %esi\n"
-	"	movl (%esi), %eax\n	movl 4(%esi), %ecx\n	movl 8(%esi), %edx\n"
-	"	call *%ebx\n"
-	"	popl %esi\n"
-	"	movl %eax, (%esi)\n	movl %ecx, 4(%esi)\n	movl %edx, 8(%esi)\n"
-	"	popl %ebp\n	popl %edi\n	popl %esi\n	popl %ebx\n	ret\n");
+/* memory handlers (Mem_Z80.c): fastcall (address, data); Z80_Read_Regs gives the registers the asm
+   read handlers left (eax, ecx, edx), which the core goes on using */
+typedef u32 __attribute__((fastcall)) z80_hr(u32 adr);
+typedef void __attribute__((fastcall)) z80_hw(u32 adr, u32 data);
+u32 Z80_Read_Regs(void *fn, int word, u32 v, u32 af, u32 adr, u32 *ecx, u32 *edx);
 
 /* ---- emulation state (asm registers) ---- */
 static Z80_CONTEXT *Z;		/* ebp */
@@ -202,16 +193,15 @@ static u8 f_sub(u8 *d, u8 s, int c)
 }
 
 /* ---- memory (READ_BYTE & co): fast path for 0000-3FFF into Ram_Z80, handlers otherwise ---- */
-static void io(void *fn)
+static void io_rd(void *fn, int word)
 {
-	struct gens64_z80_regs r;
-	r.eax = zA | (u32)zF << 8;
-	r.ecx = ecx;
-	r.edx = edx;
-	gens64_z80_call(fn, &r);
-	io_eax = r.eax;
-	ecx = r.ecx;
-	edx = r.edx;
+	u32 a = ecx, v = ((z80_hr *)fn)(a);
+	v = word ? (v & 0xFFFF) : (v & 0xFF);
+	io_eax = Z80_Read_Regs(fn, word, v, zA | (u32)zF << 8, a, &ecx, &edx);
+}
+static void io_wr(void *fn)
+{
+	((z80_hw *)fn)(ecx, edx);
 }
 enum { M_DL, M_A, M_REG };
 static u8 rd8(int mode)
@@ -226,7 +216,7 @@ static u8 rd8(int mode)
 		return v;
 	}
 	Z->CycleIO = (u32)cyc;
-	io((void *)Z->ReadB[CH]);
+	io_rd((void *)Z->ReadB[CH], 0);
 	v = (u8)io_eax;
 	if (mode == M_DL)
 		SDL(v);
@@ -244,7 +234,7 @@ static u16 rd16(void)
 		return v;
 	}
 	Z->CycleIO = (u32)cyc;
-	io((void *)Z->ReadW[CH]);
+	io_rd((void *)Z->ReadW[CH], 1);
 	v = (u16)io_eax;
 	cyc = (s32)Z->CycleIO;
 	return v;
@@ -264,7 +254,7 @@ static void wr8(void)
 		return;
 	}
 	Z->CycleIO = (u32)cyc;
-	io((void *)Z->WriteB[CH]);
+	io_wr((void *)Z->WriteB[CH]);
 	cyc = (s32)Z->CycleIO;
 }
 static void wr16(void)
@@ -277,7 +267,7 @@ static void wr16(void)
 		return;
 	}
 	Z->CycleIO = (u32)cyc;
-	io((void *)Z->WriteW[CH]);
+	io_wr((void *)Z->WriteW[CH]);
 	cyc = (s32)Z->CycleIO;
 }
 #define READ_BYTE_TO(r) do { if (&R_##r == &zA) zA = rd8(M_A); else R_##r = rd8(M_REG); } while (0)
@@ -4130,15 +4120,3 @@ UINT32 FASTCALL z80_Set_AF2(Z80_CONTEXT *z80, UINT32 AF2)
 	return 0;
 }
 
-/* names as the asm DECLF macro exported them (Mem_M68k.asm calls the undecorated fastcall ones) */
-#define ALIAS_FC(n, sz) ".globl " #n "\n.set " #n ", @" #n "@" #sz "\n.globl _" #n "\n.set _" #n ", @" #n "@" #sz "\n"
-#define ALIAS_CD(n) ".globl " #n "\n.set " #n ", _" #n "\n"
-__asm__(
-	ALIAS_FC(z80_Init, 4) ALIAS_FC(z80_Reset, 4)
-	ALIAS_FC(z80_Set_IN, 8) ALIAS_FC(z80_Set_OUT, 8)
-	ALIAS_FC(z80_Read_Odo, 4) ALIAS_FC(z80_Clear_Odo, 4) ALIAS_FC(z80_Set_Odo, 8) ALIAS_FC(z80_Add_Cycles, 8)
-	ALIAS_FC(z80_Exec, 8) ALIAS_FC(z80_NMI, 4) ALIAS_FC(z80_Interrupt, 8)
-	ALIAS_FC(z80_Get_PC, 4) ALIAS_FC(z80_Set_PC, 8) ALIAS_FC(z80_Get_AF, 4) ALIAS_FC(z80_Set_AF, 8)
-	ALIAS_FC(z80_Get_AF2, 4) ALIAS_FC(z80_Set_AF2, 8)
-	ALIAS_CD(z80_Add_ReadB) ALIAS_CD(z80_Add_ReadW) ALIAS_CD(z80_Add_WriteB) ALIAS_CD(z80_Add_WriteW)
-	ALIAS_CD(z80_Add_Fetch));

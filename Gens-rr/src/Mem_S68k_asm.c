@@ -4,10 +4,11 @@
  *
  * Bit-exact with the asm (tools/test/s68k_diff.sh against the original object). Notes:
  *  - the .bss keeps the asm layout (the savestate code copies CDC.Buffer plus the variables after it);
- *  - S68K_RB/RW/WB/WW are cdecl, called by Starscream, which keeps a word in ecx across the two
- *    S68K_RW calls of a long read and the low word in ecx across the two S68K_WW calls of a long
- *    write: thin asm wrappers keep ecx/edx. Exception, as in the official build: a word read of FF8006
- *    returns with ecx as MSVC's CDC_Read_Reg leaves it (see docs/asm-quirks.md);
+ *  - S68K_RB/RW/WB/WW are plain C functions, called by Starscream, which keeps a word in ecx across
+ *    the two S68K_RW calls of a long read and the low word in ecx across the two S68K_WW calls of a
+ *    long write: its C translation (star2c) keeps its emulated registers. Exception, as in the
+ *    official build: a word read of FF8006 returns with ecx as MSVC's CDC_Read_Reg leaves it, given
+ *    to Starscream through gens64_s68k_ecx_set / gens64_s68k_ecx (see docs/asm-quirks.md);
  *  - the CDD control register write ORs into CDD.Control the al left by CDD_Processing, i.e. the
  *    result of its sub68k_interrupt(4, -1) call: CDD_Processing is inlined here to get that value.
  * Quirks kept: see docs/asm-quirks.md.
@@ -26,7 +27,8 @@ typedef unsigned int u32;
 #define WR32(p, v) (*(u32 *)(p) = (u32)(v))
 
 /* ---- externals ---- */
-extern u32 Rot_Comp_Reg[9] __asm__("Rot_Comp.Reg_58");	/* Reg_58 .. Reg_66: one dword each */
+extern u32 Rot_Comp[9];	/* gfx_cd_asm.c: Reg_58 .. Reg_66, one dword each */
+#define Rot_Comp_Reg Rot_Comp
 #define REG_58 (&Rot_Comp_Reg[0])
 #define REG_5A (&Rot_Comp_Reg[1])
 #define REG_5C (&Rot_Comp_Reg[2])
@@ -68,24 +70,17 @@ struct gens64_s68k_bss {
 typedef char gens64_s68k_bss_size[(sizeof(struct gens64_s68k_bss) == 0x1389F4) ? 1 : -1];
 __attribute__((aligned(64), nocommon)) struct gens64_s68k_bss gens64_s68k_bss;
 #define B gens64_s68k_bss
-#define SA(n, off) ".globl _" #n "\n.set _" #n ", _gens64_s68k_bss+" #off "\n.globl " #n "\n.set " #n ", _gens64_s68k_bss+" #off "\n"
-#define SU(n, off) ".globl " #n "\n.set " #n ", _gens64_s68k_bss+" #off "\n"
+#define SA(n, off) ".globl _" #n "\n.set _" #n ", _gens64_s68k_bss+" #off "\n"
 __asm__(
 	SA(Ram_Prg, 0) SA(Ram_Word_2M, 0x80000) SA(Ram_Word_1M, 0xC0000) SA(Cell_Conv_Tab, 0x100000)
-	SA(Ram_Backup, 0x120000) SA(COMM, 0x130000) SU(COMM.Flag, 0x130000) SU(COMM.Command, 0x130004)
-	SU(COMM.Status, 0x130014) SA(CDD, 0x130024) SU(CDD.Fader, 0x130024) SU(CDD.Control, 0x130028)
-	SU(CDD.Cur_Comm, 0x13002C) SU(CDD.Rcv_Status, 0x130030) SU(CDD.Trans_Comm, 0x13003A)
-	SU(CDD.Status, 0x130044) SU(CDD.Minute, 0x130048) SU(CDD.Seconde, 0x13004C) SU(CDD.Frame, 0x130050)
-	SU(CDD.Ext, 0x130054) SA(CDC, 0x130058) SU(CDC.RS0, 0x130058) SU(CDC.RS1, 0x13005C)
-	SU(CDC.Host_Data, 0x130060) SU(CDC.DMA_Adr, 0x130064) SU(CDC.Stop_Watch, 0x130068)
+	SA(Ram_Backup, 0x120000) SA(COMM, 0x130000) SA(CDD, 0x130024) SA(CDC, 0x130058)
 	".globl _LED_Status\n.set _LED_Status, _gens64_s68k_bss+0x1389C8\n"	/* L...: decorated only (assembler-private prefix) */ SA(S68K_Mem_WP, 0x1389CC) SA(S68K_Mem_PM, 0x1389D0) SA(Ram_Word_State, 0x1389D4)
 	SA(Init_Timer_INT3, 0x1389D8) SA(Timer_INT3, 0x1389DC) SA(Timer_Step, 0x1389E0) SA(Int_Mask_S68K, 0x1389E4)
 	SA(Font_COLOR, 0x1389E8) SA(Font_BITS, 0x1389EC) SA(CD_Access_Timer, 0x1389F0));
 
 /* .data */
 __attribute__((aligned(64))) u8 gens64_s68k_mcs[4] = { 1, 2, 4 + 0, 5 + 0 };
-__asm__(".globl _Memory_Control_Status\n.set _Memory_Control_Status, _gens64_s68k_mcs\n"
-	".globl Memory_Control_Status\n.set Memory_Control_Status, _gens64_s68k_mcs\n");
+__asm__(".globl _Memory_Control_Status\n.set _Memory_Control_Status, _gens64_s68k_mcs\n");
 #define MCS gens64_s68k_mcs
 
 #define COMM_FLAG (B.COMM + 0x00)
@@ -194,7 +189,7 @@ static u32 reg_read_byte(u32 a)
 		return CDD_RCV_STATUS[(r ^ 1) - 0x38];
 	return 0;
 }
-u32 gens64_S68K_RB(u32 a)
+u32 S68K_RB(u32 a)
 {
 	if (a <= 0xFDFFFF)
 	{
@@ -276,7 +271,7 @@ static u32 reg_read_word(u32 a)
 		return RD16(CDD_RCV_STATUS + r - 0x38);
 	return 0;
 }
-u32 gens64_S68K_RW(u32 a)
+u32 S68K_RW(u32 a)
 {
 	if (a <= 0xFDFFFF)
 	{
@@ -448,7 +443,7 @@ static void reg_write_byte(u32 a, u32 d)
 	else if (r >= 0x42 && r < 0x4B)
 		CDD_TRANS_COMM[(r ^ 1) - 0x42] = (u8)d;
 }
-void gens64_S68K_WB(u32 a, u32 d)
+void S68K_WB(u32 a, u32 d)
 {
 	if (a <= 0xFDFFFF)
 	{
@@ -551,7 +546,7 @@ static void reg_write_word(u32 a, u32 d)
 	else if (r >= 0x42 && r < 0x4A)
 		WR16(CDD_TRANS_COMM + r - 0x42, d);
 }
-void gens64_S68K_WW(u32 a, u32 d)
+void S68K_WW(u32 a, u32 d)
 {
 	if (a <= 0xFDFFFF)
 	{
@@ -638,15 +633,3 @@ void Update_SegaCD_Timer(void)
 }
 
 /* ======================= entry points ======================= */
-/* cdecl entry points keeping ecx/edx (Starscream); S68K_RW may set ecx (see reg_read_word) */
-#define THUNK(n) ".globl _" #n "\n.globl " #n "\n_" #n ":\n" #n ":\n" \
-	"\tpushl %ecx\n\tpushl %edx\n\tpushl 16(%esp)\n\tpushl 16(%esp)\n\tcall _gens64_" #n "\n\taddl $8, %esp\n" \
-	"\tpopl %edx\n\tpopl %ecx\n\tret\n"
-__asm__(".text\n" THUNK(S68K_RB) THUNK(S68K_WB) THUNK(S68K_WW)
-	".globl _S68K_RW\n.globl S68K_RW\n_S68K_RW:\nS68K_RW:\n"
-	"\tpushl %ecx\n\tpushl %edx\n\tmovl $0, _gens64_s68k_ecx_set\n\tpushl 12(%esp)\n\tcall _gens64_S68K_RW\n"
-	"\taddl $4, %esp\n\tpopl %edx\n\tpopl %ecx\n"
-	"\tcmpl $0, _gens64_s68k_ecx_set\n\tje 1f\n\tmovl _gens64_s68k_ecx, %ecx\n1:\tret\n"
-	".globl Swap_2M_To_1M\n.set Swap_2M_To_1M, _Swap_2M_To_1M\n"
-	".globl Swap_1M_To_2M\n.set Swap_1M_To_2M, _Swap_1M_To_2M\n"
-	".globl Update_SegaCD_Timer\n.set Update_SegaCD_Timer, _Update_SegaCD_Timer\n");
