@@ -9,8 +9,8 @@
  *  - RD_Controller_2 with a Team Player on port 2 dispatches through port 1's table and handlers,
  *    so it returns port 1 data; the port 1 Team Player "port 2 mode" reads Controller_1_Start/A in
  *    its third low phase;
- *  - Make_IO_Table is never called in r341, so the Team Player data handlers stay unreachable; it is
- *    ported anyway.
+ *  - Make_IO_Table runs when the configuration is loaded (Load_Config) and fills only part of the
+ *    Team Player table; port 2's table is filled but never read.
  * RD_/WR_Controller_x are called from asm (Mem_M68k) and preserved ecx/edx there, so thin asm
  * wrappers keep that. The C names (and the undecorated names DECL exported) alias into one struct.
  */
