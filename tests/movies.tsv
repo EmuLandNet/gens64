@@ -1,5 +1,6 @@
 # Sync regression movies. Paths are relative to the media directory (movietest.py --media).
 # name	system	rom	movie	[savestate; if empty and the movie needs one: <movie>[GMV].gst or <movie>.gst]
+# 6th column: options separated by ";": cdbios=<file in the directory of --cd-bios>
 alien3	md	Alien 3 (UE) (REV00) [!].gen	Alien 3 (UE) (REV00) [!] [John Brain]/Alien 3 (UE) (REV00) [!].gmv
 castle	md	Castle of Illusion Starring Mickey Mouse (UE) [!].gen	Castle of Illusion Starring Mickey Mouse (UE) [!].gmv
 comixzone	md	Comix Zone (U) [!].bin	Comix Zone (U) [!].gmv
@@ -18,3 +19,4 @@ sonic32x	32x	Sonic the Hedgehog 32X (Enhance).32x	Sonic the Hedgehog 32X (Enhanc
 doom32x	32x	Doom (Europe).32x	Doom (Europe).gmv
 doomres32x	32x	Doom 32x Resurrection (v3.3a).32x	Doom 32x Resurrection (v3.3a).gmv
 spiderman32x	32x	Amazing Spider-Man, The - Web of Fire (USA).32x	Amazing Spider-Man, The - Web of Fire (USA).gmv
+s1mmu	cd	S1MMU.iso	S1MMU.gmv		cdbios=Sega-CD Model 1 BIOS V1.10 (U).bin

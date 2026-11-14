@@ -10,7 +10,8 @@
 --cd-bios    Sega CD BIOS (used for US/EU/JP); needed for "cd" movies
 --32x-bios-dir  directory with the three 32X BIOS files (names containing 68000 / Master / Slave)
 --systems    keep only movies of the given systems (md, cd, 32x), combines with --quick
---quick      run tests/quick.txt (one random contra*/flashback[15] level per run) instead of all movies
+--quick      run tests/quick.txt (one random contra*/flashback[15] level per run; a number after a
+             name stops that movie there) instead of all movies
 --update     write the hashes of this run as the new references
 --max-frames stop each movie after N frames (quick smoke test; compared against the reference prefix)
 
@@ -35,8 +36,9 @@ def load_manifest():
         if not line.strip() or line.startswith('#'):
             continue
         f = line.split('\t')
+        opts = dict(o.split('=', 1) for o in (f[5].split(';') if len(f) > 5 and f[5] else []))
         tests.append({'name': f[0], 'system': f[1], 'rom': f[2], 'movie': f[3],
-                      'state': f[4] if len(f) > 4 and f[4] else None})
+                      'state': f[4] if len(f) > 4 and f[4] else None, 'opts': opts, 'max': None})
     return tests
 
 
@@ -45,9 +47,11 @@ def winpath(p):
     return 'Z:' + os.path.abspath(p).replace('/', '\\')
 
 
-def make_cfg(dst, args):
+def make_cfg(dst, args, t):
     s = open(os.path.join(TESTS, 'gens-test.cfg'), 'rb').read().decode('latin1')
     cd = winpath(os.path.abspath(args.cd_bios)) if args.cd_bios else '.\\'
+    if args.cd_bios and 'cdbios' in t['opts']:  # another BIOS file from the directory of --cd-bios
+        cd = winpath(os.path.join(os.path.dirname(os.path.abspath(args.cd_bios)), t['opts']['cdbios']))
     b32 = {}
     if args.x32_bios_dir:
         for f in os.listdir(args.x32_bios_dir):
@@ -129,12 +133,13 @@ def run_one_inner(t, args):
     shutil.rmtree(rundir, ignore_errors=True)
     os.makedirs(rundir)
     shutil.copy(args.exe, os.path.join(rundir, 'Gens.exe'))
-    make_cfg(os.path.join(rundir, 'Gens.cfg'), args)
+    make_cfg(os.path.join(rundir, 'Gens.cfg'), args, t)
     cmd = ['wine', 'Gens.exe', '-rom', winpath(rom), '-play', winpath(movie), '-batch', '-hashlog', 'hash.txt']
     if t['state']:
         cmd += ['-moviestate', winpath(os.path.join(media, t['state']))]
-    if args.max_frames:
-        cmd += ['-stopframe', str(args.max_frames)]  # note: frame numbers of state movies start mid-way
+    maxf = t['max'] or args.max_frames
+    if maxf:
+        cmd += ['-stopframe', str(maxf)]  # note: frame numbers of state movies start mid-way
     if not os.environ.get('DISPLAY') and shutil.which('xvfb-run'):
         cmd = ['xvfb-run', '-a'] + cmd
     env = dict(os.environ, WINEDEBUG='-all')
@@ -200,14 +205,20 @@ def main():
     if args.quick:
         names = set()
         for pat in open(os.path.join(TESTS, 'quick.txt'), encoding='utf-8'):
-            pat = pat.strip()
-            if not pat or pat.startswith('#'):
+            pat = pat.split('#')[0].split()
+            if not pat:
                 continue
+            pat, limit = pat[0], (int(pat[1]) if len(pat) > 1 else None)
             match = [t['name'] for t in tests if fnmatch.fnmatch(t['name'], pat)]
             if not match:
                 ap.error('quick.txt: no movie matches %r' % pat)
-            names.add(random.choice(match) if any(c in pat for c in '*?[') else match[0])
-        print('quick set: ' + ', '.join(sorted(names)), flush=True)
+            pick = random.choice(match) if any(c in pat for c in '*?[') else match[0]
+            names.add(pick)
+            for t in tests:
+                if t['name'] == pick:
+                    t['max'] = limit
+        print('quick set: ' + ', '.join(n + ('(%d)' % t['max'] if t['max'] else '') for n in sorted(names)
+                                       for t in tests if t['name'] == n), flush=True)
         tests = [t for t in tests if t['name'] in names]
     if args.systems:
         systems = set(args.systems.split(','))
@@ -230,7 +241,7 @@ def main():
                     save_ref(t, frames, notes, args.exe)
                     status, msg = 'UPDATED', '%d frames' % len(frames)
                 else:
-                    status, msg = compare(t, frames, load_ref(t['name']), bool(args.max_frames))
+                    status, msg = compare(t, frames, load_ref(t['name']), bool(args.max_frames or t['max']))
             if status not in ('OK', 'UPDATED'):
                 failed += 1
             print('%-10s %-12s %s  [%.0fs]' % (status, t['name'], msg, elapsed), flush=True)
