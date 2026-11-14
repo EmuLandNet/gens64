@@ -8,8 +8,8 @@
  *    (Set_VDP_Reg stores a byte, Ctrl.Address gets 16 bits, ...);
  *  - memory-to-VRAM DMA runs completely at once; Update_DMA then charges the bus time;
  *  - a DMA with an invalid source or destination leaves the DMA-busy bit of VDP_Status set;
- *  - Reset_VDP meant to clear VDP_Reg.DMA_Length/DMA_Address/ScrA_Addr but writes 3 dwords after
- *    Sprite_Visible (its base register still pointed there);
+ *  - Reset_VDP meant to clear VDP_Reg.DMA_Length/DMA_Address/ScrA_Addr but clears
+ *    Sprite_Visible[124..126] (its base register still pointed after the 100 entries it cleared);
  *  - Read_VDP_Status keeps the high half of eax from the caller, Read_VDP_Data/V_Counter return the
  *    high halves of Ctrl.Access/VDP_Current_Line in it.
  * The entry points the asm memory handlers call (Mem_M68k: the 68000 long read keeps the first word
@@ -658,7 +658,8 @@ void Reset_VDP(void)
 	for (i = 0; i < 23; i++)
 		Set_VDP_Reg((int)i, 0);
 
-	/* asm quirk: meant for VDP_Reg[24..26], but its base register still pointed past Sprite_Visible */
+	/* asm quirk: meant for VDP_Reg[24..26], but its base register still pointed after the cleared
+	   part of Sprite_Visible (256 entries) */
 	Sprite_Visible[100 + 24] = 0;
 	Sprite_Visible[100 + 25] = 0;
 	Sprite_Visible[100 + 26] = 0;
