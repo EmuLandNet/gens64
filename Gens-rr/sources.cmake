@@ -62,6 +62,7 @@ set(GENS_C_CXX_SOURCES
   src/blit_asm.c
   src/z80_asm.c
   src/Mem_M68k_asm.c
+  src/Mem_S68k_asm.c
   src/Mem_Z80.c
   src/LC89510.c
   src/luascript.cpp
@@ -251,4 +252,4 @@ set(GENS_7Z_SOURCES
   7z/CPP/7zip/Archive/Tar/TarRegister.cpp
   7z/CPP/7zip/Archive/Zip/ZipRegister.cpp
 )
-set(GENS_ASM_MODULES Mem_S68k Mem_SH2 SH2a)
+set(GENS_ASM_MODULES Mem_SH2 SH2a)
