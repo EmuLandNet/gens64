@@ -27,7 +27,7 @@ execute_process(COMMAND ${Python3_EXECUTABLE} ${TOOLS}/mkshim.py ${R} ${GEN}/ci 
                 COMMAND_ERROR_IS_FATAL ANY)
 
 # --- gens64 version tag (window title, About box): git revision + asm modules ported to C ---------
-set(GENS_ORIGINAL_ASM_MODULES blit gfx_cd io Mem_M68k Mem_S68k Mem_SH2 Mem_Z80 Misc pwm SH2a vdp_32X vdp_io vdp_rend z80)
+set(GENS_ORIGINAL_ASM_MODULES blit gfx_cd io Mem_M68k Mem_S68k Mem_SH2 Mem_Z80 Misc pwm SH2a vdp_32X vdp_io vdp_rend z80 Starscream)
 set(GENS_PORTED_MODULES ${GENS_ORIGINAL_ASM_MODULES})
 if(GENS_ASM_MODULES)
   list(REMOVE_ITEM GENS_PORTED_MODULES ${GENS_ASM_MODULES})
@@ -56,23 +56,32 @@ foreach(m IN LISTS GENS_ASM_MODULES)
   list(APPEND GENS_ASM_OBJS ${obj})
 endforeach()
 
-# Starscream 68000 cores: build the generator for the host, generate asm, assemble.
+# Starscream 68000 cores: build the generator for the host, generate the asm as before, translate it
+# to C instruction by instruction (tools/star2c: same behaviour, x86 flag semantics included).
+set(STAR2C ${PROJECT_SOURCE_DIR}/tools/star2c)
+set(GENS_STAR_SOURCES)
 foreach(cpu Main Sub)
   string(TOLOWER ${cpu} lc)
   set(gen_exe ${GEN}/${cpu}Star)
   set(asm ${GEN}/${lc}68k.asm)
-  set(obj ${GEN}/asm/${lc}68k.obj)
+  set(csrc ${GEN}/${lc}68k.c)
+  set(s2c_opt)
+  if(cpu STREQUAL "Sub")
+    set(s2c_opt --sub)
+  endif()
   add_custom_command(OUTPUT ${gen_exe}
     COMMAND ${HOST_CC} -O1 -w -o ${gen_exe} ${R}/Starscream/${cpu}68k/Star.c
     DEPENDS ${R}/Starscream/${cpu}68k/Star.c COMMENT "Starscream generator (${cpu})" VERBATIM)
   add_custom_command(OUTPUT ${asm}
     COMMAND ${gen_exe} ${lc}68k.asm -hog -name ${lc}68k_
     WORKING_DIRECTORY ${GEN} DEPENDS ${gen_exe} COMMENT "Starscream ${lc}68k.asm" VERBATIM)
-  add_custom_command(OUTPUT ${obj}
-    COMMAND ${WINE_ENV} ${TOOLS}/nasmw.sh ${NASMW} ${asm} ${obj}
-    DEPENDS ${WINE_STAMP} ${asm} ${TOOLS}/nasmw.sh ${TOOLS}/fix_coff_vsize.py COMMENT "NASMW ${lc}68k.asm" VERBATIM)
-  list(APPEND GENS_ASM_OBJS ${obj})
+  add_custom_command(OUTPUT ${csrc}
+    COMMAND ${Python3_EXECUTABLE} ${STAR2C}/star2c.py ${asm} ${csrc} ${s2c_opt}
+    DEPENDS ${asm} ${STAR2C}/star2c.py COMMENT "star2c ${lc}68k.c" VERBATIM)
+  list(APPEND GENS_STAR_SOURCES ${csrc})
 endforeach()
+set_source_files_properties(${GENS_STAR_SOURCES} PROPERTIES GENERATED TRUE
+  OBJECT_DEPENDS ${STAR2C}/x86ops.h COMPILE_OPTIONS "-I${STAR2C};-Wno-unused-label")
 set_source_files_properties(${GENS_ASM_OBJS} PROPERTIES EXTERNAL_OBJECT TRUE GENERATED TRUE)
 
 # --- resources ---------------------------------------------------------------------------------------
@@ -93,7 +102,7 @@ set_source_files_properties(${GENS_SRC_CXX} src/CCnet.c src/cd_file.c src/cd_sys
   PROPERTIES COMPILE_OPTIONS "-include;${R}/src/gens64_msgbox.h")
 
 # --- the exe -----------------------------------------------------------------------------------------
-add_executable(Gens WIN32 ${GENS_C_CXX_SOURCES} ${GENS_7Z_SOURCES} ${GENS_ASM_OBJS} ${res_obj})
+add_executable(Gens WIN32 ${GENS_C_CXX_SOURCES} ${GENS_7Z_SOURCES} ${GENS_STAR_SOURCES} ${GENS_ASM_OBJS} ${res_obj})
 add_dependencies(Gens gens64_version)
 set_target_properties(Gens PROPERTIES OUTPUT_NAME Gens RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 target_include_directories(Gens PRIVATE ${GEN}/ci ${R}/src ${R}/dependencies ${R}/dependencies/DirectX ${R}/7z/CPP ${R})
