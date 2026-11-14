@@ -29,7 +29,9 @@ execute_process(COMMAND ${Python3_EXECUTABLE} ${TOOLS}/mkshim.py ${R} ${GEN}/ci 
 # --- gens64 version tag (window title, About box): git revision + asm modules ported to C ---------
 set(GENS_ORIGINAL_ASM_MODULES blit gfx_cd io Mem_M68k Mem_S68k Mem_SH2 Mem_Z80 Misc pwm SH2a vdp_32X vdp_io vdp_rend z80)
 set(GENS_PORTED_MODULES ${GENS_ORIGINAL_ASM_MODULES})
-list(REMOVE_ITEM GENS_PORTED_MODULES ${GENS_ASM_MODULES})
+if(GENS_ASM_MODULES)
+  list(REMOVE_ITEM GENS_PORTED_MODULES ${GENS_ASM_MODULES})
+endif()
 set(GENS_VERSION_H ${GEN}/ci/gens64_version.h)
 add_custom_target(gens64_version
   COMMAND ${CMAKE_COMMAND} -DROOT=${PROJECT_SOURCE_DIR} -DOUT=${GENS_VERSION_H}
