@@ -6,7 +6,16 @@ extern "C" {
 #endif
 
 extern unsigned char Ram_68k[64 * 1024];
-extern unsigned char Rom_Data[6 * 1024 * 1024];
+#define ROM_DATA_MAX (32 * 1024 * 1024)	/* gens64: largest ROM (r341: 6 MB) */
+extern unsigned char Rom_Data[ROM_DATA_MAX];
+
+/* gens64: mapper for ROMs over 6 MB (Mem_M68k_asm.c, docs/large-roms.md) */
+extern unsigned int Rom_Mapper, Rom_Mask;
+extern unsigned int Rom_Page[32];
+extern unsigned char Mapper_Bank[8], Mapper_Ctrl;
+void Mapper_Init(int system);
+void Mapper_Reset(void);
+void Mapper_Restore(void);
 extern unsigned char SRAM[64 * 1024];
 extern unsigned char Ram_Backup_Ex[64 * 1024];
 extern unsigned char Genesis_Rom[2 * 1024];

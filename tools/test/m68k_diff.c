@@ -126,6 +126,11 @@ __asm__(
 #define BSS_SIZE 0x631164
 extern u8 o_bss[] __asm__("orig_Ram_68k");
 extern u8 p_bss[] __asm__("_gens64_m68k_bss");
+/* gens64: the port keeps the ROM in its own Rom_Data (32 MB), not in the block: the test gives it the
+   original's ROM area and puts it back into the block before comparing */
+extern u8 p_rom[] __asm__("_Rom_Data");
+void M68K_Set_Rom_Fetch(void) {}	/* Cpu_68k.c; only with the mapper of ROMs over 6 MB */
+#define ROM_AREA 0x600000
 extern void *o_data[] __asm__("orig_Genesis_M68K_Read_Byte_Table");
 extern void *p_data[] __asm__("_gens64_m68k_data");
 static u8 *bss[2];
@@ -374,6 +379,7 @@ static void init_all(void)
 	for (i = 0; i < 512; i++)
 		*(u32 *)(bss[0] + O_CYCTAB + i * 4) = rnd();
 	memcpy(bss[1], bss[0], BSS_SIZE);
+	memcpy(p_rom, bss[0] + O_ROM, ROM_AREA);
 	for (i = 0; i < NVARS; i++)
 		memcpy(vars[i].v[1], vars[i].v[0], vars[i].size);
 }
@@ -476,6 +482,8 @@ static int tblpos(int s, void *p)
 static int compare_mem(char *why, size_t n, int big)
 {
 	u32 i, j;
+	if (big)
+		memcpy(bss[1] + O_ROM, p_rom, ROM_AREA);
 	if (!big && memcmp(bss[0] + O_SRAM_START - 4, bss[1] + O_SRAM_START - 4, BSS_SIZE - (O_SRAM_START - 4)))
 	{
 		for (j = O_SRAM_START - 4; bss[0][j] == bss[1][j]; j++)

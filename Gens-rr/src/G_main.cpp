@@ -8100,7 +8100,13 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				"Original version (c) 1999/2002 by Stéphane Dallongeville" "\r\n" "\r\n"
 				"More about this version at:" "\r\n"
 				"http://code.google.com/p/gens-rerecording/" "\r\n"
-				"http://tasvideos.org/forum/"
+				"http://tasvideos.org/forum/" "\r\n" "\r\n"
+				// gens64: features ported from Gens r57shell mod (docs/r57shell-mod.md)
+				"Includes features of Gens r57shell mod" "\r\n"
+				"(c) 2011-2014 r57shell:" "\r\n"
+				"68000 and Z80 debuggers, RAM Dump," "\r\n"
+				"VDP RAM and VDP Sprites viewers," "\r\n"
+				"32X layers, Sprites Boxing, Lua additions"
 			);
 
 			return true;

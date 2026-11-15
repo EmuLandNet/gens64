@@ -118,6 +118,7 @@ __asm__(
 /* other modules */
 extern u8 Rom_Data[];
 extern u32 Rom_Size;
+extern u32 Rom_Mapper, Rom_Page[32];	/* gens64: mapper for ROMs over 6 MB (Mem_M68k_asm.c) */
 extern u16 Cell_Conv_Tab[];
 extern u8 MD_Palette[], MD_Palette32[], MD_Screen[], MD_Screen32[];
 extern u8 Sprite_Struct[];
@@ -327,6 +328,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 	switch (sel)
 	{
 	case 0: src &= 0x003FFFFE; break;
+	case 9: src &= 0x00FFFFFE; break;	/* gens64: ROM through the mapper (ROMs over 6 MB) */
 	case 1: src &= 0xFFFE; break;
 	case 2: src = (src & 0x0001FFFE) + (u32)Bank_M68K; break;
 	case 3: src = (src - 2) & 0x0003FFFE; break;
@@ -352,6 +354,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 		switch (sel)
 		{
 		case 0: w = *(u16 *)(Rom_Data + src); src += 2; break;
+		case 9: w = *(u16 *)(Rom_Data + Rom_Page[(src >> 19) & 31] + (src & 0x7FFFF)); src += 2; break;
 		case 1: w = *(u16 *)(Ram_68k + src); src = (src & 0xFFFF0000) | ((src + 2) & 0xFFFF); break;
 		case 2: w = *(u16 *)(Ram_Prg + src); src += 2; break;
 		case 3: w = *(u16 *)(Ram_Word_2M + src); src += 2; break;
@@ -429,7 +432,12 @@ static void do_dma(u32 t)
 		goto no_dma;
 	type = t & 3;
 	sel = 0;
-	if (src >= Rom_Size)
+	if (Rom_Mapper)
+	{
+		/* gens64: ROMs over 6 MB: 000000-9FFFFF is the ROM through the mapper, the rest RAM */
+		sel = (src < 0xA00000) ? 9 : 1;
+	}
+	else if (src >= Rom_Size)
 	{
 		sel = 1;
 		if (B0(gens64_vdp_data.SegaCD_Started) && src < 0x00240000)

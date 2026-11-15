@@ -17,6 +17,10 @@
 #include "SH2.h"
 #include "gens64_addr.h"
 
+#ifndef ROM_DATA_MAX
+#define ROM_DATA_MAX (32 * 1024 * 1024)	/* as in Mem_M68k.h */
+#endif
+
 typedef unsigned char u8;
 typedef unsigned short u16;
 typedef unsigned int u32;
@@ -88,7 +92,7 @@ void hook_write_byte(void);
 /* ---- .bss (layout of the asm: savestates and other modules address these directly) ---- */
 struct gens64_m68k_bss {
 	u8 Ram_68k[64 * 1024];
-	u8 Rom_Data[6 * 1024 * 1024];
+	u8 Rom_Data_r341[6 * 1024 * 1024];	/* gens64: unused (the ROM is in Rom_Data below); kept for the layout */
 	u8 SRAM[64 * 1024];
 	u8 Ram_Backup_Ex[64 * 1024];
 	u8 Genesis_Rom[2 * 1024];
@@ -102,11 +106,24 @@ struct gens64_m68k_bss {
 typedef char gens64_m68k_bss_size[(sizeof(struct gens64_m68k_bss) == 0x631164) ? 1 : -1];
 __attribute__((aligned(64), nocommon)) struct gens64_m68k_bss gens64_m68k_bss;
 #define B gens64_m68k_bss
+
+/* gens64: the cartridge ROM, out of the asm's .bss block so that it can be large (r341: 6 MB inside
+   the block). ROMs up to 6 MB are handled exactly as in r341; larger ones get the mapper below. */
+__attribute__((aligned(64))) u8 Rom_Data[ROM_DATA_MAX];
+
+/* gens64: mapper for ROMs over 6 MB (docs/large-roms.md).
+   Rom_Mapper: 0 = r341 (ROM <= 6 MB), 1 = Sega (SSF2: A130F3-A130FF select the 512 KB page of the
+   windows 080000-3FFFFF, A130F1 SRAM; 400000-9FFFFF linear), 2 = Mega Everdrive extended SSF
+   ("SEGA SSF" header: window 0 too, A130F0 word with bit 15, bit 13 = ROM writable).
+   Rom_Page: byte offset in Rom_Data of each 512 KB window of 000000-9FFFFF (entries 20-31 unused). */
+u32 Rom_Mapper, Rom_Mask;
+u32 Rom_Page[32];
+u8 Mapper_Bank[8], Mapper_Ctrl;
 /* names starting with L are assembler-private on i386 COFF: decorated alias only */
 #define ALIAS_(n, off) ".globl " GSYM #n "\n.set " GSYM #n ", " GSYM "gens64_m68k_bss+" #off "\n"
 #define ALIAS(n, off) ALIAS_(n, off)
 __asm__(
-	ALIAS(Ram_68k, 0) ALIAS(Rom_Data, 0x10000) ALIAS(SRAM, 0x610000) ALIAS(Ram_Backup_Ex, 0x620000)
+	ALIAS(Ram_68k, 0) ALIAS(SRAM, 0x610000) ALIAS(Ram_Backup_Ex, 0x620000)
 	ALIAS(Genesis_Rom, 0x630000) ALIAS(_32X_Genesis_Rom, 0x630800) ALIAS(Rom_Size, 0x630900)
 	ALIAS(SRAM_Start, 0x630904) ALIAS(SRAM_End, 0x630908) ALIAS(SRAM_ON, 0x63090C) ALIAS(SRAM_Write, 0x630910)
 	ALIAS(SRAM_Custom, 0x630914) ALIAS(BRAM_Ex_State, 0x630918) ALIAS(BRAM_Ex_Size, 0x63091C)
@@ -201,7 +218,7 @@ static u32 M68K_Read_Byte_Bad(u32 a)
 	(void)a;
 	return 0;
 }
-#define RB_ROM(n, base) static u32 M68K_Read_Byte_Rom##n(u32 a) { return B.Rom_Data[(a & 0x7FFFF) ^ (base | 1)]; }
+#define RB_ROM(n, base) static u32 M68K_Read_Byte_Rom##n(u32 a) { return Rom_Data[(a & 0x7FFFF) ^ (base | 1)]; }
 RB_ROM(0, 0x000000) RB_ROM(1, 0x080000) RB_ROM(2, 0x100000) RB_ROM(3, 0x180000)
 RB_ROM(5, 0x280000) RB_ROM(6, 0x300000) RB_ROM(7, 0x380000) RB_ROM(8, 0x400000)
 RB_ROM(9, 0x480000) RB_ROM(A, 0x500000) RB_ROM(B, 0x580000)
@@ -213,7 +230,7 @@ static u32 M68K_Read_Byte_Rom4(u32 a)
 			return 0;
 		return RD8(B.SRAM + (a - B.SRAM_Start));	/* no byte swapped */
 	}
-	return B.Rom_Data[(a & 0x7FFFF) ^ 0x200001];
+	return Rom_Data[(a & 0x7FFFF) ^ 0x200001];
 }
 /* 0x600000-0x7FFFFF: own label in the asm (same code as "bad"), kept apart so the tables match */
 static u32 M68K_Read_Byte_RomC(u32 a)
@@ -273,7 +290,7 @@ static u32 M68K_Read_Word_Bad(u32 a)
 	(void)a;
 	return 0;
 }
-#define RW_ROM(n, base) static u32 M68K_Read_Word_Rom##n(u32 a) { return RD16(B.Rom_Data + (a & 0x7FFFF) + base); }
+#define RW_ROM(n, base) static u32 M68K_Read_Word_Rom##n(u32 a) { return RD16(Rom_Data + (a & 0x7FFFF) + base); }
 RW_ROM(0, 0x000000) RW_ROM(1, 0x080000) RW_ROM(2, 0x100000) RW_ROM(3, 0x180000)
 RW_ROM(5, 0x280000) RW_ROM(6, 0x300000) RW_ROM(7, 0x380000) RW_ROM(8, 0x400000)
 RW_ROM(9, 0x480000) RW_ROM(A, 0x500000) RW_ROM(B, 0x580000)
@@ -287,7 +304,7 @@ static u32 M68K_Read_Word_Rom4(u32 a)
 		v = RD16(B.SRAM + (a - B.SRAM_Start));	/* no byte swapped */
 		return (u16)(v << 8 | v >> 8);
 	}
-	return RD16(B.Rom_Data + (a & 0x7FFFF) + 0x200000);
+	return RD16(Rom_Data + (a & 0x7FFFF) + 0x200000);
 }
 static u32 M68K_Read_Word_RomC(u32 a)
 {
@@ -347,7 +364,7 @@ static void M68K_Write_Bad(u32 a, u32 d)
 /* cheat table only (M68K_WBC): write into the ROM image */
 static void M68K_Write_Byte_ROM(u32 a, u32 d)
 {
-	B.Rom_Data[(a ^ 1) & 0xFFFFFF] = (u8)d;
+	Rom_Data[(a ^ 1) & 0xFFFFFF] = (u8)d;
 }
 static void M68K_Write_Byte_SRAM(u32 a, u32 d)
 {
@@ -388,6 +405,7 @@ static void sram_ctrl(u32 d)
 static void *Genesis_RB_Table(int i);
 static void *Genesis_RW_Table(int i);
 static void bank_write(u32 a, u32 d);
+static int mapper_write(u32 a, u32 d, int word);
 static void M68K_Write_Byte_Misc(u32 a, u32 d)
 {
 	if (a <= 0xA0FFFF)
@@ -411,6 +429,8 @@ static void M68K_Write_Byte_Misc(u32 a, u32 d)
 		io_write(a, d, 0);
 		return;
 	}
+	if (Rom_Mapper && a >= 0xA13000 && a <= 0xA130FF && mapper_write(a, d, 0))
+		return;
 	if (a < 0xA130F1)
 		return;
 	if (a == 0xA130F1)
@@ -467,6 +487,8 @@ static void M68K_Write_Word_Misc(u32 a, u32 d)
 		io_write(a, d, 1);
 		return;
 	}
+	if (Rom_Mapper && a >= 0xA13000 && a <= 0xA130FF && mapper_write(a, d, 1))
+		return;
 	if (a < 0xA130F0)
 		return;
 	if (a == 0xA130F0)
@@ -491,7 +513,7 @@ static void M68K_Write_Word_VDP(u32 a, u32 d)
 static u32 M68K_Read_Byte_Bios_CD(u32 a)
 {
 	if (a <= 0x1FFFF)
-		return B.Rom_Data[a ^ 1];
+		return Rom_Data[a ^ 1];
 	if (a > 0x3FFFF)
 		return 0;
 	a += B.Bank_M68K;
@@ -548,8 +570,8 @@ static u32 cd_reg_read_byte(u32 a)
 	case 0x03: return (u8)(B.Bank_M68K >> 11) | Memory_Control_Status[Ram_Word_State & 3];
 	case 0x04: return CDC_RS0[1];
 	case 0x05: return 0;
-	case 0x06: return B.Rom_Data[0x73];
-	case 0x07: return B.Rom_Data[0x72];
+	case 0x06: return Rom_Data[0x73];
+	case 0x07: return Rom_Data[0x72];
 	case 0x08: case 0x09: case 0x0A: case 0x0B: return 0;
 	case 0x0C: return CDC_Stop_Watch[3];
 	case 0x0D: return CDC_Stop_Watch[2];
@@ -575,7 +597,7 @@ static u32 M68K_Read_Byte_Misc_CD(u32 a)
 static u32 M68K_Read_Word_Bios_CD(u32 a)
 {
 	if (a <= 0x1FFFF)
-		return RD16(B.Rom_Data + a);
+		return RD16(Rom_Data + a);
 	if (a > 0x3FFFF)
 		return 0;
 	a += B.Bank_M68K;
@@ -623,7 +645,7 @@ static u32 cd_reg_read_word(u32 a)
 	case 0x00: return (u32)((Int_Mask_S68K[0] & 4) << 5) << 8 | RD8(&B.S68K_State);
 	case 0x02: return (u32)S68K_Mem_WP[0] << 8 | (u8)((u8)(B.Bank_M68K >> 11) | Memory_Control_Status[Ram_Word_State & 3]);
 	case 0x04: return (u32)CDC_RS0[1] << 8;
-	case 0x06: return RD16(B.Rom_Data + 0x72);
+	case 0x06: return RD16(Rom_Data + 0x72);
 	case 0x08: return Read_CDC_Host_MAIN();
 	case 0x0A: return 0;
 	case 0x0C: return RD16(CDC_Stop_Watch + 2);
@@ -760,8 +782,8 @@ static void M68K_Write_Byte_Misc_CD(u32 a, u32 d)
 	case 0x01: s68k_ctrl_low(d); return;
 	case 0x02: WR8(S68K_Mem_WP, d); return;
 	case 0x03: memory_ctrl_low(d); return;
-	case 0x06: B.Rom_Data[0x73] = (u8)d; return;
-	case 0x07: B.Rom_Data[0x72] = (u8)d; return;
+	case 0x06: Rom_Data[0x73] = (u8)d; return;
+	case 0x07: Rom_Data[0x72] = (u8)d; return;
 	case 0x0E: COMM_Flag[1] = (u8)d; return;
 	case 0x0F: COMM_Flag[1] = (u8)((u8)d << 1 | (u8)d >> 7); return;	/* sic: rol al, 1 into the high byte */
 	}
@@ -849,7 +871,7 @@ static void M68K_Write_Word_Misc_CD(u32 a, u32 d)
 		WR8(S68K_Mem_WP, d >> 8);
 		memory_ctrl_low(d);
 		return;
-	case 0x06: WR16(B.Rom_Data + 0x72, d); return;
+	case 0x06: WR16(Rom_Data + 0x72, d); return;
 	case 0x0E: COMM_Flag[1] = (u8)(d >> 8); return;
 	}
 	if (r >= 0x10 && r < 0x20)
@@ -873,7 +895,7 @@ static u32 M68K_Read_Byte_BiosR_32X(u32 a)
 {
 	if (a < 0x100)
 		return B._32X_Genesis_Rom[a ^ 1];
-	return B.Rom_Data[a ^ 1];
+	return Rom_Data[a ^ 1];
 }
 static u32 pwm_full(const u8 *rp, const u8 *wp)
 {
@@ -951,7 +973,7 @@ static u32 M68K_Read_Word_BiosR_32X(u32 a)
 {
 	if (a < 0x100)
 		return RD16(B._32X_Genesis_Rom + a);
-	return RD16(B.Rom_Data + a);
+	return RD16(Rom_Data + a);
 }
 static u32 x32_reg_read_word(u32 a)
 {
@@ -1467,6 +1489,175 @@ static void bank_write(u32 a, u32 d)
 	D.RW[slot] = Genesis_RW_Table(b);
 }
 
+
+/* ======================= gens64: mapper for ROMs over 6 MB ======================= */
+
+void M68K_Set_Rom_Fetch(void);	/* Cpu_68k.c: code fetch regions from Rom_Page */
+
+static u32 mapped_sram(u32 a)
+{
+	return (B.SRAM_ON & 1) && a >= B.SRAM_Start && a <= B.SRAM_End;
+}
+static u32 M68K_Read_Byte_Mapped(u32 a)
+{
+	if (mapped_sram(a))
+	{
+		if (RD8(&B.SRAM_Custom) & 1)
+			return 0;
+		return RD8(B.SRAM + (a - B.SRAM_Start));
+	}
+	return Rom_Data[(Rom_Page[a >> 19] + (a & 0x7FFFF)) ^ 1];
+}
+static u32 M68K_Read_Word_Mapped(u32 a)
+{
+	if (mapped_sram(a))
+	{
+		u16 v;
+		if (RD8(&B.SRAM_Custom) & 1)
+			return 0;
+		v = RD16(B.SRAM + (a - B.SRAM_Start));
+		return (u16)(v << 8 | v >> 8);
+	}
+	return RD16(Rom_Data + Rom_Page[a >> 19] + (a & 0x7FFFF));
+}
+/* 000000-3FFFFF: Everdrive's ROM is RAM when bit 13 of A130F0 is set, otherwise SRAM as usual */
+static void M68K_Write_Byte_Mapped(u32 a, u32 d)
+{
+	if ((Mapper_Ctrl & 0x20) && a < 0x400000)
+	{
+		Rom_Data[(Rom_Page[a >> 19] + (a & 0x7FFFF)) ^ 1] = (u8)d;
+		return;
+	}
+	M68K_Write_Byte_SRAM(a, d);
+}
+static void M68K_Write_Word_Mapped(u32 a, u32 d)
+{
+	if ((Mapper_Ctrl & 0x20) && a < 0x400000)
+	{
+		WR16(Rom_Data + Rom_Page[a >> 19] + (a & 0x7FFFE), d);
+		return;
+	}
+	M68K_Write_Word_SRAM(a, d);
+}
+
+/* the window offsets from the bank registers */
+static void mapper_update(void)
+{
+	u32 i;
+	Rom_Page[0] = (Rom_Mapper == 2) ? ((u32)(Mapper_Bank[0] & 0x1F) << 19) & Rom_Mask : 0;
+	for (i = 1; i < 8; i++)
+		Rom_Page[i] = ((u32)Mapper_Bank[i] << 19) & Rom_Mask;
+	for (i = 8; i < 20; i++)
+		Rom_Page[i] = (i << 19) & Rom_Mask;
+	for (i = 20; i < 32; i++)
+		Rom_Page[i] = 0;
+	M68K_Set_Rom_Fetch();
+}
+
+/* power on and /VRES: every window shows its own page */
+void Mapper_Reset(void)
+{
+	u32 i;
+	if (!Rom_Mapper)
+		return;
+	for (i = 0; i < 8; i++)
+		Mapper_Bank[i] = (u8)i;
+	Mapper_Ctrl = 0;
+	mapper_update();
+}
+
+/* after loading a savestate (Mapper_Bank/Mapper_Ctrl restored) */
+void Mapper_Restore(void)
+{
+	if (Rom_Mapper)
+		mapper_update();
+}
+
+/* Rom_Size and the header are set: choose the mapper (system: 0 Genesis, 1 32X, 2 Sega CD) */
+void Mapper_Init(int system)
+{
+	u32 size = 0x80000;
+	Rom_Mapper = 0;
+	Rom_Mask = 0;
+	if (system != 0 || B.Rom_Size <= 6 * 1024 * 1024)
+		return;
+	while (size < B.Rom_Size && size < ROM_DATA_MAX)
+		size <<= 1;
+	/* the ROM is mirrored every power of 2; the rest of that is 0xFF, as with an empty flash chip */
+	if (B.Rom_Size < size)
+		memset(Rom_Data + B.Rom_Size, 0xFF, size - B.Rom_Size);
+	/* "SEGA SSF" (the header is byteswapped in Rom_Data) */
+	Rom_Mapper = (Rom_Data[0x101] == 'S' && Rom_Data[0x100] == 'E' && Rom_Data[0x103] == 'G' && Rom_Data[0x102] == 'A' &&
+		Rom_Data[0x105] == ' ' && Rom_Data[0x104] == 'S' && Rom_Data[0x107] == 'S' && Rom_Data[0x106] == 'F') ? 2 : 1;
+	if (Rom_Mapper == 2 && size < 16 * 1024 * 1024)
+	{
+		/* the Everdrive has 16 MB of RAM for the ROM */
+		memset(Rom_Data + size, 0xFF, 16 * 1024 * 1024 - size);
+		size = 16 * 1024 * 1024;
+	}
+	Rom_Mask = size - 1;
+	Mapper_Reset();
+}
+
+/* A13000-A130FF writes (byte: d = data, word: d = data, a even) */
+static int mapper_write(u32 a, u32 d, int word)
+{
+	u32 r = (a & 0xE) >> 1;
+	if (Rom_Mapper == 2)
+	{
+		if ((a & 0xF0) != 0xF0)
+			return 1;	/* other Everdrive registers (USB, SPI...) are not emulated */
+		if (r == 0)
+		{
+			/* A130F0: bit 15 must be set; bits 13 (ROM writable), 4-0 (page of window 0) */
+			if (!word)
+			{
+				if (a & 1)
+					return 1;
+				d = (d << 8) | Mapper_Bank[0];
+			}
+			if (!(d & 0x8000))
+				return 1;
+			Mapper_Ctrl = (u8)(d >> 8);
+			Mapper_Bank[0] = (u8)d;
+		}
+		else
+		{
+			if (!word && !(a & 1))
+				return 1;
+			Mapper_Bank[r] = (u8)d;
+		}
+		mapper_update();
+		return 1;
+	}
+	/* Sega mapper: registers at odd addresses (a word write gives them its low byte) */
+	if (a < 0xA130F0 || (!word && !(a & 1)))
+		return 1;
+	if (r == 0)
+	{
+		sram_ctrl(d);
+		return 1;
+	}
+	Mapper_Bank[r] = (u8)d;
+	mapper_update();
+	return 1;
+}
+
+static void mapper_install(void)
+{
+	u32 i;
+	for (i = 0; i < 20; i++)
+	{
+		D.RB[i] = (void *)M68K_Read_Byte_Mapped;
+		D.RW[i] = (void *)M68K_Read_Word_Mapped;
+	}
+	for (i = 0; i < 4; i++)
+	{
+		D.WB[i] = (void *)M68K_Write_Byte_Mapped;
+		D.WW[i] = (void *)M68K_Write_Word_Mapped;
+	}
+}
+
 /* ======================= entry points ======================= */
 
 void Init_Memory_M68K(int System_ID)
@@ -1517,6 +1708,8 @@ void Init_Memory_M68K(int System_ID)
 		D.WBC[i] = D.Genesis_WBC[i];
 		D.WW[i] = D.Genesis_WW[i];
 	}
+	if (Rom_Mapper)
+		mapper_install();
 }
 
 u32 M68K_RB(u32 adr)

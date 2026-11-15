@@ -811,6 +811,7 @@ void Init_Genesis_Bios(void)
 	Game_Mode = 0;
 	CPU_Mode = 0;
 	VDP_Num_Vis_Lines = 224;
+	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	M68K_Reset(0,1);
 	Z80_Reset();
 	Reset_VDP();
@@ -916,6 +917,7 @@ int Init_Genesis(struct Rom *MD_Rom)
 	Byte_Swap(Rom_Data, Rom_Size);
 
 	M68K_Init(); // Modif N. -- added for symmetry, maybe it helps something
+	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	M68K_Reset(0,1);
 	Z80_Reset();
 	Reset_VDP();
@@ -1481,6 +1483,7 @@ int Init_32X(struct Rom *MD_Rom)
 
 	MSH2_Reset();
 	SSH2_Reset();
+	Mapper_Init(1);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	M68K_Reset(1,1);
 	Z80_Reset();
 	Reset_VDP();
@@ -2041,6 +2044,7 @@ int Init_SegaCD(char *iso_name)
 	Byte_Swap(Rom_Data, Rom_Size);
 
 	M68K_Init(); // Modif N. -- added for symmetry, maybe it helps something
+	Mapper_Init(2);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	M68K_Reset(2,1);
 	S68K_Init(); // Modif N. -- added, needed to fully reset the sub68k
 	S68K_Reset();

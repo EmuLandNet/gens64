@@ -29,6 +29,8 @@ LRESULT CALLBACK M68kDebugProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 static unsigned short Dbg_Read16(unsigned int a)
 {
 	a &= 0xFFFFFE;
+	if (Rom_Mapper && a < 0xA00000)	// ROMs over 6 MB: the pages the mapper shows now
+		return *(unsigned short *)(Rom_Data + Rom_Page[a >> 19] + (a & 0x7FFFF));
 	if (a < 0x400000)
 		return (a < sizeof(Rom_Data)) ? *(unsigned short *)(Rom_Data + a) : 0;
 	if (a >= 0xE00000)

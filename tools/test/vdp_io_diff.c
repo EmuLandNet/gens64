@@ -20,6 +20,7 @@ typedef void (*fn_t)(void);
 /* shared inputs (the C port's names; the asm side's names are aliased below) */
 u8 Rom_Data[0x400000 + 0x40000];
 u32 Rom_Size;
+u32 Rom_Mapper, Rom_Page[32];	/* gens64: mapper of ROMs over 6 MB (0 here: r341 path) */
 u16 Cell_Conv_Tab[64 * 1024];
 u8 Ram_68k[64 * 1024];
 u8 Ram_Prg[512 * 1024 + 0x40000];

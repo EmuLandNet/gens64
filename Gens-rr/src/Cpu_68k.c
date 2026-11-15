@@ -22,7 +22,7 @@
 
 struct S68000CONTEXT Context_68K;
 
-struct STARSCREAM_PROGRAMREGION M68K_Fetch[] =
+struct STARSCREAM_PROGRAMREGION M68K_Fetch[32] =	/* gens64: 32 entries (r341: 7), for M68K_Set_Rom_Fetch */
 {
 	{0x000000, 0x3FFFFF, 0},
 	{0xFF0000, 0xFFFFFF, 0},
@@ -32,6 +32,41 @@ struct STARSCREAM_PROGRAMREGION M68K_Fetch[] =
 	{-1, -1, 0},
 	{-1, -1, 0}
 };
+
+/* gens64: code fetch for the mapper of ROMs over 6 MB (Mem_M68k_asm.c): one region per run of
+   512 KB windows of 000000-9FFFFF whose pages follow each other, then the Genesis RAM regions.
+   Starscream looks the regions up on jumps, so a bank switch takes effect at the next jump. */
+void M68K_Set_Rom_Fetch(void)
+{
+	int n = 0;
+	unsigned i = 0;
+	while (i < 20)
+	{
+		unsigned j = i + 1;
+		while (j < 20 && Rom_Page[j] == Rom_Page[j - 1] + 0x80000)
+			j++;
+		M68K_Fetch[n].lowaddr = i << 19;
+		M68K_Fetch[n].highaddr = (j << 19) - 1;
+		M68K_Fetch[n].offset = GA(&Rom_Data[Rom_Page[i]]) - (i << 19);
+		n++;
+		i = j;
+	}
+	M68K_Fetch[n].lowaddr = 0xFF0000;
+	M68K_Fetch[n].highaddr = 0xFFFFFF;
+	M68K_Fetch[n].offset = GA(&Ram_68k[0]) - 0xFF0000;
+	n++;
+	M68K_Fetch[n].lowaddr = 0xF00000;
+	M68K_Fetch[n].highaddr = 0xF0FFFF;
+	M68K_Fetch[n].offset = GA(&Ram_68k[0]) - 0xF00000;
+	n++;
+	M68K_Fetch[n].lowaddr = 0xEF0000;
+	M68K_Fetch[n].highaddr = 0xEFFFFF;
+	M68K_Fetch[n].offset = GA(&Ram_68k[0]) - 0xEF0000;
+	n++;
+	M68K_Fetch[n].lowaddr = -1;
+	M68K_Fetch[n].highaddr = -1;
+	M68K_Fetch[n].offset = 0;
+}
 		
 struct STARSCREAM_DATAREGION M68K_Read_Byte[5] =
 {
@@ -251,6 +286,8 @@ void M68K_Reset(int System_ID, char Hard)
 			M68K_Fetch[6].offset = 0;
 		}
  	}
+	if (System_ID == GENESIS)
+		Mapper_Reset();	/* gens64: ROMs over 6 MB (nothing otherwise) */
  	main68k_reset();
  
  	Init_Memory_M68K(System_ID);

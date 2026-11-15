@@ -1238,9 +1238,19 @@ int Import_Genesis(unsigned char * Data)
 			ImportDataAuto(&LagCountPersistent, Data, offset, 4);
 			ImportDataAuto(&Lag_Frame, Data, offset, 1);
 		}
-		if(Version >= 9) offset += 11; // alignment for performance
+		if(Version >= 9)
+		{
+			// gens64: the mapper of ROMs over 6 MB is kept in this alignment padding (see Export_Genesis)
+			if (Rom_Mapper && Data[offset] == 'M')
+			{
+				memcpy(Mapper_Bank, Data + offset + 1, 8);
+				Mapper_Ctrl = Data[offset + 9];
+			}
+			offset += 11; // alignment for performance
+		}
 	}
 
+	Mapper_Restore(); // gens64: windows and code fetch regions from the bank registers (ROMs over 6 MB)
 	main68k_SetContext(&Context_68K);
 
 #ifdef _DEBUG
@@ -1478,7 +1488,19 @@ void Export_Genesis(unsigned char * Data)
 			ExportDataAuto(&LagCountPersistent, Data, offset, 4);
 			ExportDataAuto(&Lag_Frame, Data, offset, 1);
 		}
-		if(Version >= 9) offset += 11; // alignment for performance
+		if(Version >= 9)
+		{
+			// gens64: ROMs over 6 MB: 'M', the 8 bank registers and the Everdrive control byte of the
+			// mapper go into the 11 bytes of alignment padding; they stay 0 for all other ROMs, so
+			// their savestates are byte for byte as before
+			if (Rom_Mapper)
+			{
+				Data[offset] = 'M';
+				memcpy(Data + offset + 1, Mapper_Bank, 8);
+				Data[offset + 9] = Mapper_Ctrl;
+			}
+			offset += 11; // alignment for performance
+		}
 	}
 
 #ifdef _DEBUG
