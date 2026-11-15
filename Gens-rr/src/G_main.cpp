@@ -56,6 +56,7 @@
 #endif
 #include "7zip.h"
 #include "OpenArchive.h"
+#include "hexeditor.h"	// gens64: tools from Gens r57shell mod
 
 extern "C" void Read_To_68K_Space(int adr);
 #define MAPHACK
@@ -146,6 +147,8 @@ int Gens_Menu_Width = 0; // in pixels
 HWND RamSearchHWnd = NULL; // modeless dialog
 HWND RamWatchHWnd = NULL; // modeless dialog
 HWND RamCheatHWnd = NULL; // modeless dialog
+HWND VDPRamHWnd = NULL; // modeless dialog (gens64: from Gens r57shell mod)
+HWND VDPSpritesHWnd = NULL; // modeless dialog
 std::vector<HWND> LuaScriptHWnds; // modeless dialogs
 HWND VolControlHWnd = NULL;
 
@@ -264,6 +267,8 @@ LRESULT CALLBACK PlayMovieProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK RecordMovieProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK RamSearchProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK RamWatchProc(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK VDPRamProc(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK VDPSpritesProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK RamCheatProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK VolumeProc(HWND, UINT, WPARAM, LPARAM);
 LRESULT CALLBACK PromptSpliceFrameProc(HWND, UINT, WPARAM, LPARAM);
@@ -1954,6 +1959,13 @@ void Handle_Gens_Messages()
 		}
 		if (VolControlHWnd && IsDialogMessage(VolControlHWnd, &msg))
 			continue;
+		// gens64: tool windows from Gens r57shell mod (also keeps Ctrl+C there away from the accelerators)
+		if (HexEditorHWnd && IsDialogMessage(HexEditorHWnd, &msg))
+			continue;
+		if (VDPRamHWnd && IsDialogMessage(VDPRamHWnd, &msg))
+			continue;
+		if (VDPSpritesHWnd && IsDialogMessage(VDPSpritesHWnd, &msg))
+			continue;
 		bool docontinue = false;
 		for(unsigned int i=0; i<LuaScriptHWnds.size(); i++)
 			if (IsDialogMessage(LuaScriptHWnds[i], &msg))
@@ -2786,6 +2798,8 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			if(MainMovie.File!=NULL)
 				CloseMovieFile(&MainMovie);
 			if ((Check_If_Kaillera_Running())) return 0;
+			if (HexEditorHWnd)
+				HexDestroyDialog();	// gens64: a top-level window, not owned by the main window
 			Gens_Running = 0;
 			}
 			return 0;
@@ -3165,6 +3179,31 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					}
 					else
 						SetForegroundWindow(RamWatchHWnd);
+					break;
+
+				// gens64: tool windows from Gens r57shell mod
+				case ID_RAM_DUMP:
+					HexCreateDialog();
+					break;
+
+				case ID_VDP_RAM:
+					if(!VDPRamHWnd)
+					{
+						VDPRamHWnd = CreateDialog(ghInstance, MAKEINTRESOURCE(IDD_VDPRAM), hWnd, (DLGPROC) VDPRamProc);
+						DialogsOpen++;
+					}
+					else
+						SetForegroundWindow(VDPRamHWnd);
+					break;
+
+				case ID_VDP_SPRITES:
+					if(!VDPSpritesHWnd)
+					{
+						VDPSpritesHWnd = CreateDialog(ghInstance, MAKEINTRESOURCE(IDD_VDP_SPRITES), hWnd, (DLGPROC) VDPSpritesProc);
+						DialogsOpen++;
+					}
+					else
+						SetForegroundWindow(VDPSpritesHWnd);
 					break;
 
 				case IDC_NEW_LUA_SCRIPT:
@@ -5565,6 +5604,12 @@ HMENU Build_Main_Menu(void)
 		ID_RAM_WATCH,"RAM Watch","","RAM &Watch");   //Modif U.
 	MENU_L(TAS_Tools,i++,Flags,
 		ID_RAM_SEARCH,"RAM Search","","&RAM Search"); //Modif N.
+	MENU_L(TAS_Tools,i++,Flags,
+		ID_RAM_DUMP,"RAM Dump","","RAM &Dump"); // gens64: from Gens r57shell mod
+	MENU_L(TAS_Tools,i++,Flags,
+		ID_VDP_RAM,"VDP RAM","","&VDP RAM");
+	MENU_L(TAS_Tools,i++,Flags,
+		ID_VDP_SPRITES,"VDP Sprites","","VDP S&prites");
 
 	// MOVIES //
 
@@ -5931,6 +5976,52 @@ HMENU Build_Main_Menu(void)
 	return(Gens_Menu);
 }
 
+// gens64 (from Gens r57shell mod): the Game Genie window can be resized, and a right click on a
+// code in the list removes it
+static RECT GGRect;				// client size the controls are laid out for
+static POINT GGMinSize;			// initial window size = minimum
+static WNDPROC GGListOldProc;
+
+static LRESULT CALLBACK GGListProc(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	if (uMsg == WM_RBUTTONUP)
+	{
+		LRESULT res = SendMessage(hWnd, LB_ITEMFROMPOINT, 0, lParam);
+		if (!HIWORD(res))
+			SendMessage(hWnd, LB_DELETESTRING, (WPARAM) LOWORD(res), 0);
+	}
+	return CallWindowProc(GGListOldProc, hWnd, uMsg, wParam, lParam);
+}
+
+static void GGLayout(HWND hDlg, int x, int y)
+{
+	static const int right[] = { ID_GGADD, ID_GGREMOVE, ID_GGDEACTIVATE, ID_OK, ID_CANCEL, ID_HELP_HELP };
+	static const int wide[] = { IDC_EDIT1, IDC_EDIT2, IDC_INFO_GG };
+	int dx = x - GGRect.right, dy = y - GGRect.bottom;
+	unsigned i;
+	RECT rc;
+	POINT P;
+
+	GetWindowRect(GetDlgItem(hDlg, IDC_LIST1), &rc);
+	SetWindowPos(GetDlgItem(hDlg, IDC_LIST1), NULL, 0, 0, rc.right - rc.left + dx, rc.bottom - rc.top + dy, SWP_NOMOVE | SWP_NOZORDER);
+	for (i = 0; i < sizeof(right) / sizeof(right[0]); i++)
+	{
+		GetWindowRect(GetDlgItem(hDlg, right[i]), &rc);
+		P.x = rc.left;
+		P.y = rc.top;
+		ScreenToClient(hDlg, &P);
+		SetWindowPos(GetDlgItem(hDlg, right[i]), NULL, P.x + dx, P.y, 0, 0, SWP_NOSIZE | SWP_NOZORDER);
+	}
+	for (i = 0; i < sizeof(wide) / sizeof(wide[0]); i++)
+	{
+		GetWindowRect(GetDlgItem(hDlg, wide[i]), &rc);
+		SetWindowPos(GetDlgItem(hDlg, wide[i]), NULL, 0, 0, rc.right - rc.left + dx, rc.bottom - rc.top, SWP_NOMOVE | SWP_NOZORDER);
+	}
+	GGRect.right = x;
+	GGRect.bottom = y;
+	InvalidateRect(hDlg, NULL, TRUE);
+}
+
 LRESULT CALLBACK GGenieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	RECT r;
@@ -5952,6 +6043,11 @@ LRESULT CALLBACK GGenieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			dy2 = (r2.bottom - r2.top) / 2;
 
 			SetWindowPos(hDlg, NULL, max(0, r.left + (dx1 - dx2)), max(0, r.top + (dy1 - dy2)), NULL, NULL, SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
+
+			GetClientRect(hDlg, &GGRect);
+			GGMinSize.x = r2.right - r2.left;
+			GGMinSize.y = r2.bottom - r2.top;
+			GGListOldProc = (WNDPROC) SetWindowLongPtr(GetDlgItem(hDlg, IDC_LIST1), GWLP_WNDPROC, (LONG_PTR) GGListProc);
 
 			WORD_L(IDC_INFO_GG, "Informations GG", "", "Informations about GG/Patch codes");
 			WORD_L(IDC_GGINFO1, "Game Genie info 1", "", "Both Game Genie code and Patch code are supported.");
@@ -6117,6 +6213,28 @@ LRESULT CALLBACK GGenieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			DialogsOpen--;
 			EndDialog(hDlg, true);
 			return true;
+			break;
+
+		case WM_SIZE:
+			if (wParam != SIZE_MINIMIZED && GGListOldProc)
+				GGLayout(hDlg, LOWORD(lParam), HIWORD(lParam));
+			return true;
+
+		case WM_GETMINMAXINFO:
+			if (GGMinSize.x)
+			{
+				((MINMAXINFO *) lParam)->ptMinTrackSize = GGMinSize;
+				return true;
+			}
+			break;
+
+		case WM_DESTROY:
+			if (GGListOldProc)
+			{
+				SetWindowLongPtr(GetDlgItem(hDlg, IDC_LIST1), GWLP_WNDPROC, (LONG_PTR) GGListOldProc);
+				GGListOldProc = NULL;
+			}
+			GGMinSize.x = GGMinSize.y = 0;
 			break;
 	}
 

@@ -39,6 +39,9 @@
 #include <commctrl.h>
 #include "G_dsound.h"
 #include "ramwatch.h"
+#include "hexeditor.h"
+#include "vdp_ram.h"
+#include "vdp_sprites.h"
 #include "luascript.h"
 #include <list>
 #include <vector>
@@ -1366,6 +1369,13 @@ void Update_RAM_Search() //keeps RAM values up to date in the search and watch w
 	{
 		Update_RAM_Watch();
 	}
+	// gens64: tool windows from Gens r57shell mod
+	if (HexEditorHWnd)
+		HexUpdateDialog();
+	if (VDPRamHWnd)
+		Update_VDP_RAM();
+	if (VDPSpritesHWnd)
+		UpdateSprites_KMod();
 }
 
 static int rs_lastPercent = -1;

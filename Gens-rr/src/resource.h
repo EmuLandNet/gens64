@@ -640,6 +640,32 @@
 #define ID_LUA_OPENRECENTSCRIPT0        44200
 #define ID_LUA_OPENRECENTSCRIPTMAX      44299
 
+// gens64: tools from Gens r57shell mod (RAM Dump, VDP RAM, VDP Sprites)
+#define IDD_VDPRAM                      160
+#define IDD_VDP_SPRITES                 161
+#define ID_RAM_DUMP                     40525
+#define ID_VDP_RAM                      40528
+#define ID_VDP_SPRITES                  40529
+#define IDC_C_HEX_LINES                 42191
+#define IDC_C_HEX_TEXT                  42192
+#define IDC_C_HEX_GOTO                  42193
+#define IDC_C_HEX_DUMP                  42194
+#define IDC_C_HEX_COPY_NUMS             42195
+#define IDC_C_HEX_COPY_CHARS            42196
+#define IDC_C_HEX_COPY_AUTO             42197
+#define IDC_BUTTON3                     50101
+#define IDC_BUTTON4                     50102
+#define IDC_BUTTON5                     50103
+#define IDC_BUTTON6                     50104
+#define IDC_BUTTON7                     50105
+#define IDC_BUTTON8                     50106
+#define IDC_BUTTON9                     50107
+#define IDC_SCROLLBAR1                  50108
+#define IDC_SPRITES_LIST                50109
+#define IDC_SPRITES_PREVIEW             50110
+#define IDC_SPRITES_PREVIEW2            50111
+#define IDC_SPRITES_DUMP                50112
+
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED

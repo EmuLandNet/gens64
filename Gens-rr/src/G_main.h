@@ -19,6 +19,8 @@ extern WNDCLASS WndClass;
 extern HWND HWnd;
 extern HWND RamWatchHWnd;
 extern HWND RamSearchHWnd;
+extern HWND VDPRamHWnd;
+extern HWND VDPSpritesHWnd;
 extern HMENU Gens_Menu;
 extern HMENU Context_Menu;
 

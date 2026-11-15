@@ -81,6 +81,9 @@ set(GENS_C_CXX_SOURCES
   src/pwm_asm.c
   src/ram_search.cpp
   src/ramwatch.cpp
+  src/hexeditor.cpp
+  src/vdp_ram.cpp
+  src/vdp_sprites.cpp
   src/Rom.cpp
   src/save.cpp
   src/scrshot.cpp
