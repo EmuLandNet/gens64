@@ -1264,6 +1264,8 @@ static void div64(SH2_CONTEXT *c, u32 eax)
 	}
 div_ok:
 	n = (s64)((u64)edx << 32 | eax);
+	if (n == (s64)0x8000000000000000ull && (s32)ecx == -1)
+		return;	/* (idiv overflow: the asm crashed; in C it is undefined: a trap on x86, a result on ARM) */
 	q = n / (s32)ecx;
 	if (q > 0x7FFFFFFF || q < -(s64)0x80000000)
 		return;	/* (idiv overflow: the asm crashed) */

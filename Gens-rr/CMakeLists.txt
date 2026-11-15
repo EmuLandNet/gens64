@@ -116,14 +116,18 @@ add_dependencies(Gens gens64_version)
 set_target_properties(Gens PROPERTIES OUTPUT_NAME Gens RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 target_include_directories(Gens PRIVATE ${GEN}/ci ${R}/src ${R}/dependencies ${R}/dependencies/DirectX ${R}/7z/CPP ${R})
 target_compile_definitions(Gens PRIVATE _WIN32_WINNT=0x0501 WIN32 NDEBUG _WINDOWS _CRT_SECURE_NO_DEPRECATE EXTRACT_ONLY _NO_CRYPTO)
-if(GENS_WIN64)
+if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64|i.86|x86)$")
+  set(GENS_MARCH)                # not x86 (e.g. aarch64): no -march; see docs/asm-quirks.md, "ARM"
+elseif(GENS_WIN64)
   set(GENS_MARCH -march=x86-64)  # SSE floating point: see docs/asm-quirks.md (PCM step) for the one place it mattered
 else()
   set(GENS_MARCH -march=i686)    # i686 => x87 floating point, like MSVC 2008/2010 by default
 endif()
+# -fsigned-char: plain char is signed on x86 (and MSVC), unsigned on Linux/Android ARM.
+# -ffp-contract=off: no fused multiply-add (always available on ARM), so float results round like x86.
 target_compile_options(Gens PRIVATE
   -O2 ${GENS_MARCH}
-  -fms-extensions -fasm-blocks -fno-strict-aliasing -fwrapv -w
+  -fms-extensions -fno-strict-aliasing -fwrapv -fsigned-char -ffp-contract=off -w
   $<$<COMPILE_LANGUAGE:C>:-std=gnu89 -fcommon        # -fcommon: MSVC "communal" C globals (pwm.c/pwm.asm)
      -Wno-error=incompatible-function-pointer-types -Wno-error=int-conversion
      -Wno-error=implicit-function-declaration -Wno-error=incompatible-pointer-types>

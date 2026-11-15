@@ -36,12 +36,23 @@ extern "C" {
 #define INT16   signed short
 #endif
 
+/* gens64: long is 32-bit on Windows (any CPU) but 64-bit on Linux/macOS 64-bit: use int there */
+#if defined(_WIN32) || !defined(__LP64__)
 #ifndef UINT32
 #define UINT32  unsigned long
 #endif
 
 #ifndef INT32
 #define INT32   signed long
+#endif
+#else
+#ifndef UINT32
+#define UINT32  unsigned int
+#endif
+
+#ifndef INT32
+#define INT32   signed int
+#endif
 #endif
 
 

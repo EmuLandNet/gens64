@@ -14,7 +14,9 @@
  *  - the mono/stereo sound writers clamp an odd first sample differently from the MMX pairs.
  * The MMX code is written as plain C with the same saturation.
  */
+#if defined(__i386__) || defined(__x86_64__)
 #include <cpuid.h>
+#endif
 #include "gens64_addr.h"
 #include "Misc.h"
 
@@ -285,11 +287,18 @@ void Identify_CPU(void)
 
 	Have_MMX = 0;
 	CPU_Model = 0;
+#if defined(__i386__) || defined(__x86_64__)
 	if (__get_cpuid_max(0, 0) == 0)
 		return;
 	__cpuid(1, a, b, c, d);
 	CPU_Model = (int)((a & 0xF00) | (d & 0xFFFFF0FF));
 	*(u8 *)&Have_MMX = (CPU_Model & 0x00800000) != 0;
+#else
+	/* gens64: not x86 (ARM...): the "MMX" paths are plain C here and every x86-64 CPU has MMX, so take
+	   them, so that the screen filters and sound output match the x86 builds */
+	(void)a; (void)b; (void)c; (void)d;
+	Have_MMX = 1;
+#endif
 }
 
 int Half_Blur(void)

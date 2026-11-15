@@ -390,7 +390,9 @@ void PSG_Init(int clock, int rate)
 
 		for(j = 0; j < 16; j++)
 		{
-			PSG_SIN_Table[j][i] = (unsigned int) (out * (double) PSG_Volume_Table[j]);
+			/* gens64: through int: the second half is negative, and a negative double converted straight
+			   to unsigned is 0 on ARM (x86 wraps it like an int) */
+			PSG_SIN_Table[j][i] = (unsigned int) (int) (out * (double) PSG_Volume_Table[j]);
 		}
 	}
 

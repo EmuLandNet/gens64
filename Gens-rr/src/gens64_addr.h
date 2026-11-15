@@ -8,8 +8,10 @@
  *
  * So these values stay 32-bit and become offsets from a base below every object they can point to:
  *   - 32-bit builds: base 0, i.e. exactly the absolute addresses of before (same code, same values);
- *   - 64-bit Windows: the image base (__ImageBase): the exe's code, data and .bss (which hold all
- *     the emulated memories, contexts and tables) lie above it, within its 32-bit-sized image.
+ *   - 64-bit builds: the image base (__ImageBase on Windows, __executable_start on ELF systems such as
+ *     Linux, the Mach-O header on macOS): the exe's code, data and .bss (which hold all the emulated
+ *     memories, contexts and tables) lie above it, within its 32-bit-sized image. Nothing here depends
+ *     on the CPU (x86-64, AArch64, ...).
  * Offsets are unsigned and grow with the address, so comparisons and differences behave as with
  * the 32-bit absolute addresses. Heap memory is NOT reachable this way: everything a core points
  * to must be a static object of the exe (GADDR_CHECK verifies where cores are given addresses).
@@ -28,19 +30,34 @@ typedef uint32_t gaddr;
 #if UINTPTR_MAX == 0xFFFFFFFFu
 #define GADDR_BASE ((uintptr_t)0)
 #else
-#ifdef __cplusplus
-extern "C" char __ImageBase[];
+/* the start of the executable's image (linker-defined): code, data and .bss follow within 4 GB */
+#if defined(_WIN32)
+#define GADDR_IMAGE __ImageBase
+#elif defined(__APPLE__)
+#define GADDR_IMAGE _mh_execute_header
+#elif defined(__ELF__)
+#define GADDR_IMAGE __executable_start
 #else
-extern char __ImageBase[];
+#error "gens64_addr.h: no image base symbol known for this platform"
 #endif
-#define GADDR_BASE ((uintptr_t)__ImageBase)
+#ifdef __cplusplus
+extern "C" char GADDR_IMAGE[];
+#else
+extern char GADDR_IMAGE[];
+#endif
+#define GADDR_BASE ((uintptr_t)GADDR_IMAGE)
 #endif
 
 #define GA(p) ((gaddr)((uintptr_t)(p) - GADDR_BASE))
 #define GP(a) ((void *)(GADDR_BASE + (uintptr_t)(gaddr)(a)))
 
-/* the symbol prefix of C names in asm statements (.set aliases): "_" on i386 Windows only */
-#if UINTPTR_MAX == 0xFFFFFFFFu
+/* the symbol prefix of C names in asm statements (.set aliases): "_" on i386 Windows and macOS,
+   "" elsewhere (x86-64 Windows, ELF); GCC and clang predefine it */
+#define GENS64_STR_(x) #x
+#define GENS64_STR(x) GENS64_STR_(x)
+#if defined(__USER_LABEL_PREFIX__)
+#define GSYM GENS64_STR(__USER_LABEL_PREFIX__)
+#elif UINTPTR_MAX == 0xFFFFFFFFu
 #define GSYM "_"
 #else
 #define GSYM ""

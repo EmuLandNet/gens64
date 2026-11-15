@@ -5136,7 +5136,8 @@ static int s_dbg_dataSize = 0;
 
 
 // can't remember what the best way of doing this is...
-#if defined(i386) || defined(__i386) || defined(__i386__) || defined(M_I86) || defined(_M_IX86) || defined(_WIN32)
+#if defined(i386) || defined(__i386) || defined(__i386__) || defined(M_I86) || defined(_M_IX86) || defined(_WIN32) \
+	|| (defined(__BYTE_ORDER__) && __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__)	/* gens64: x86-64, ARM, ... */
 	#define IS_LITTLE_ENDIAN
 #endif
 
