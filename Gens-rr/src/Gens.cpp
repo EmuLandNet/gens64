@@ -254,6 +254,14 @@ int Brightness_Level;
 int Greyscale;
 int Invert_Color;
 bool FakeVDPScreen=true;
+// gens64 (from Gens r57shell mod): Set2/Set4 at the start of the frame, for the shown frame size
+int VDP_Reg_Set2_Current;
+int VDP_Reg_Set4_Current;
+// gens64 (from Gens r57shell mod): 32X layer toggles, output only
+char _32X_Plane_On = 1;
+char _32X_Plane_High_On = 1;
+char _32X_Plane_Low_On = 1;
+char Swap_32X_Plane_Priority = 0;
 
 unsigned char CD_Data[1024];		// Used for hard reset to know the game name
 int SRAM_Was_On = 0;
@@ -1020,7 +1028,7 @@ void Render_MD_Screen()
 			MD_Screen[Pixel] = Palette[Screen_16X[Pixel]];
 		}
 	}
-	if (VDP_Reg.Set4 & 0x1)
+	if (VDP_REG_SET4 & 0x1)
 		for(VDP_Current_Line = 0; VDP_Current_Line < VDP_Num_Vis_Lines; VDP_Current_Line++)
 		{
 			int Pixel = TAB336[VDP_Current_Line] + 8 + 320;
@@ -1034,17 +1042,33 @@ void Render_MD_Screen()
 			MD_Screen32[Pixel] = 0;
 			MD_Screen[Pixel] = 0;
 		}
+	if (Sprite_Boxing)
+		Draw_Sprite_Boxes();
+}
+
+// gens64: 32X layer toggles and priority swap from Gens r57shell mod. A 32X pixel belongs to the
+// "high" or "low" 32X plane by its own priority bit (0x8000); Swap_32X_Plane_Priority inverts
+// that bit for the compositing against the Genesis picture, the toggles still name the planes
+// by the hardware bit. With the default settings this is the r341 compositing.
+static inline bool Show_32X_Pixel(unsigned short pix, unsigned short gen)
+{
+	if (!((pix & 0x8000) ? _32X_Plane_High_On : _32X_Plane_Low_On))
+		return false;
+	if (!(gen & 0x4000))	// no opaque Genesis pixel here
+		return true;
+	return ((pix & 0x8000) != 0) != (Swap_32X_Plane_Priority != 0);
 }
 
 void Render_MD_Screen32X()
 {
+	const bool plain = _32X_Plane_On && _32X_Plane_High_On && _32X_Plane_Low_On && !Swap_32X_Plane_Priority;
 	for(VDP_Current_Line = 0; VDP_Current_Line < VDP_Num_Vis_Lines; VDP_Current_Line++)
 	{
-		if (Screen_32X[TAB336[VDP_Current_Line] + 7])
+		if (_32X_Plane_On && Screen_32X[TAB336[VDP_Current_Line] + 7])
 		for (unsigned long Pixel = TAB336[VDP_Current_Line] + 8; Pixel < TAB336[VDP_Current_Line] + 336; Pixel++)
 		{
 			unsigned short pix = Screen_32X[Pixel];
-			if ((pix & 0x8000) || !(Screen_16X[Pixel] & 0x4000))
+			if (plain ? ((pix & 0x8000) || !(Screen_16X[Pixel] & 0x4000)) : Show_32X_Pixel(pix, Screen_16X[Pixel]))
 			{
 				MD_Screen32[Pixel] = _32X_Palette_32B[pix];
 				MD_Screen[Pixel] = _32X_Palette_16B[pix];
@@ -1062,6 +1086,8 @@ void Render_MD_Screen32X()
 				MD_Screen[Pixel] = Palette[Screen_16X[Pixel]];
 			}
 	}
+	if (Sprite_Boxing)
+		Draw_Sprite_Boxes();
 }
 
 #ifdef SONICCAMHACK
@@ -1096,6 +1122,8 @@ int Do_Genesis_Frame(bool fast)
 
 	VDP_Status &= 0xFFF7;							// Clear V Blank
 	if (VDP_Reg.Set4 & 0x2) VDP_Status ^= 0x0010;
+	VDP_Reg_Set2_Current = VDP_Reg.Set2;
+	VDP_Reg_Set4_Current = VDP_Reg.Set4;
 
 	HInt_Counter = VDP_Reg.H_Int;					// Hint_Counter = step d'interruption H
 
@@ -1614,6 +1642,8 @@ int Do_32X_Frame(bool fast)
 
 	VDP_Status &= 0xFFF7;							// Clear V Blank
 	if (VDP_Reg.Set4 & 0x2) VDP_Status ^= 0x0010;
+	VDP_Reg_Set2_Current = VDP_Reg.Set2;
+	VDP_Reg_Set4_Current = VDP_Reg.Set4;
 	_32X_VDP.State &= ~0x8000;
 
 	HInt_Counter = VDP_Reg.H_Int;					// Hint_Counter = step d'interruption H
@@ -2190,6 +2220,8 @@ int Do_SegaCD_Frame(bool fast)
 
 	VDP_Status &= 0xFFF7;
 	if (VDP_Reg.Set4 & 0x2) VDP_Status ^= 0x0010;
+	VDP_Reg_Set2_Current = VDP_Reg.Set2;
+	VDP_Reg_Set4_Current = VDP_Reg.Set4;
 
 	HInt_Counter = VDP_Reg.H_Int;		// Hint_Counter = step d'interruption H
 
@@ -2376,6 +2408,8 @@ int Do_SegaCD_Frame_Cycle_Accurate(bool fast)
 
 	VDP_Status &= 0xFFF7;
 	if (VDP_Reg.Set4 & 0x2) VDP_Status ^= 0x0010;
+	VDP_Reg_Set2_Current = VDP_Reg.Set2;
+	VDP_Reg_Set4_Current = VDP_Reg.Set4;
 
 	HInt_Counter = VDP_Reg.H_Int;		// Hint_Counter = step d'interruption H
 

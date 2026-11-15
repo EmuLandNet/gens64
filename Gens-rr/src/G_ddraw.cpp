@@ -68,8 +68,7 @@ int (*Update_Frame_Fast)();
 int Correct_256_Aspect_Ratio = 1;
 #define ALT_X_RATIO_RES (Correct_256_Aspect_Ratio ? 320 : 256)
 
-#define IS_FULL_X_RESOLUTION ((VDP_Reg.Set4 & 0x1) || Debug || !Game || !FrameCount)
-#define IS_FULL_Y_RESOLUTION ((VDP_Reg.Set2 & 0x8) && !(Debug || !Game || !FrameCount))
+// gens64: IS_FULL_X/Y_RESOLUTION are in gens.h (frame-start Set2/Set4, from Gens r57shell mod)
 
 // debug string is drawn in _DEBUG
 // list variables by comma and specify the string format

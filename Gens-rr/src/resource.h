@@ -646,6 +646,11 @@
 #define ID_RAM_DUMP                     40525
 #define ID_VDP_RAM                      40528
 #define ID_VDP_SPRITES                  40529
+#define ID_GRAPHICS_LAYER32X_LOW        40530
+#define ID_GRAPHICS_LAYER32X_HIGH       40531
+#define ID_GRAPHICS_LAYERSWAP32X        40532
+#define ID_GRAPHICS_TOGGLE32X           40533
+#define ID_GRAPHICS_SPRITEBOXING        40534
 #define IDC_C_HEX_LINES                 42191
 #define IDC_C_HEX_TEXT                  42192
 #define IDC_C_HEX_GOTO                  42193

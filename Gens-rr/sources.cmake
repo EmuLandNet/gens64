@@ -85,6 +85,7 @@ set(GENS_C_CXX_SOURCES
   src/debugwindow.cpp
   src/m68k_debugwindow.cpp
   src/z80_debugwindow.cpp
+  src/sprite_boxing.cpp
   src/vdp_ram.cpp
   src/vdp_sprites.cpp
   src/Rom.cpp

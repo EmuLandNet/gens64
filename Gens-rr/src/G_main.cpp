@@ -533,6 +533,41 @@ int Change_Layer(HWND hWnd, int Num) //Nitsuja added this to allow for layer ena
 	return(1);
 }
 
+// gens64: 32X layer toggles and Sprites Boxing from Gens r57shell mod (output only)
+static int Change_32X_Layer(int command)
+{
+	char *val;
+	const char *name;
+	switch (command)
+	{
+		case ID_GRAPHICS_LAYER32X_LOW:  val = &_32X_Plane_Low_On;        name = "32X Plane Low"; break;
+		case ID_GRAPHICS_LAYER32X_HIGH: val = &_32X_Plane_High_On;       name = "32X Plane High"; break;
+		case ID_GRAPHICS_LAYERSWAP32X:  val = &Swap_32X_Plane_Priority;  name = "32X Layer Swapping"; break;
+		case ID_GRAPHICS_TOGGLE32X:     val = &_32X_Plane_On;            name = "Plane 32X"; break;
+		default: return 1;
+	}
+	*val = !*val;
+
+	char message [256];
+	sprintf(message, "%s %sabled", name, *val ? "en" : "dis");
+	MESSAGE_L(message, message)
+
+	Build_Main_Menu();
+	return 1;
+}
+
+static int Change_SpriteBoxing(void)
+{
+	Sprite_Boxing = !Sprite_Boxing;
+
+	char message [256];
+	sprintf(message, "Sprites Boxing %sabled", Sprite_Boxing ? "en" : "dis");
+	MESSAGE_L(message, message)
+
+	Build_Main_Menu();
+	return 1;
+}
+
 int Change_SpriteTop (HWND hWnd)
 {
 	Sprite_Always_Top = !Sprite_Always_Top;
@@ -1783,6 +1818,11 @@ BOOL Init(HINSTANCE hInst, int nCmdShow)
 	ScrollBOn = 1;
 	SpriteOn = 1;
 	Sprite_Always_Top = 0;
+	_32X_Plane_On = 1;
+	_32X_Plane_High_On = 1;
+	_32X_Plane_Low_On = 1;
+	Swap_32X_Plane_Priority = 0;
+	Sprite_Boxing = 0;
 	PinkBG = 0;
 	Render_W = 0;
 	Render_FS = 0;
@@ -3743,6 +3783,17 @@ dialogAgain: //Nitsuja added this
 					Change_SpriteTop(hWnd);
 					return 0;
 
+				case ID_GRAPHICS_LAYER32X_LOW:
+				case ID_GRAPHICS_LAYER32X_HIGH:
+				case ID_GRAPHICS_LAYERSWAP32X:
+				case ID_GRAPHICS_TOGGLE32X:
+					Change_32X_Layer(command);
+					return 0;
+
+				case ID_GRAPHICS_SPRITEBOXING:
+					Change_SpriteBoxing();
+					return 0;
+
 				case ID_GRAPHICS_LAYERSWAPA:
 				case ID_GRAPHICS_LAYERSWAPB:
 				case ID_GRAPHICS_LAYERSWAPS:
@@ -4952,6 +5003,7 @@ HMENU Build_Main_Menu(void)
 	HMENU GraphicsLayersA;
 	HMENU GraphicsLayersB;
 	HMENU GraphicsLayersS;
+	HMENU GraphicsLayersX;
 	HMENU GraphicsFrameSkip;
 	HMENU GraphicsLatencyCompensation;
 #ifdef GENS_DEBUG
@@ -5002,6 +5054,7 @@ HMENU Build_Main_Menu(void)
 	GraphicsLayersA = CreatePopupMenu();
 	GraphicsLayersB = CreatePopupMenu();
 	GraphicsLayersS = CreatePopupMenu();
+	GraphicsLayersX = CreatePopupMenu();
 	GraphicsFrameSkip = CreatePopupMenu();
 	GraphicsLatencyCompensation = CreatePopupMenu();
 #ifdef GENS_DEBUG
@@ -5312,6 +5365,8 @@ HMENU Build_Main_Menu(void)
 		ID_GRAPHICS_LAYER0, "Layer 1", "", "Layer &1"); */
 	MENU_L(GraphicsLayers, i++, Flags | MF_POPUP,
 		(UINT_PTR)GraphicsLayersS, "Sprites", "", "&Sprites");
+	MENU_L(GraphicsLayers, i++, Flags | MF_POPUP,
+		(UINT_PTR)GraphicsLayersX, "32X", "", "32&X");
 /*	MENU_L(GraphicsLayers, i++, MF_BYPOSITION | (VScrollAl ? MF_CHECKED : MF_UNCHECKED),
 		ID_GRAPHICS_LAYER0, "Layer 1", "", "Layer &1"); */
 
@@ -5345,6 +5400,18 @@ HMENU Build_Main_Menu(void)
 		ID_GRAPHICS_TOGGLES, "Enable", "", "&Enable");
 	MENU_L(GraphicsLayersS, i++, MF_BYPOSITION | (Sprite_Always_Top ? MF_CHECKED : MF_UNCHECKED),
 		ID_GRAPHICS_SPRITEALWAYS, "Sprites Always On Top", "", "Sprites Always On &Top");
+	MENU_L(GraphicsLayersS, i++, MF_BYPOSITION | (Sprite_Boxing ? MF_CHECKED : MF_UNCHECKED),
+		ID_GRAPHICS_SPRITEBOXING, "Sprites Boxing", "", "Sprites &Boxing");
+
+	i = 0;
+	MENU_L(GraphicsLayersX, i++, MF_BYPOSITION | (_32X_Plane_Low_On ? MF_CHECKED : MF_UNCHECKED),
+		ID_GRAPHICS_LAYER32X_LOW, "32X Plane Low", "", "32X Plane &Low");
+	MENU_L(GraphicsLayersX, i++, MF_BYPOSITION | (_32X_Plane_High_On ? MF_CHECKED : MF_UNCHECKED),
+		ID_GRAPHICS_LAYER32X_HIGH, "32X Plane High", "", "32X Plane &High");
+	MENU_L(GraphicsLayersX, i++, MF_BYPOSITION | (Swap_32X_Plane_Priority ? MF_CHECKED : MF_UNCHECKED),
+		ID_GRAPHICS_LAYERSWAP32X, "Swap 32X Plane Layers", "", "&Swap 32X Plane Layers");
+	MENU_L(GraphicsLayersX, i++, MF_BYPOSITION | (_32X_Plane_On ? MF_CHECKED : MF_UNCHECKED),
+		ID_GRAPHICS_TOGGLE32X, "Enable", "", "&Enable");
 
 	// LATENCY COMPENSATION //
 

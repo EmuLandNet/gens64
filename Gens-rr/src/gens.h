@@ -85,6 +85,19 @@ int Do_SegaCD_Frame_No_VDP_Cycle_Accurate(void);
 
 BOOL IsAsyncAllowed(void);
 
+/* gens64 (from Gens r57shell mod): Set2/Set4 as they were at the start of the frame being
+   shown, so a mid-frame H32/H40 (or V28/V30) switch does not change the shown frame size */
+extern int VDP_Reg_Set2_Current;
+extern int VDP_Reg_Set4_Current;
+
+/* gens64: 32X layer toggles and priority swap (output only) */
+extern char _32X_Plane_On;
+extern char _32X_Plane_High_On;
+extern char _32X_Plane_Low_On;
+extern char Swap_32X_Plane_Priority;
+/* gens64: sprite boxes drawn over the finished frame (output only) */
+extern int Sprite_Boxing;
+
 #ifdef __cplusplus
 }
 #endif /* #ifdef __cplusplus */
@@ -92,6 +105,16 @@ BOOL IsAsyncAllowed(void);
 // disable warnings about all common string operations being deprecated in newer VS versions
 #if defined(_MSC_VER) && (_MSC_VER >= 1400)
 	#pragma warning(disable : 4996)
+#endif
+
+#ifdef __cplusplus
+extern bool FakeVDPScreen;
+#define VDP_REG_SET2 (FakeVDPScreen ? VDP_Reg.Set2 : (unsigned int)VDP_Reg_Set2_Current)
+#define VDP_REG_SET4 (FakeVDPScreen ? VDP_Reg.Set4 : (unsigned int)VDP_Reg_Set4_Current)
+/* size of the shown frame (needs vdp_io.h, Debug, Game, FrameCount and CPU_Mode) */
+#define IS_FULL_X_RESOLUTION ((VDP_REG_SET4 & 0x1) || Debug || !Game || !FrameCount)
+#define IS_FULL_Y_RESOLUTION (CPU_Mode && (VDP_REG_SET2 & 0x8) && !(Debug || !Game || !FrameCount))
+void Draw_Sprite_Boxes(void);
 #endif
 
 #ifdef _MSC_VER

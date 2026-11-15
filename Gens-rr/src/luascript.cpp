@@ -6,6 +6,7 @@
 #include "guidraw.h"
 #include "movie.h"
 #include "vdp_io.h"
+#include "Mem_M68k.h"	// gens64: CPU_Mode for IS_FULL_Y_RESOLUTION
 #include "drawutil.h"
 #include "unzip.h"
 #include "Cpu_68k.h"
@@ -3153,8 +3154,8 @@ DEFINE_LUA_FUNCTION(gui_getpixel, "x,y")
 	int x = luaL_checkinteger(L,1);
 	int y = luaL_checkinteger(L,2);
 
-	int xres = ((VDP_Reg.Set4 & 0x1) || Debug || !Game || !FrameCount) ? 320 : 256;
-	int yres = ((VDP_Reg.Set2 & 0x8) && !(Debug || !Game || !FrameCount)) ? 240 : 224;
+	int xres = IS_FULL_X_RESOLUTION ? 320 : 256;
+	int yres = IS_FULL_Y_RESOLUTION ? 240 : 224;
 
 	x = max(0,min(xres,x));
 	y = max(0,min(yres,y));
@@ -3243,8 +3244,8 @@ DEFINE_LUA_FUNCTION(gui_settransparency, "transparency_4_to_0")
 // example: gd.createFromGdStr(gui.gdscreenshot()):png("outputimage.png")
 DEFINE_LUA_FUNCTION(gui_gdscreenshot, "")
 {
-	int width = ((VDP_Reg.Set4 & 0x1) || Debug || !Game || !FrameCount) ? 320 : 256;
-	int height = ((VDP_Reg.Set2 & 0x8) && !(Debug || !Game || !FrameCount)) ? 240 : 224;
+	int width = IS_FULL_X_RESOLUTION ? 320 : 256;
+	int height = IS_FULL_Y_RESOLUTION ? 240 : 224;
 	int size = 11 + width * height * 4;
 
 	char* str = new char[size+1];
@@ -3344,8 +3345,8 @@ DEFINE_LUA_FUNCTION(gui_gdoverlay, "[x=0,y=0,]gdimage[,alphamul]")
 	height |= *ptr++;
 	ptr += 5;
 
-	int maxWidth = ((VDP_Reg.Set4 & 0x1) || Debug || !Game || !FrameCount) ? 320 : 256;
-	int maxHeight = ((VDP_Reg.Set2 & 0x8) && !(Debug || !Game || !FrameCount)) ? 240 : 224;
+	int maxWidth = IS_FULL_X_RESOLUTION ? 320 : 256;
+	int maxHeight = IS_FULL_Y_RESOLUTION ? 240 : 224;
 
 	unsigned char *Dst = Bits32 ? (unsigned char*)(MD_Screen32+8) : (unsigned char*)(MD_Screen+8);
 
@@ -3967,8 +3968,8 @@ DEFINE_LUA_FUNCTION(input_getcurrentinputstatus, "")
 		GetCursorPos(&point);
 		void CalculateDrawArea(HWND hWnd, RECT& RectDest, RECT& RectSrc);
 		CalculateDrawArea(HWnd, rect, srcRectUnused);
-		int xres = ((VDP_Reg.Set4 & 0x1) || Debug || !Game || !FrameCount) ? 320 : 256;
-		int yres = ((VDP_Reg.Set2 & 0x8) && !(Debug || !Game || !FrameCount)) ? 240 : 224;
+		int xres = IS_FULL_X_RESOLUTION ? 320 : 256;
+		int yres = IS_FULL_Y_RESOLUTION ? 240 : 224;
 		int x = ((point.x - rect.left) * xres) / max(1, rect.right - rect.left);
 		int y = ((point.y - rect.top) * yres) / max(1, rect.bottom - rect.top);
 		lua_pushinteger(L, x);
