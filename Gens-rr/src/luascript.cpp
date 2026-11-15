@@ -12,7 +12,8 @@
 #include "io.h"
 #include "ym2612.h"
 #include "resource.h"
-#include "m68k_debugwindow.h"	// gens64: gens.breakpoint (Gens r57shell mod)
+#include "m68k_debugwindow.h"	// gens64: gens.breakpoint, z80.breakpoint (Gens r57shell mod)
+#include "z80_debugwindow.h"
 #include <assert.h>
 #include <vector>
 #include <map>
@@ -187,6 +188,10 @@ static const char* luaMemHookTypeStrings [] =
 	"MEMHOOK_WRITE_SUB",
 	"MEMHOOK_READ_SUB",
 	"MEMHOOK_EXEC_SUB",
+
+	"MEMHOOK_WRITE_Z80",
+	"MEMHOOK_READ_Z80",
+	"MEMHOOK_EXEC_Z80",
 };
 static const int _makeSureWeHaveTheRightNumberOfStrings2 [sizeof(luaMemHookTypeStrings)/sizeof(*luaMemHookTypeStrings) == LUAMEMHOOK_COUNT ? 1 : 0] = {0};
 
@@ -275,6 +280,8 @@ LuaMemHookType MatchHookTypeToCPU(lua_State* L, LuaMemHookType hookType)
 		const char* cpuName = lua_tostring(L, cpunameIndex);
 		if(!stricmp(cpuName, "sub") || !stricmp(cpuName, "s68k"))
 			cpuID = 1;
+		else if(!stricmp(cpuName, "z80"))
+			cpuID = 2;
 		lua_remove(L, cpunameIndex);
 	}
 
@@ -290,6 +297,16 @@ LuaMemHookType MatchHookTypeToCPU(lua_State* L, LuaMemHookType hookType)
 		case LUAMEMHOOK_READ: return LUAMEMHOOK_READ_SUB;
 		case LUAMEMHOOK_EXEC: return LUAMEMHOOK_EXEC_SUB;
 		}
+		break;
+
+	case 2: // z80 (gens64, from Gens r57shell mod)
+		switch(hookType)
+		{
+		case LUAMEMHOOK_WRITE: return LUAMEMHOOK_WRITE_Z80;
+		case LUAMEMHOOK_READ: return LUAMEMHOOK_READ_Z80;
+		case LUAMEMHOOK_EXEC: return LUAMEMHOOK_EXEC_Z80;
+		}
+		break;
 	}
 	return hookType;
 }
@@ -3486,6 +3503,14 @@ DEFINE_LUA_FUNCTION(gens_breakpoint, "[message]")
 	M68kDW.Breakpoint(hook_pc & 0xFFFFFF);
 	return 0;
 }
+// z80.breakpoint([message]): the same in the Z80 debugger, at the last Z80 instruction it saw
+DEFINE_LUA_FUNCTION(z80_breakpoint, "[message]")
+{
+	const char *msg = (lua_type(L,1) == LUA_TSTRING) ? lua_tostring(L,1) : "Breakpoint from Lua";
+	z80DW.SetWhyBreak(msg);
+	z80DW.Breakpoint(z80DW.last_pc);
+	return 0;
+}
 DEFINE_LUA_FUNCTION(gens_hardreset, "")
 {
 	if (Debugger_Stopped)
@@ -4004,6 +4029,11 @@ static const struct luaL_reg genslib [] =
 	{"openrom", gens_loadrom},
 	{NULL, NULL}
 };
+static const struct luaL_reg z80lib [] =
+{
+	{"breakpoint", z80_breakpoint},	// gens64: from Gens r57shell mod
+	{NULL, NULL}
+};
 static const struct luaL_reg guilib [] =
 {
 	{"register", gui_register},
@@ -4329,6 +4359,7 @@ void registerLibs(lua_State* L)
 	luaL_register(L, "gui", guilib);
 	luaL_register(L, "savestate", statelib);
 	luaL_register(L, "memory", memorylib);
+	luaL_register(L, "z80", z80lib);
 	luaL_register(L, "joypad", joylib); // for game input
 	luaL_register(L, "input", inputlib); // for user input
 	luaL_register(L, "movie", movielib);

@@ -78,4 +78,13 @@ struct DebugWindow
 // reload it (states, resets, ROM, movies, Lua scripts): see Debugger_Command_Allowed in G_main.cpp.
 extern int Debugger_Stopped;
 
+// gens64: F5 Run, F6 Step Over, F7 Step Into in a debugger window (whichever control has the
+// focus); called from the message loop before IsDialogMessage. Returns true if the key was used.
+bool Debugger_HandleKey(const MSG *msg);
+// true while a debugger window is the foreground window: Update_Input then leaves F5-F7 alone,
+// so that with background input on they do not also save a state or change the slot
+bool Debugger_WindowActive();
+// a new ROM: forget the code maps and call stacks
+void Debugger_NewGame();
+
 #endif

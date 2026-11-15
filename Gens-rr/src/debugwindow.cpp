@@ -25,6 +25,49 @@ extern HINSTANCE ghInstance;
 
 int Debugger_Stopped = 0;
 
+static std::vector<DebugWindow*> &Debuggers()
+{
+	static std::vector<DebugWindow*> all;
+	return all;
+}
+
+bool Debugger_HandleKey(const MSG *msg)
+{
+	if (msg->message != WM_KEYDOWN || (msg->wParam != VK_F5 && msg->wParam != VK_F6 && msg->wParam != VK_F7))
+		return false;
+	if ((GetKeyState(VK_CONTROL) | GetKeyState(VK_SHIFT) | GetKeyState(VK_MENU)) & 0x8000)
+		return false;
+	for (size_t i = 0; i < Debuggers().size(); i++)
+	{
+		HWND h = Debuggers()[i]->HWnd;
+		if (h && (msg->hwnd == h || IsChild(h, msg->hwnd)))
+		{
+			int id = msg->wParam == VK_F5 ? IDC_RUN : msg->wParam == VK_F6 ? IDC_STEP_OVER : IDC_STEP_INTO;
+			SendMessage(h, WM_COMMAND, id, 0);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Debugger_WindowActive()
+{
+	HWND f = GetForegroundWindow();
+	for (size_t i = 0; i < Debuggers().size(); i++)
+		if (f && Debuggers()[i]->HWnd == f)
+			return true;
+	return false;
+}
+
+void Debugger_NewGame()
+{
+	for (size_t i = 0; i < Debuggers().size(); i++)
+	{
+		Debuggers()[i]->ResetMap();
+		Debuggers()[i]->callstack.clear();
+	}
+}
+
 DebugWindow::DebugWindow()
 {
 	DummyHWnd=HWnd=NULL;
@@ -42,6 +85,7 @@ DebugWindow::DebugWindow()
 	SelectedLine=-1;
 	Title="Debug";
 	whyBreakpoint = "";
+	Debuggers().push_back(this);
 }
 
 DebugWindow::~DebugWindow()

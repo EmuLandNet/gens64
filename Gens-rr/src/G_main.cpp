@@ -58,6 +58,7 @@
 #include "OpenArchive.h"
 #include "hexeditor.h"	// gens64: tools from Gens r57shell mod
 #include "m68k_debugwindow.h"
+#include "z80_debugwindow.h"
 
 extern "C" void Read_To_68K_Space(int adr);
 #define MAPHACK
@@ -1950,6 +1951,8 @@ void Handle_Gens_Messages()
 			StopAllLuaScripts();
 		}
 
+		if (Debugger_HandleKey(&msg))	// gens64: F5/F6/F7 in a debugger window
+			continue;
 		if (RamSearchHWnd && IsDialogMessage(RamSearchHWnd, &msg))
 			continue;
 		if (RamWatchHWnd && IsDialogMessage(RamWatchHWnd, &msg))
@@ -1968,6 +1971,8 @@ void Handle_Gens_Messages()
 		if (VDPSpritesHWnd && IsDialogMessage(VDPSpritesHWnd, &msg))
 			continue;
 		if (M68kDW.HWnd && IsDialogMessage(M68kDW.HWnd, &msg))
+			continue;
+		if (z80DW.HWnd && IsDialogMessage(z80DW.HWnd, &msg))
 			continue;
 		bool docontinue = false;
 		for(unsigned int i=0; i<LuaScriptHWnds.size(); i++)
@@ -2620,6 +2625,7 @@ void GensReplayMovie()
 int GensLoadRom(const char* filename)
 {
 	Clear_Sound_Buffer();
+	Debugger_NewGame();	// gens64: code maps and call stacks belong to the old game
 
 	int loaded;
 	if(!filename)
@@ -2819,6 +2825,8 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				HexDestroyDialog();	// gens64: a top-level window, not owned by the main window
 			if (M68kDW.HWnd)
 				DestroyWindow(M68kDW.HWnd);	// also leaves a breakpoint
+			if (z80DW.HWnd)
+				DestroyWindow(z80DW.HWnd);
 			Gens_Running = 0;
 			}
 			return 0;
@@ -3228,6 +3236,10 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 				case ID_M68K_DEBUG_WINDOW:
 					M68kDW.Window();
+					break;
+
+				case ID_Z80_DEBUG_WINDOW:
+					z80DW.Window();
 					break;
 
 				case ID_VDP_SPRITES:
@@ -5646,6 +5658,8 @@ HMENU Build_Main_Menu(void)
 		ID_VDP_SPRITES,"VDP Sprites","","VDP S&prites");
 	MENU_L(TAS_Tools,i++,Flags,
 		ID_M68K_DEBUG_WINDOW,"M68k Debug","","M&68k Debug");
+	MENU_L(TAS_Tools,i++,Flags,
+		ID_Z80_DEBUG_WINDOW,"z80 Debug","","&z80 Debug");
 
 	// MOVIES //
 

@@ -203,10 +203,20 @@ static void io_wr(void *fn)
 {
 	((z80_hw *)fn)(ecx, edx);
 }
+/* gens64: debugger/Lua hooks (from Gens r57shell mod, z80_debugwindow.cpp): NULL unless set, so the
+   core runs exactly as before; when set they are called before every instruction with the Z80 PC,
+   and before every READ_BYTE/READ_WORD/WRITE_BYTE/WRITE_WORD with the address (low 16 bits of ecx)
+   and the size. They only observe: the core's registers are untouched. */
+void (*z80_trace_pc)(u32 pc);
+void (*z80_trace_read)(u32 adr, u32 size);
+void (*z80_trace_write)(u32 adr, u32 size);
+
 enum { M_DL, M_A, M_REG };
 static u8 rd8(int mode)
 {
 	u8 v;
+	if (z80_trace_read)
+		z80_trace_read(ecx & 0xFFFF, 1);
 	if (ecx <= 0x3FFF)
 	{
 		ecx &= 0x1FFF;
@@ -226,6 +236,8 @@ static u8 rd8(int mode)
 static u16 rd16(void)
 {
 	u16 v;
+	if (z80_trace_read)
+		z80_trace_read(ecx & 0xFFFF, 2);
 	if (ecx <= 0x3FFF)
 	{
 		ecx &= 0x1FFF;
@@ -247,6 +259,8 @@ static void rdw(void)
 }
 static void wr8(void)
 {
+	if (z80_trace_write)
+		z80_trace_write(ecx & 0xFFFF, 1);
 	if (ecx <= 0x3FFF)
 	{
 		ecx &= 0x1FFF;
@@ -259,6 +273,8 @@ static void wr8(void)
 }
 static void wr16(void)
 {
+	if (z80_trace_write)
+		z80_trace_write(ecx & 0xFFFF, 2);
 	if (ecx <= 0x3FFF)
 	{
 		ecx &= 0x1FFF;
@@ -4018,6 +4034,8 @@ UINT32 FASTCALL z80_Exec(Z80_CONTEXT *z80, int odo)
 	for (;;)
 	{
 		COV(0);
+		if (z80_trace_pc)
+			z80_trace_pc((pc - Z->BasePC) & 0xFFFF);
 		r = OP_Table[edx]();
 		if (r == Q_CONT)
 			continue;

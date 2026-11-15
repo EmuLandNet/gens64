@@ -1279,6 +1279,8 @@ void Restore_Input()
 }
 
 
+bool Debugger_WindowActive();	// debugwindow.cpp (gens64)
+
 void Update_Input()
 {
 //	DIMOUSESTATE MouseState;
@@ -1345,6 +1347,9 @@ void Update_Input()
 		BOOL oldPressed = button.heldNow;
 		button.heldNow = pressed;
 
+		// gens64: F5-F7 belong to the debugger while its window is in front (debugwindow.cpp)
+		if(pressed && !oldPressed && button.eventID && button.virtKey >= VK_F5 && button.virtKey <= VK_F7 && Debugger_WindowActive())
+			continue;
 		if(pressed && !oldPressed && button.eventID && ((BackgroundInput && !(GetActiveWindow()==HWnd)) || !button.ShouldUseAccelerator()))
 			SendMessage(HWnd, WM_COMMAND, button.eventID, 0);
 	}

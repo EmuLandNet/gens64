@@ -84,6 +84,7 @@ set(GENS_C_CXX_SOURCES
   src/hexeditor.cpp
   src/debugwindow.cpp
   src/m68k_debugwindow.cpp
+  src/z80_debugwindow.cpp
   src/vdp_ram.cpp
   src/vdp_sprites.cpp
   src/Rom.cpp
