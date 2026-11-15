@@ -234,8 +234,15 @@ FILE *Get_State_File()
 }
 
 
+extern int Debugger_Stopped;	// debugwindow.cpp (gens64)
+
 int Load_State_From_Buffer(unsigned char *buf)
 {
+	if (Debugger_Stopped) // gens64: the CPU is stopped mid-instruction at a debugger breakpoint
+	{
+		Put_Info("Not while stopped at a breakpoint");
+		return 0;
+	}
 	if (!Game)
 		return 0;
 
@@ -288,6 +295,11 @@ bool g_refreshScreenAfterLoad = true;
 extern bool FakeVDPScreen;
 int Load_State(char *Name)
 {
+	if (Debugger_Stopped) // gens64: the CPU is stopped mid-instruction at a debugger breakpoint
+	{
+		Put_Info("Not while stopped at a breakpoint");
+		return 0;
+	}
 	int stateNumber = s_lastStateNumberGotten;
 	s_lastStateNumberGotten = -1;
 
@@ -536,6 +548,11 @@ int Load_State(char *Name)
 
 int Save_State_To_Buffer (unsigned char *buf)
 {
+	if (Debugger_Stopped) // gens64: the CPU is stopped mid-instruction at a debugger breakpoint
+	{
+		Put_Info("Not while stopped at a breakpoint");
+		return 0;
+	}
 	assert((((int)buf)&15) == 0); // want this for alignment performance reasons
 	int len;
 
@@ -562,6 +579,11 @@ int Save_State_To_Buffer (unsigned char *buf)
 }
 int Save_State (char *Name)
 {
+	if (Debugger_Stopped) // gens64: the CPU is stopped mid-instruction at a debugger breakpoint
+	{
+		Put_Info("Not while stopped at a breakpoint");
+		return 0;
+	}
 	int stateNumber = s_lastStateNumberGotten;
 	s_lastStateNumberGotten = -1;
 

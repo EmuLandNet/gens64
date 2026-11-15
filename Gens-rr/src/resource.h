@@ -666,6 +666,30 @@
 #define IDC_SPRITES_PREVIEW2            50111
 #define IDC_SPRITES_DUMP                50112
 
+// gens64: debugger from Gens r57shell mod
+#define IDD_DEBUG                       162
+#define IDD_EDIT_BREAK                  163
+#define ID_M68K_DEBUG_WINDOW            40526
+#define ID_Z80_DEBUG_WINDOW             40527
+#define IDC_STEP_INTO                   50113
+#define IDC_STEP_OVER                   50114
+#define IDC_RUN                         50115
+#define IDC_STATIC1                     50116
+#define IDC_ADD_BREAK                   50117
+#define IDC_EDIT_BREAK                  50118
+#define IDC_DEL_BREAK                   50119
+#define IDC_BREAK_LIST                  50120
+#define IDC_EDIT_RANGE                  50121
+#define IDC_PC                          50122
+#define IDC_READ                        50123
+#define IDC_WRITE                       50124
+#define IDC_CALL_STACK                  50125
+#define IDC_LOAD_MAP                    50126
+#define IDC_SAVE_MAP                    50127
+#define IDC_WHY_BREAK                   50128
+#define IDC_FORBID                      50129
+#define IDC_ENABLE                      50130
+
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED

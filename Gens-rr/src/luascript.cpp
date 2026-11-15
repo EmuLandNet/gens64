@@ -12,6 +12,7 @@
 #include "io.h"
 #include "ym2612.h"
 #include "resource.h"
+#include "m68k_debugwindow.h"	// gens64: gens.breakpoint (Gens r57shell mod)
 #include <assert.h>
 #include <vector>
 #include <map>
@@ -3461,6 +3462,8 @@ DEFINE_LUA_FUNCTION(gens_openscript, "filename")
 DEFINE_LUA_FUNCTION(gens_loadrom, "filename")
 {
 	struct Temp { Temp() {EnableStopAllLuaScripts(false);} ~Temp() {EnableStopAllLuaScripts(true);}} dontStopScriptsHere;
+	if (Debugger_Stopped)
+		luaL_error(L, "can't load a ROM while stopped at a debugger breakpoint");
 	const char* filename = lua_isstring(L,1) ? lua_tostring(L,1) : NULL;
 	char curScriptDir[1024]; GetCurrentScriptDir(curScriptDir, 1024);
 	filename = MakeRomPathAbsolute(filename, curScriptDir);
@@ -3469,6 +3472,27 @@ DEFINE_LUA_FUNCTION(gens_loadrom, "filename")
 		luaL_error(L, "Failed to load ROM \"%s\": %s", filename, result ? "invalid or unsupported" : "cancelled or not found");
 	CallRegisteredLuaFunctions(LUACALL_ONSTART);
     return 0;
+}
+
+// gens64 (from Gens r57shell mod): gens.breakpoint([message]) stops in the 68000 debugger at the
+// current instruction (opens it if needed); gens.hardreset() resets like CPU > Hard Reset in the
+// menu (movie handling included), as a posted command: it happens before the next frame.
+extern "C" unsigned int hook_pc;
+DEFINE_LUA_FUNCTION(gens_breakpoint, "[message]")
+{
+	const char *msg = (lua_type(L,1) == LUA_TSTRING) ? lua_tostring(L,1) : "Breakpoint from Lua";
+	M68kDW.SetWhyBreak(msg);
+	M68kDW.last_pc = hook_pc & 0xFFFFFF;	// (the window may have just been opened: nothing traced yet)
+	M68kDW.Breakpoint(hook_pc & 0xFFFFFF);
+	return 0;
+}
+DEFINE_LUA_FUNCTION(gens_hardreset, "")
+{
+	if (Debugger_Stopped)
+		luaL_error(L, "can't reset while stopped at a debugger breakpoint");
+	if (Game)
+		PostMessage(HWnd, WM_COMMAND, ID_CPU_RESET, 0);
+	return 0;
 }
 
 DEFINE_LUA_FUNCTION(gens_getframecount, "")
@@ -3974,6 +3998,8 @@ static const struct luaL_reg genslib [] =
 	{"print", print}, // sure, why not
 	{"openscript", gens_openscript},
 	{"loadrom", gens_loadrom},
+	{"breakpoint", gens_breakpoint},	// gens64: from Gens r57shell mod
+	{"hardreset", gens_hardreset},
 	// alternative names
 	{"openrom", gens_loadrom},
 	{NULL, NULL}

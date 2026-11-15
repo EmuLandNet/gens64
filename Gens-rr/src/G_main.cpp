@@ -57,6 +57,7 @@
 #include "7zip.h"
 #include "OpenArchive.h"
 #include "hexeditor.h"	// gens64: tools from Gens r57shell mod
+#include "m68k_debugwindow.h"
 
 extern "C" void Read_To_68K_Space(int adr);
 #define MAPHACK
@@ -1966,6 +1967,8 @@ void Handle_Gens_Messages()
 			continue;
 		if (VDPSpritesHWnd && IsDialogMessage(VDPSpritesHWnd, &msg))
 			continue;
+		if (M68kDW.HWnd && IsDialogMessage(M68kDW.HWnd, &msg))
+			continue;
 		bool docontinue = false;
 		for(unsigned int i=0; i<LuaScriptHWnds.size(); i++)
 			if (IsDialogMessage(LuaScriptHWnds[i], &msg))
@@ -2720,6 +2723,20 @@ GensFileType GuessFileType(const char* filename, const char* extension)
 }
 
 
+// gens64: while a debugger holds the emulation at a breakpoint (in the middle of an instruction,
+// debugwindow.cpp), only these main-window commands run: tool windows and quitting. States, resets,
+// ROMs, movies, Lua scripts and options that reinitialize the emulation must wait for Run.
+static bool Debugger_Command_Allowed(int id)
+{
+	switch (id)
+	{
+	case ID_RAM_WATCH: case ID_RAM_SEARCH: case ID_RAM_DUMP: case ID_VDP_RAM: case ID_VDP_SPRITES:
+	case ID_M68K_DEBUG_WINDOW: case ID_Z80_DEBUG_WINDOW: case ID_FILES_QUIT:
+		return true;
+	}
+	return false;
+}
+
 LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	RECT r;
@@ -2800,6 +2817,8 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			if ((Check_If_Kaillera_Running())) return 0;
 			if (HexEditorHWnd)
 				HexDestroyDialog();	// gens64: a top-level window, not owned by the main window
+			if (M68kDW.HWnd)
+				DestroyWindow(M68kDW.HWnd);	// also leaves a breakpoint
 			Gens_Running = 0;
 			}
 			return 0;
@@ -2853,6 +2872,12 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		case WM_DROPFILES:
 		{
 			HDROP hDrop = (HDROP)wParam;
+			if (Debugger_Stopped)	// gens64: no ROM/movie/state loads at a breakpoint
+			{
+				DragFinish(hDrop);
+				Put_Info("Not while stopped at a breakpoint (Run or close the debugger)");
+				return 0;
+			}
 			int numDropped = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
 			// TODO: defer gmv loads to happen later than any rom loads that might be in the set of dropped files
 			for(int i = 0; i < numDropped; i++)
@@ -2865,6 +2890,11 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		}	break;
 
 		case WM_COMMAND:
+			if (Debugger_Stopped && !Debugger_Command_Allowed(LOWORD(wParam)))
+			{
+				Put_Info("Not while stopped at a breakpoint (Run or close the debugger)");
+				return 0;
+			}
 			if ((LOWORD(wParam) >= ID_HELP_LANG) && (LOWORD(wParam) < ID_HELP_LANG + 50))
 			{
 				Language = LOWORD(wParam) - ID_HELP_LANG;
@@ -3194,6 +3224,10 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					}
 					else
 						SetForegroundWindow(VDPRamHWnd);
+					break;
+
+				case ID_M68K_DEBUG_WINDOW:
+					M68kDW.Window();
 					break;
 
 				case ID_VDP_SPRITES:
@@ -5610,6 +5644,8 @@ HMENU Build_Main_Menu(void)
 		ID_VDP_RAM,"VDP RAM","","&VDP RAM");
 	MENU_L(TAS_Tools,i++,Flags,
 		ID_VDP_SPRITES,"VDP Sprites","","VDP S&prites");
+	MENU_L(TAS_Tools,i++,Flags,
+		ID_M68K_DEBUG_WINDOW,"M68k Debug","","M&68k Debug");
 
 	// MOVIES //
 

@@ -7,6 +7,7 @@
 #include "Mem_S68k.h"
 #include "vdp_io.h"
 #include "luascript.h"
+#include "m68k_debugwindow.h"	// gens64: 68000 debugger (Gens r57shell mod)
 
 #define uint32 unsigned int
 /* gens64: under MSVC these globals have C++ linkage (?Debug@@3HA, ?Current_PC@@3IA) and are
@@ -185,6 +186,7 @@ void GensTrace()
 	// Trace.txt
 	if( trace_map )
 		GensTrace_trace();
+	M68kDW_TracePC(hook_pc);
 	CallRegisteredLuaMemHook(hook_pc, 2, 0, LUAMEMHOOK_EXEC);
 }
 
@@ -248,6 +250,7 @@ void trace_read_byte()
 {
 	if( hook_trace && rd_mode )
 		trace_read_byte_internal();
+	M68kDW_TraceRead(hook_address, hook_address + 0);
 	CallRegisteredLuaMemHook(hook_address, 1, hook_value, LUAMEMHOOK_READ);
 }
 
@@ -309,6 +312,7 @@ void trace_read_word()
 {
 	if( hook_trace && rd_mode )
 		trace_read_word_internal();
+	M68kDW_TraceRead(hook_address, hook_address + 1);
 	CallRegisteredLuaMemHook(hook_address, 2, hook_value, LUAMEMHOOK_READ);
 }
 
@@ -371,6 +375,7 @@ void trace_read_dword()
 {
 	if( hook_trace && rd_mode )
 		trace_read_dword_internal();
+	M68kDW_TraceRead(hook_address, hook_address + 3);
 	CallRegisteredLuaMemHook(hook_address, 4, hook_value, LUAMEMHOOK_READ);
 }
 
@@ -440,6 +445,7 @@ void trace_write_byte()
 {
 	if( hook_trace && wr_mode )
 		trace_write_byte_internal();
+	M68kDW_TraceWrite(hook_address, hook_address + 0);
 	CallRegisteredLuaMemHook(hook_address, 1, hook_value, LUAMEMHOOK_WRITE);
 }
 
@@ -502,6 +508,7 @@ void trace_write_word()
 {
 	if( hook_trace && wr_mode )
 		trace_write_word_internal();
+	M68kDW_TraceWrite(hook_address, hook_address + 1);
 	CallRegisteredLuaMemHook(hook_address, 2, hook_value, LUAMEMHOOK_WRITE);
 }
 
@@ -564,6 +571,7 @@ void trace_write_dword()
 {
 	if( hook_trace && wr_mode )
 		trace_write_dword_internal();
+	M68kDW_TraceWrite(hook_address, hook_address + 3);
 	CallRegisteredLuaMemHook(hook_address, 4, hook_value, LUAMEMHOOK_WRITE);
 }
 

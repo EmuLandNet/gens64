@@ -1243,8 +1243,14 @@ DO_FRAME_HEADER(Do_Genesis_Frame_No_VDP, Do_Genesis_Frame_No_VDP)
 
 #endif
 
+extern int Debugger_Stopped;	// debugwindow.cpp (gens64)
 int Do_VDP_Refresh()
 {
+	// gens64: not while a debugger holds the CPU at a breakpoint, in the middle of a frame: redrawing
+	// all lines would reset VDP_Current_Line and the sprite state the frame is still using
+	// (Put_Info and Show_Genesis_Screen call this; the screen is then just flipped as it is)
+	if (Debugger_Stopped)
+		return 0;
 	if ((CPU_Mode) && (VDP_Reg.Set2 & 0x8))	VDP_Num_Vis_Lines = 240;
 	else VDP_Num_Vis_Lines = 224;
 
