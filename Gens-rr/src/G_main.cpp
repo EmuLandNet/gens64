@@ -2708,7 +2708,7 @@ GensFileType GuessFileType(const char* filename, const char* extension)
 }
 
 
-long PASCAL WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	RECT r;
 	static char Str_Tmp[1024]; // necessary to shadow this here, or things like ID_FILES_LOADSTATE will break in subtle ways...
@@ -4608,7 +4608,7 @@ dialogAgain: //Nitsuja added this
 
 						case 1:
 							GetWindowText(HWnd, Str_Tmp, 1024);
-							return (long) (char *) Str_Tmp;
+							return (LRESULT) (char *) Str_Tmp;	// gens64: full pointers (WM_KNUX)
 
 						case 2:
 							return 5;
@@ -4624,7 +4624,7 @@ dialogAgain: //Nitsuja added this
 					switch(lParam)
 					{
 						case 0:
-							return((long) (unsigned short *)&Ram_68k[0]);
+							return((LRESULT) (unsigned short *)&Ram_68k[0]);
 						case 1:
 							return(64 * 1024);
 						case 2:
@@ -4637,7 +4637,7 @@ dialogAgain: //Nitsuja added this
 					switch(lParam)
 					{
 						case 0:
-							return((long) (unsigned char *)&Ram_Z80[0]);
+							return((LRESULT) (unsigned char *)&Ram_Z80[0]);
 						case 1:
 							return(8 * 1024);
 						case 2:
@@ -4650,7 +4650,7 @@ dialogAgain: //Nitsuja added this
 					switch(lParam)
 					{
 						case 0:
-							return((long) (char *)&Rom_Data[0]);
+							return((LRESULT) (char *)&Rom_Data[0]);
 						case 1:
 							return(0);
 						case 2:
@@ -4941,19 +4941,19 @@ HMENU Build_Main_Menu(void)
 	Flags = MF_BYPOSITION | MF_POPUP | MF_STRING;
 
 	MENU_L(MainMenu, 0, Flags,
-		(UINT)Files, "File", "", "&File");
+		(UINT_PTR)Files, "File", "", "&File");
 	MENU_L(MainMenu, 1, Flags,
-		(UINT)Graphics, "Graphics", "", "&Graphics");
+		(UINT_PTR)Graphics, "Graphics", "", "&Graphics");
 	MENU_L(MainMenu, 2, Flags,
-		(UINT)CPU, "CPU", "", "&CPU");
+		(UINT_PTR)CPU, "CPU", "", "&CPU");
 	MENU_L(MainMenu, 3, Flags,
-		(UINT)Sound, "Sound", "", "&Sound");
+		(UINT_PTR)Sound, "Sound", "", "&Sound");
 	MENU_L(MainMenu, 4, Flags,
-		(UINT)TAS_Tools, "Tools", "", "&Tools"); //Upth-Add - Put the new menu in between sound and options // Nitsuja: changed TAS Tools to Tools to prevent extra-wide menu in normal render mode, and because spaces in menu titles can be confusing
+		(UINT_PTR)TAS_Tools, "Tools", "", "&Tools"); //Upth-Add - Put the new menu in between sound and options // Nitsuja: changed TAS Tools to Tools to prevent extra-wide menu in normal render mode, and because spaces in menu titles can be confusing
 	MENU_L(MainMenu, 5, Flags,
-		(UINT)Options, "Options", "", "&Options"); //Upth-Modif - this now goes in one later
+		(UINT_PTR)Options, "Options", "", "&Options"); //Upth-Modif - this now goes in one later
 	MENU_L(MainMenu, 6, Flags,
-		(UINT)Help, "Help", "", "&Help"); //Upth-Modif - this now goes in one later
+		(UINT_PTR)Help, "Help", "", "&Help"); //Upth-Modif - this now goes in one later
 
 	//////////////////////////////////////////////////
 	//                  FILES MENU                  //
@@ -4983,18 +4983,18 @@ HMENU Build_Main_Menu(void)
 	InsertMenu(Files, i++, MF_SEPARATOR, NULL, NULL);
 
 	MENU_L(Files, i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-		(UINT)FilesSaveState, "Save State", "", "Save State");
+		(UINT_PTR)FilesSaveState, "Save State", "", "Save State");
 	MENU_L(Files, i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-		(UINT)FilesLoadState, "Load State", "", "Load State");
+		(UINT_PTR)FilesLoadState, "Load State", "", "Load State");
 	MENU_L(Files, i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-		(UINT)FilesChangeState, "Change State", "", "C&hange State");
+		(UINT_PTR)FilesChangeState, "Change State", "", "C&hange State");
 
 	InsertMenu(Files, i++, MF_SEPARATOR, NULL, NULL);
 
 	if (strcmp(Recent_Rom[0], ""))
 	{
 		MENU_L(Files, i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-			(UINT)FilesHistory, "Rom History", "", "&ROM History");
+			(UINT_PTR)FilesHistory, "Rom History", "", "&ROM History");
 
 		InsertMenu(Files, i++, MF_SEPARATOR, NULL, NULL);
 	}
@@ -5117,14 +5117,14 @@ HMENU Build_Main_Menu(void)
 	MENU_L(Graphics, i++, Flags,
 		ID_GRAPHICS_COLOR_ADJUST, "Color", "", "&Color Adjust...");
 	MENU_L(Graphics, i++, Flags | MF_POPUP,
-		(UINT)GraphicsRender, "Render", "", "&Render");
+		(UINT_PTR)GraphicsRender, "Render", "", "&Render");
 	MENU_L(Graphics, i++, Flags | MF_POPUP,
-		(UINT)GraphicsSize, "Window Size", "", "&Window Size");
+		(UINT_PTR)GraphicsSize, "Window Size", "", "&Window Size");
 
 	InsertMenu(Graphics, i++, MF_SEPARATOR, NULL, NULL);
 
 	MENU_L(Graphics, i++, Flags | MF_POPUP,
-		(UINT)GraphicsLayers, "Layers", "", "&Layers");
+		(UINT_PTR)GraphicsLayers, "Layers", "", "&Layers");
 	MENU_L(Graphics, i++, Flags | (PalLock ? MF_CHECKED : MF_UNCHECKED),
 		ID_CHANGE_PALLOCK, "Lock Palette", "", "Lock &Palette");
 	MENU_L(Graphics, i++, Flags | (Sprite_Over ? MF_CHECKED : MF_UNCHECKED),
@@ -5135,9 +5135,9 @@ HMENU Build_Main_Menu(void)
 	InsertMenu(Graphics, i++, MF_SEPARATOR, NULL, NULL);
 
 	MENU_L(Graphics, i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-		(UINT)GraphicsLatencyCompensation, "Latency Compensation", "", "L&atency Compensation");
+		(UINT_PTR)GraphicsLatencyCompensation, "Latency Compensation", "", "L&atency Compensation");
 	MENU_L(Graphics, i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-		(UINT)GraphicsFrameSkip, "Frame Skip", "", "&Frame Skip");
+		(UINT_PTR)GraphicsFrameSkip, "Frame Skip", "", "&Frame Skip");
 	MENU_L(Graphics, i++, Flags | (Never_Skip_Frame ? MF_CHECKED : MF_UNCHECKED),
 		ID_GRAPHICS_NEVER_SKIP_FRAME, "Never skip frame with auto frameskip", "", "&Never skip frame with auto frameskip");
 
@@ -5218,15 +5218,15 @@ HMENU Build_Main_Menu(void)
 	i = 0;
 
 	MENU_L(GraphicsLayers, i++, Flags | MF_POPUP,
-		(UINT)GraphicsLayersA, "Scroll A", "", "Scroll &A");
+		(UINT_PTR)GraphicsLayersA, "Scroll A", "", "Scroll &A");
 /*	MENU_L(GraphicsLayers, i++, MF_BYPOSITION | (VScrollAl ? MF_CHECKED : MF_UNCHECKED),
 		ID_GRAPHICS_LAYER0, "Layer 1", "", "Layer &1"); */
 	MENU_L(GraphicsLayers, i++, Flags | MF_POPUP,
-		(UINT)GraphicsLayersB, "Scroll B", "", "Scroll &B");
+		(UINT_PTR)GraphicsLayersB, "Scroll B", "", "Scroll &B");
 /*	MENU_L(GraphicsLayers, i++, MF_BYPOSITION | (VScrollAl ? MF_CHECKED : MF_UNCHECKED),
 		ID_GRAPHICS_LAYER0, "Layer 1", "", "Layer &1"); */
 	MENU_L(GraphicsLayers, i++, Flags | MF_POPUP,
-		(UINT)GraphicsLayersS, "Sprites", "", "&Sprites");
+		(UINT_PTR)GraphicsLayersS, "Sprites", "", "&Sprites");
 /*	MENU_L(GraphicsLayers, i++, MF_BYPOSITION | (VScrollAl ? MF_CHECKED : MF_UNCHECKED),
 		ID_GRAPHICS_LAYER0, "Layer 1", "", "Layer &1"); */
 
@@ -5300,13 +5300,13 @@ HMENU Build_Main_Menu(void)
 
 #ifdef GENS_DEBUG
 	MENU_L(CPU, i++, Flags | MF_POPUP,
-		(UINT)CPUDebug, "Debug", "", "&Debug");
+		(UINT_PTR)CPUDebug, "Debug", "", "&Debug");
 
 	InsertMenu(CPU, i++, MF_SEPARATOR, NULL, NULL);
 #endif
 
 	MENU_L(CPU, i++, Flags | MF_POPUP,
-		(UINT)CPUCountry, "Country", "", "&Country");
+		(UINT_PTR)CPUCountry, "Country", "", "&Country");
 
 	InsertMenu(CPU, i++, MF_SEPARATOR, NULL, NULL);
 
@@ -5447,7 +5447,7 @@ HMENU Build_Main_Menu(void)
  	InsertMenu(CPUCountry, 5, MF_SEPARATOR, NULL, NULL);
 
 	MENU_L(CPUCountry, 6, Flags | MF_POPUP,
-		(UINT)CPUCountryOrder, "Auto detection order", "", "&Auto detection order");
+		(UINT_PTR)CPUCountryOrder, "Auto detection order", "", "&Auto detection order");
 
 	// PREFERED COUNTRY //
 
@@ -5476,7 +5476,7 @@ HMENU Build_Main_Menu(void)
 	InsertMenu(Sound, i++, MF_SEPARATOR, NULL, NULL);
 
 	MENU_L(Sound, i++, Flags | MF_POPUP,
-		(UINT)SoundRate, "Rate", "", "&Rate");
+		(UINT_PTR)SoundRate, "Rate", "", "&Rate");
 	MENU_L(Sound, i++, Flags | (Sound_Stereo ? MF_CHECKED : MF_UNCHECKED),
 		ID_SOUND_STEREO, "Stereo", "", "&Stereo");
 	MENU_L(Sound, i++, Flags | (Sound_Soften ? MF_CHECKED : MF_UNCHECKED),
@@ -5543,21 +5543,21 @@ HMENU Build_Main_Menu(void)
 	// TAS_Tools menus by Upthorn
 	
 	MENU_L(TAS_Tools,i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-		(UINT)Tools_Movies, "Movie", "", "&Movie");
+		(UINT_PTR)Tools_Movies, "Movie", "", "&Movie");
 	MENU_L(TAS_Tools,i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-		(UINT)Tools_AVI, "AVI", "", "&AVI");
+		(UINT_PTR)Tools_AVI, "AVI", "", "&AVI");
 
 	InsertMenu(TAS_Tools, i++, MF_SEPARATOR, NULL, NULL);
 
 	MENU_L(TAS_Tools,i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-		(UINT)Lua_Script, "Lua Scripting", "", "&Lua Scripting");
+		(UINT_PTR)Lua_Script, "Lua Scripting", "", "&Lua Scripting");
 	MENU_L(TAS_Tools,i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-		(UINT)Tools_Trace, "Tracer Tools", "", "&Tracer tools");
+		(UINT_PTR)Tools_Trace, "Tracer Tools", "", "&Tracer tools");
 
 	InsertMenu(TAS_Tools, i++, MF_SEPARATOR, NULL, NULL);
 
 	MENU_L(TAS_Tools,i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-		(UINT)CPUSlowDownSpeed, "Slow Mode", "", "S&low Mode");
+		(UINT_PTR)CPUSlowDownSpeed, "Slow Mode", "", "S&low Mode");
 
 	InsertMenu(TAS_Tools, i++, MF_SEPARATOR, NULL, NULL);
 
@@ -5573,7 +5573,7 @@ HMENU Build_Main_Menu(void)
 	if (strcmp(Recent_Movie[0], ""))
 	{
 		MENU_L(Tools_Movies, i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
-			(UINT)MoviesHistory, "Movie History", "", "&Movie History");
+			(UINT_PTR)MoviesHistory, "Movie History", "", "&Movie History");
 
 		InsertMenu(Tools_Movies, i++, MF_SEPARATOR, NULL, NULL);
 	}
@@ -5597,7 +5597,7 @@ HMENU Build_Main_Menu(void)
 	MENU_L(Tools_Movies,i++,Flags | ((SeekFrame) ? MF_CHECKED : MF_UNCHECKED) | ((MainMovie.File) ? MF_ENABLED : MF_DISABLED | MF_GRAYED),
 		IDC_SEEK_FRAME,"Seek to Frame","","Seek to &Frame"); //Modif
 	MENU_L(Tools_Movies,i++, MF_BYPOSITION | MF_POPUP | MF_STRING| (MainMovie.Status ? MF_ENABLED : (MF_DISABLED | MF_GRAYED)),
-		(UINT)Movies_Tracks, "Tracks", "", "&Tracks"); //Modif
+		(UINT_PTR)Movies_Tracks, "Tracks", "", "&Tracks"); //Modif
 
 	InsertMenu(Tools_Movies, i++, MF_SEPARATOR, NULL, NULL);
 
@@ -5772,9 +5772,9 @@ HMENU Build_Main_Menu(void)
 	InsertMenu(Options, i++, MF_SEPARATOR, NULL, NULL);
 
 	MENU_L(Options, i++, Flags | MF_POPUP,
-		(UINT)OptionsCDDrive, "Current CD Drive", "", "Current CD Drive");
+		(UINT_PTR)OptionsCDDrive, "Current CD Drive", "", "Current CD Drive");
 	MENU_L(Options, i++, Flags | MF_POPUP,
-		(UINT)OptionsSRAMSize, "Sega CD SRAM Size", "", "Sega CD SRAM Size");
+		(UINT_PTR)OptionsSRAMSize, "Sega CD SRAM Size", "", "Sega CD SRAM Size");
 
 	if(Genesis_Started && Rom_Size <= (2 * 1024 * 1024))
 		MENU_L(Options, i++, Flags | (SRAM_ON ? MF_CHECKED : MF_UNCHECKED),
@@ -5973,7 +5973,7 @@ LRESULT CALLBACK GGenieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					while (strlen(Str_Tmp) < 20) strcat(Str_Tmp, " ");
 					strcat(Str_Tmp, Liste_GG[i].name);
 
-					SendDlgItemMessage(hDlg, IDC_LIST1, LB_ADDSTRING, (WPARAM) 0, (LONG) (LPTSTR) Str_Tmp);
+					SendDlgItemMessage(hDlg, IDC_LIST1, LB_ADDSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) Str_Tmp);
 
 					if (Liste_GG[i].active)
 						SendDlgItemMessage(hDlg, IDC_LIST1, LB_SETSEL, (WPARAM) 1, (LONG) i);
@@ -6003,7 +6003,7 @@ LRESULT CALLBACK GGenieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 							GetDlgItemText(hDlg, IDC_EDIT2, (char *) (Str_Tmp + strlen(Str_Tmp)), 240);
 
-							SendDlgItemMessage(hDlg, IDC_LIST1, LB_ADDSTRING, (WPARAM) 0, (LONG) (LPTSTR) Str_Tmp);
+							SendDlgItemMessage(hDlg, IDC_LIST1, LB_ADDSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) Str_Tmp);
 
 							SetDlgItemText(hDlg, IDC_EDIT1, "");
 							SetDlgItemText(hDlg, IDC_EDIT2, "");
@@ -6053,7 +6053,7 @@ LRESULT CALLBACK GGenieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					if(value > 256) value = 256;
 					for(i = 0; i < value; i++)
 					{
-						if (SendDlgItemMessage(hDlg, IDC_LIST1, LB_GETTEXT, (WPARAM) i, (LONG) (LPTSTR) tmp) != LB_ERR)
+						if (SendDlgItemMessage(hDlg, IDC_LIST1, LB_GETTEXT, (WPARAM) i, (LPARAM) (LPTSTR) tmp) != LB_ERR)
 						{
 							dx1 = 0;
 
@@ -8293,21 +8293,21 @@ LRESULT CALLBACK ControllerProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 			for(i = 0; i < 2; i++)
 			{
-				SendDlgItemMessage(hDlg, IDC_COMBO_PORT1 + i, CB_INSERTSTRING, (WPARAM) 0, (LONG) (LPTSTR) "teamplayer");
-				SendDlgItemMessage(hDlg, IDC_COMBO_PORT1 + i, CB_INSERTSTRING, (WPARAM) 0, (LONG) (LPTSTR) "pad");
+				SendDlgItemMessage(hDlg, IDC_COMBO_PORT1 + i, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "teamplayer");
+				SendDlgItemMessage(hDlg, IDC_COMBO_PORT1 + i, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "pad");
 			}
 
 			for(i = 0; i < 8; i++)
 			{
-				SendDlgItemMessage(hDlg, IDC_COMBO_PADP1 + i, CB_INSERTSTRING, (WPARAM) 0, (LONG) (LPTSTR) "6 buttons");
-				SendDlgItemMessage(hDlg, IDC_COMBO_PADP1 + i, CB_INSERTSTRING, (WPARAM) 0, (LONG) (LPTSTR) "3 buttons");
+				SendDlgItemMessage(hDlg, IDC_COMBO_PADP1 + i, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "6 buttons");
+				SendDlgItemMessage(hDlg, IDC_COMBO_PADP1 + i, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "3 buttons");
 			}
-			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LONG) (LPTSTR) "       # Load,  Shift # save,    Ctrl # select");
-			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LONG) (LPTSTR) "       # Load,    Ctrl # save, Shift # select");
-			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LONG) (LPTSTR) "Shift # Load,         # save,    Ctrl # select");
-			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LONG) (LPTSTR) "Shift # Load,    Ctrl # save,        # select");
-			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LONG) (LPTSTR) "   Ctrl # Load,        # save, Shift # select");
-			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LONG) (LPTSTR) "   Ctrl # Load, Shift # save,        # select");
+			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "       # Load,  Shift # save,    Ctrl # select");
+			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "       # Load,    Ctrl # save, Shift # select");
+			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "Shift # Load,         # save,    Ctrl # select");
+			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "Shift # Load,    Ctrl # save,        # select");
+			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "   Ctrl # Load,        # save, Shift # select");
+			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "   Ctrl # Load, Shift # save,        # select");
 
 			SendDlgItemMessage(hDlg, IDC_COMBO_PORT1, CB_SETCURSEL, (WPARAM) ((Controller_1_Type >> 4) & 1), (LPARAM) 0);
 			SendDlgItemMessage(hDlg, IDC_COMBO_PORT2, CB_SETCURSEL, (WPARAM) ((Controller_2_Type >> 4) & 1), (LPARAM) 0);
@@ -8338,7 +8338,7 @@ LRESULT CALLBACK ControllerProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 			HWND listbox = GetDlgItem(hDlg, IDC_HOTKEYLIST);
 
 			int stops [4] = {25*4, 25*4+4, 25*4+8, 25*4+16};
-			SendMessage(listbox, LB_SETTABSTOPS, 4, (LONG)(LPSTR)stops);
+			SendMessage(listbox, LB_SETTABSTOPS, 4, (LPARAM) (LPSTR)stops);
 
 			PopulateHotkeyListbox(listbox);
 

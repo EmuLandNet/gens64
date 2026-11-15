@@ -11,6 +11,7 @@ out=$(mktemp -d)
 i686-w64-mingw32-objcopy --prefix-symbols=orig_ "$obj" "$out/orig.obj"
 cc="clang --target=i686-w64-mingw32 -march=i686 -O2 -fno-strict-aliasing -fwrapv -std=gnu89 -fcommon"
 $cc -I"$src" -c "$port" -o "$out/port.o"
+$cc -I"$src" -c "$src/gens64_addr.c" -o "$out/addr.o"
 $cc -fno-common -c "$test" -o "$out/test.o"
-$cc -fuse-ld=lld -static "$out/test.o" "$out/port.o" "$out/orig.obj" -o "$out/test.exe"
+$cc -fuse-ld=lld -static "$out/test.o" "$out/port.o" "$out/addr.o" "$out/orig.obj" -o "$out/test.exe"
 WINEDEBUG=-all wine "$out/test.exe" "$@"

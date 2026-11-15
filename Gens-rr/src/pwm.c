@@ -25,7 +25,7 @@ unsigned char PWM_FULL_TAB [] = {
 };
 #endif
 /*unsigned short PWM_FIFO_R[8];
-unsigned short PWM_FIFO_L[8];
+unsigned short PWM_FIFO_L[8] GENS64_ALIGN2;
 unsigned int PWM_RP_R;
 unsigned int PWM_WP_R;
 unsigned int PWM_RP_L;

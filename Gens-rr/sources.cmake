@@ -49,6 +49,7 @@ set(GENS_C_CXX_SOURCES
   src/G_dsound.cpp
   src/G_main.cpp
   src/Gens.cpp
+  src/gens64_addr.c
   src/ggenie.cpp
   src/gm2_structs.cpp
   src/guidraw.cpp

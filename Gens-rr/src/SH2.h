@@ -87,7 +87,7 @@ struct __fetch_region
 {
 	UINT32 Low_Adr;
 	UINT32 High_Adr;
-	UINT16 *Fetch_Reg;
+	UINT32 Fetch_Reg;	/* gens64: gaddr (gens64_addr.h) of the region minus Low_Adr; 0xFFFFFFFF: end */
 };
 
 typedef struct __fetch_region FETCHREG;

@@ -78,6 +78,11 @@ void Reset_PCM(void)
 	PCM_Chip.Bank = 0; // Modif N. -- added, was never initialized before 
 }
 
+/* gens64: the 32-bit builds compute the step on the x87 FPU, where the float product is exact (it
+   is not rounded to float before the truncation); SSE (x86-64) would round it. A double product of
+   the two values is exact too (16 x 24 bits): same steps on every target. See docs/asm-quirks.md. */
+#define PCM_STEP(b) ((int) ((double) (float) (b) * (double) PCM_Chip.Rate))
+
 /* Change sample rate of PCM */
 void Set_Rate_PCM(int Rate)
 {
@@ -90,7 +95,7 @@ void Set_Rate_PCM(int Rate)
 
 	for(i = 0; i < 8; i++)
 	{
-		PCM_Chip.Channel[i].Step = (int) ((float) PCM_Chip.Channel[i].Step_B * PCM_Chip.Rate);
+		PCM_Chip.Channel[i].Step = PCM_STEP(PCM_Chip.Channel[i].Step_B);
 	}
 }
 
@@ -116,7 +121,7 @@ void Write_PCM_Reg(unsigned int Reg, unsigned int Data)
 		case 0x02: /* frequency step (LB) registers */
 			PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step_B &= 0xFF00;
 			PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step_B += Data;
-			PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step = (int) ((float) PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step_B * PCM_Chip.Rate);
+			PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step = PCM_STEP(PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step_B);
 
 #ifdef DEBUG_CD
 			fprintf(debug_SCD_file, "PCM : Step low = %.2X   Step calculated = %.8X\n", Data, PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step);
@@ -126,7 +131,7 @@ void Write_PCM_Reg(unsigned int Reg, unsigned int Data)
 		case 0x03: /* frequency step (HB) registers */
 			PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step_B &= 0x00FF;
 			PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step_B += Data << 8;
-			PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step = (int) ((float) PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step_B * PCM_Chip.Rate);
+			PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step = PCM_STEP(PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step_B);
 
 #ifdef DEBUG_CD
 			fprintf(debug_SCD_file, "PCM : Step high = %.2X   Step calculated = %.8X\n", Data, PCM_Chip.Channel[PCM_Chip.Cur_Chan].Step);

@@ -1006,68 +1006,25 @@ void Write_CD_Audio(short *Buf, int rate, int channel, int _length)
 	fprintf(debug_SCD_file, "\n*********  Write Pos = %d    ", CD_Audio_Buffer_Write_Pos);
 #endif
 
-	if (channel == 2)
+	/* gens64: was two __asm loops; do-while like the asm (at least one sample) */
 	{
-		__asm
+		unsigned int wp = (unsigned int) CD_Audio_Buffer_Write_Pos, src = 0;
+		int n = (int) _length_dst - 1;
+		pos_src = 0;
+		do
 		{
-			mov edi, CD_Audio_Buffer_Write_Pos
-			mov ebx, Buf
-			xor esi, esi
-			mov ecx, _length_dst
-			xor eax, eax
-			mov edx, pas_src
-			dec ecx
-			jmp short loop_stereo
-
-align 16
-
-loop_stereo:
-			movsx eax, word ptr [ebx + esi * 4]
-			mov CD_Audio_Buffer_L[edi * 4], eax
-			movsx eax, word ptr [ebx + esi * 4 + 2]
-			mov CD_Audio_Buffer_R[edi * 4], eax
-			mov esi, dword ptr pos_src
-			inc edi
-			add esi, edx
-			and edi, 0xFFF
-			mov dword ptr pos_src, esi
-			shr esi, 16
-			dec ecx
-			jns short loop_stereo
-
-			mov CD_Audio_Buffer_Write_Pos, edi
-		}
-	}
-	else
-	{
-		__asm
-		{
-			mov edi, CD_Audio_Buffer_Write_Pos
-			mov ebx, Buf
-			xor esi, esi
-			mov ecx, _length_dst
-			xor eax, eax
-			mov edx, pas_src
-			dec ecx
-			jmp short loop_mono
-
-align 16
-
-loop_mono:
-			movsx eax, word ptr [ebx + esi * 2]
-			mov CD_Audio_Buffer_L[edi * 4], eax
-			mov CD_Audio_Buffer_R[edi * 4], eax
-			mov esi, dword ptr pos_src
-			inc edi
-			add esi, edx
-			and edi, 0xFFF
-			mov dword ptr pos_src, esi
-			shr esi, 16
-			dec ecx
-			jns short loop_mono
-
-			mov CD_Audio_Buffer_Write_Pos, edi
-		}
+			if (channel == 2)
+			{
+				CD_Audio_Buffer_L[wp] = Buf[src * 2];
+				CD_Audio_Buffer_R[wp] = Buf[src * 2 + 1];
+			}
+			else
+				CD_Audio_Buffer_L[wp] = CD_Audio_Buffer_R[wp] = Buf[src];
+			wp = (wp + 1) & 0xFFF;
+			pos_src += pas_src;
+			src = pos_src >> 16;
+		} while (--n >= 0);
+		CD_Audio_Buffer_Write_Pos = (int) wp;
 	}
 
 #ifdef DEBUG_CD
@@ -1123,37 +1080,26 @@ void Update_CD_Audio(int **buf, int _length)
 			CD_Audio_Buffer_L[readPos] = (CD_Audio_Buffer_L[readPos] * CDDAVol) >> 8;
 			CD_Audio_Buffer_R[readPos] = (CD_Audio_Buffer_R[readPos] * CDDAVol) >> 8;
 		}
-		__asm
+		/* gens64: was an __asm block; do-while like the asm (at least one sample) */
 		{
-			mov ecx, _length
-			mov esi, CD_Audio_Buffer_Read_Pos
-			mov edi, Buf_L
-			dec ecx
-
-loop_L:
-			mov eax, CD_Audio_Buffer_L[esi * 4]
-			add [edi], eax
-			inc esi
-			add edi, 4
-			and esi, 0xFFF
-			dec ecx
-			jns short loop_L
-
-			mov ecx, _length
-			mov esi, CD_Audio_Buffer_Read_Pos
-			mov edi, Buf_R
-			dec ecx
-
-loop_R:
-			mov eax, CD_Audio_Buffer_R[esi * 4]
-			add [edi], eax
-			inc esi
-			add edi, 4
-			and esi, 0xFFF
-			dec ecx
-			jns short loop_R
-
-			mov CD_Audio_Buffer_Read_Pos, esi
+			unsigned int rp = (unsigned int) CD_Audio_Buffer_Read_Pos;
+			int n = _length - 1, k = 0;
+			do
+			{
+				Buf_L[k] = (int) ((unsigned int) Buf_L[k] + (unsigned int) CD_Audio_Buffer_L[rp]);
+				rp = (rp + 1) & 0xFFF;
+				k++;
+			} while (--n >= 0);
+			rp = (unsigned int) CD_Audio_Buffer_Read_Pos;
+			n = _length - 1;
+			k = 0;
+			do
+			{
+				Buf_R[k] = (int) ((unsigned int) Buf_R[k] + (unsigned int) CD_Audio_Buffer_R[rp]);
+				rp = (rp + 1) & 0xFFF;
+				k++;
+			} while (--n >= 0);
+			CD_Audio_Buffer_Read_Pos = (int) rp;
 		}
 	}
 	else

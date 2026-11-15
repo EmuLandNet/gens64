@@ -16,6 +16,7 @@
  */
 #include <string.h>
 #include "z80.h"
+#include "gens64_addr.h"
 
 typedef unsigned char u8;
 typedef signed char s8;
@@ -28,14 +29,13 @@ extern u8 Ram_Z80[];
 /* ---- context + default memory (layout of the asm .bss: M_Z80, then Def_z80_Mem aligned to 32) ---- */
 struct gens64_z80 {
 	Z80_CONTEXT ctx;
-	u8 pad[0x1480 - 0x146C];
-	u8 mem[0x10000];
+	u8 mem[0x10000] __attribute__((aligned(32)));
 };
-typedef char gens64_z80_ctx_size[(sizeof(Z80_CONTEXT) == 0x146C) ? 1 : -1];
+#if UINTPTR_MAX == 0xFFFFFFFFu	/* (64-bit: the handler tables hold 8-byte pointers) */
+typedef char gens64_z80_ctx_size[(sizeof(Z80_CONTEXT) == 0x146C && offsetof(struct gens64_z80, mem) == 0x1480) ? 1 : -1];
+#endif
 __attribute__((aligned(64), nocommon)) struct gens64_z80 gens64_z80;
-__asm__(
-	".globl _M_Z80\n.set _M_Z80, _gens64_z80\n"
-	".globl _Def_z80_Mem\n.set _Def_z80_Mem, _gens64_z80+0x1480\n");
+__asm__(".globl " GSYM "M_Z80\n.set " GSYM "M_Z80, " GSYM "gens64_z80\n");
 #define Def_z80_Mem (gens64_z80.mem)
 
 /* memory handlers (Mem_Z80.c): fastcall (address, data); Z80_Read_Regs gives the registers the asm
@@ -46,7 +46,7 @@ u32 Z80_Read_Regs(void *fn, int word, u32 v, u32 af, u32 adr, u32 *ecx, u32 *edx
 
 /* ---- emulation state (asm registers) ---- */
 static Z80_CONTEXT *Z;		/* ebp */
-static u32 pc;			/* esi: host address */
+static u32 pc;			/* esi: host address (gaddr, gens64_addr.h) */
 static s32 cyc;			/* edi */
 static u32 ecx, edx;
 static u32 io_eax;
@@ -81,8 +81,8 @@ typedef int (*op_t)(void);
 #define SCL(v) (ecx = (ecx & 0xFFFFFF00u) | (u8)(v))
 #define SCH(v) (ecx = (ecx & 0xFFFF00FFu) | ((u32)(u8)(v) << 8))
 #define SCX(v) (ecx = (ecx & 0xFFFF0000u) | (u16)(v))
-#define PCB(n) (*(u8 *)(pc + (n)))
-#define PCSB(n) ((s32)*(s8 *)(pc + (n)))
+#define PCB(n) (*(u8 *)GP(pc + (n)))
+#define PCSB(n) ((s32)*(s8 *)GP(pc + (n)))
 
 /* registers */
 #define zA Z->AF.b.A
@@ -276,7 +276,7 @@ static void wr16(void)
 
 static void rebase(void)
 {
-	edx = *(u32 *)((u8 *)Z->Fetch + (pc >> 8) * 4);
+	edx = Z->Fetch[pc >> 8];	/* (pc: the Z80 address here) */
 	pc += edx;
 	Z->BasePC = edx;
 }
@@ -3892,7 +3892,7 @@ static void __fastcall Def_z80_WriteW(u32 adr, u16 d) { Def_z80_Mem[adr] = (u8)d
 UINT32 FASTCALL z80_Init(Z80_CONTEXT *z80)
 {
 	int i;
-	memset(z80, 0, 0x146C);
+	memset(z80, 0, sizeof(*z80));
 	memset(Def_z80_Mem, 0, 0x10000);
 	for (i = 0; i < 0x100; i++)
 	{
@@ -3900,7 +3900,7 @@ UINT32 FASTCALL z80_Init(Z80_CONTEXT *z80)
 		z80->ReadW[i] = (Z80_RW *)Def_z80_ReadW;
 		z80->WriteB[i] = (Z80_WB *)Def_z80_WriteB;
 		z80->WriteW[i] = (Z80_WW *)Def_z80_WriteW;
-		z80->Fetch[i] = Def_z80_Mem;
+		z80->Fetch[i] = GADDR_CHECK(Def_z80_Mem, 0x10000, "Def_z80_Mem");
 	}
 	z80->IN_C = (Z80_WB *)Def_z80_ReadB;	/* (the header swapped IN/OUT types) */
 	z80->OUT_C = (Z80_RB *)Def_z80_WriteB;
@@ -3912,7 +3912,7 @@ UINT32 FASTCALL z80_Reset(Z80_CONTEXT *z80)
 	u32 cnt = z80->CycleCnt, base;
 	memset(z80, 0, 0x5C);
 	z80->CycleCnt = cnt;
-	base = (u32)z80->Fetch[0];
+	base = z80->Fetch[0];
 	z80->BasePC = base;
 	z80->PC.d = base;
 	z80->IX.d = 0xFFFF;
@@ -3951,7 +3951,9 @@ UINT32 z80_Add_WriteW(Z80_CONTEXT *z80, UINT32 low_adr, UINT32 high_adr, Z80_WW 
 UINT32 z80_Add_Fetch(Z80_CONTEXT *z80, UINT32 low_adr, UINT32 high_adr, UINT8 *Region)
 {
 	/* the stored base is Region - low * 256, so that base + PC addresses the region */
-	add_handler((void **)z80->Fetch, low_adr, high_adr, (void *)((u32)Region - ((low_adr & 0xFF) << 8)));
+	u32 i, base = GADDR_CHECK(Region, ((high_adr & 0xFF) - (low_adr & 0xFF) + 1) << 8, "z80_Add_Fetch region") - ((low_adr & 0xFF) << 8);
+	for (i = low_adr & 0xFF; i <= (high_adr & 0xFF); i++)
+		z80->Fetch[i] = base;
 	return 0;
 }
 
@@ -3994,7 +3996,7 @@ UINT32 FASTCALL z80_Exec(Z80_CONTEXT *z80, int odo)
 	if ((u32)odo <= z80->CycleCnt)	/* jbe: nothing to do */
 		return (UINT32)-1;
 	edx = (u32)odo - z80->CycleCnt;
-	ecx = (u32)z80;
+	ecx = GA(z80);
 	Z = z80;
 	pc = z80->PC.d;
 	cyc = (s32)(edx - 1);
@@ -4081,7 +4083,7 @@ UINT32 FASTCALL z80_Set_PC(Z80_CONTEXT *z80, UINT32 PC)
 	{
 		u32 base;
 		PC &= 0xFFFF;
-		base = (u32)z80->Fetch[PC >> 8];
+		base = z80->Fetch[PC >> 8];
 		z80->BasePC = base;
 		z80->PC.d = PC + base;
 	}

@@ -14,6 +14,7 @@
  * Quirks kept: see docs/asm-quirks.md.
  */
 #include "pcm.h"
+#include "gens64_addr.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -70,17 +71,17 @@ struct gens64_s68k_bss {
 typedef char gens64_s68k_bss_size[(sizeof(struct gens64_s68k_bss) == 0x1389F4) ? 1 : -1];
 __attribute__((aligned(64), nocommon)) struct gens64_s68k_bss gens64_s68k_bss;
 #define B gens64_s68k_bss
-#define SA(n, off) ".globl _" #n "\n.set _" #n ", _gens64_s68k_bss+" #off "\n"
+#define SA(n, off) ".globl " GSYM #n "\n.set " GSYM #n ", " GSYM "gens64_s68k_bss+" #off "\n"
 __asm__(
 	SA(Ram_Prg, 0) SA(Ram_Word_2M, 0x80000) SA(Ram_Word_1M, 0xC0000) SA(Cell_Conv_Tab, 0x100000)
 	SA(Ram_Backup, 0x120000) SA(COMM, 0x130000) SA(CDD, 0x130024) SA(CDC, 0x130058)
-	".globl _LED_Status\n.set _LED_Status, _gens64_s68k_bss+0x1389C8\n"	/* L...: decorated only (assembler-private prefix) */ SA(S68K_Mem_WP, 0x1389CC) SA(S68K_Mem_PM, 0x1389D0) SA(Ram_Word_State, 0x1389D4)
+	".globl " GSYM "LED_Status\n.set " GSYM "LED_Status, " GSYM "gens64_s68k_bss+0x1389C8\n"	/* L...: decorated only (assembler-private prefix) */ SA(S68K_Mem_WP, 0x1389CC) SA(S68K_Mem_PM, 0x1389D0) SA(Ram_Word_State, 0x1389D4)
 	SA(Init_Timer_INT3, 0x1389D8) SA(Timer_INT3, 0x1389DC) SA(Timer_Step, 0x1389E0) SA(Int_Mask_S68K, 0x1389E4)
 	SA(Font_COLOR, 0x1389E8) SA(Font_BITS, 0x1389EC) SA(CD_Access_Timer, 0x1389F0));
 
 /* .data */
 __attribute__((aligned(64))) u8 gens64_s68k_mcs[4] = { 1, 2, 4 + 0, 5 + 0 };
-__asm__(".globl _Memory_Control_Status\n.set _Memory_Control_Status, _gens64_s68k_mcs\n");
+__asm__(".globl " GSYM "Memory_Control_Status\n.set " GSYM "Memory_Control_Status, " GSYM "gens64_s68k_mcs\n");
 #define MCS gens64_s68k_mcs
 
 #define COMM_FLAG (B.COMM + 0x00)

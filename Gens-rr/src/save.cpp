@@ -1134,7 +1134,7 @@ int Import_Genesis(unsigned char * Data)
 	{
 		if(Version >= 9) offset += 4; // alignment for performance
 		YM2612_Restore_Full(Data + offset); // some important parts of this weren't saved above
-		offset += sizeof(ym2612_);
+		offset += YM2612_FULL_STATE_SIZE;
 
 		ImportDataAuto(&PSG, Data, offset, sizeof(struct _psg)); // some important parts of this weren't saved above
 	
@@ -1389,7 +1389,7 @@ void Export_Genesis(unsigned char * Data)
 
 		if(Version >= 9) offset += 4; // alignment for performance
 		YM2612_Save_Full(Data + offset); // some important parts of this weren't saved above
-		offset += sizeof(ym2612_);
+		offset += YM2612_FULL_STATE_SIZE;
 
 		ExportDataAuto(&PSG, Data, offset, sizeof(struct _psg));  // some important parts of this weren't saved above
 
@@ -1975,6 +1975,24 @@ void Export_SegaCD(unsigned char * Data)
 #endif
 }
 
+// gens64: SH2 PC / Base_PC / DS_PC in a state are host addresses of the build that wrote it (the
+// official r341 and older gens64 builds) or SH2 addresses with Base_PC = 0 (gens64 since the 64-bit
+// work). Either way PC - Base_PC is the SH2 address: rebase it on this build's fetch region of the
+// saved Fetch_Start/Fetch_End (none: faulted, left unbased like the core leaves it).
+static void Gens64_SH2_State_Rebase(SH2_CONTEXT *c)
+{
+	UINT32 base = c->Base_PC, pc = c->PC - base, ds = c->DS_PC ? c->DS_PC - base : 0, nb = 0;
+	for (int i = 0; i < 0x100 && c->Fetch_Region[i].Fetch_Reg != 0xFFFFFFFF; i++)
+		if (c->Fetch_Region[i].Low_Adr == c->Fetch_Start && c->Fetch_Region[i].High_Adr == c->Fetch_End)
+		{
+			nb = c->Fetch_Region[i].Fetch_Reg;
+			break;
+		}
+	c->Base_PC = nb;
+	c->PC = pc + nb;
+	if (c->DS_PC) c->DS_PC = ds + nb;
+}
+
 int Import_32X(unsigned char *Data)
 {
 	unsigned int offset = 0;
@@ -2006,6 +2024,7 @@ int Import_32X(unsigned char *Data)
 		ImportDataAuto(&context->Cycle_TD, Data, offset, sizeof(context->Cycle_TD));
 		ImportDataAuto(&context->Cycle_IO, Data, offset, sizeof(context->Cycle_IO));
 		ImportDataAuto(&context->Cycle_Sup, Data, offset, sizeof(context->Cycle_Sup));
+		Gens64_SH2_State_Rebase(context);
 		if(Version >= 9) offset += 8; // alignment for performance
 		ImportDataAuto(context->IO_Reg, Data, offset, sizeof(context->IO_Reg));
 		ImportDataAuto(&context->DVCR, Data, offset, sizeof(context->DVCR));
@@ -2157,13 +2176,17 @@ void Export_32X(unsigned char *Data)
 		ExportDataAuto(&context->MACH, Data, offset, sizeof(context->MACH));
 		ExportDataAuto(&context->MACL, Data, offset, sizeof(context->MACL));
 		ExportDataAuto(&context->PR, Data, offset, sizeof(context->PR));
-		ExportDataAuto(&context->PC, Data, offset, sizeof(context->PC));
+		// gens64: PC, Base_PC and DS_PC are host addresses: written as SH2 addresses (PC - Base_PC,
+		// Base_PC 0), the form every build understands (see Gens64_SH2_State_Rebase)
+		UINT32 statePC = context->PC - context->Base_PC, stateBase = 0;
+		UINT32 stateDS = context->DS_PC ? context->DS_PC - context->Base_PC : 0;
+		ExportDataAuto(&statePC, Data, offset, sizeof(statePC));
 		ExportDataAuto(&context->Status, Data, offset, sizeof(context->Status));
-		ExportDataAuto(&context->Base_PC, Data, offset, sizeof(context->Base_PC));
+		ExportDataAuto(&stateBase, Data, offset, sizeof(stateBase));
 		ExportDataAuto(&context->Fetch_Start, Data, offset, sizeof(context->Fetch_Start));
 		ExportDataAuto(&context->Fetch_End, Data, offset, sizeof(context->Fetch_End));
 		ExportDataAuto(&context->DS_Inst, Data, offset, sizeof(context->DS_Inst));
-		ExportDataAuto(&context->DS_PC, Data, offset, sizeof(context->DS_PC));
+		ExportDataAuto(&stateDS, Data, offset, sizeof(stateDS));
 		ExportDataAuto(&context->Odometer, Data, offset, sizeof(context->Odometer));
 		ExportDataAuto(&context->Cycle_TD, Data, offset, sizeof(context->Cycle_TD));
 		ExportDataAuto(&context->Cycle_IO, Data, offset, sizeof(context->Cycle_IO));

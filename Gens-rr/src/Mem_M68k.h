@@ -12,15 +12,15 @@ extern unsigned char Ram_Backup_Ex[64 * 1024];
 extern unsigned char Genesis_Rom[2 * 1024];
 extern unsigned char _32X_Genesis_Rom[256];
 
-extern unsigned int _32X_M68K_Read_Byte_Table[0x20];
-extern unsigned int _32X_M68K_Read_Word_Table[0x20];
-extern unsigned int _32X_M68K_Write_Byte_Table[0x10];
-extern unsigned int _32X_M68K_Write_Word_Table[0x10];
+extern void *_32X_M68K_Read_Byte_Table[0x20];
+extern void *_32X_M68K_Read_Word_Table[0x20];
+extern void *_32X_M68K_Write_Byte_Table[0x10];
+extern void *_32X_M68K_Write_Word_Table[0x10];
 
-extern unsigned int M68K_Read_Byte_Table[0x20];
-extern unsigned int M68K_Read_Word_Table[0x20];
-extern unsigned int M68K_Write_Byte_Table[0x10];
-extern unsigned int M68K_Write_Word_Table[0x10];
+extern void *M68K_Read_Byte_Table[0x20];
+extern void *M68K_Read_Word_Table[0x20];
+extern void *M68K_Write_Byte_Table[0x10];
+extern void *M68K_Write_Word_Table[0x10];
 
 extern unsigned int Rom_Size;
 

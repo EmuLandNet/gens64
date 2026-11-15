@@ -290,7 +290,7 @@ struct _Z80_context
 
 	Z80_RB *ReadB[0x100];
 	Z80_WB *WriteB[0x100];
-	UINT8 *Fetch[0x100];
+	UINT32 Fetch[0x100];	/* gens64: gaddr (gens64_addr.h) of the region minus page * 256 */
 	Z80_RW *ReadW[0x100];
 	Z80_WW *WriteW[0x100];
 

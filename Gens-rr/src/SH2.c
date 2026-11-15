@@ -16,6 +16,7 @@
 #include <stdarg.h>
 
 #include "sh2.h"
+#include "gens64_addr.h"
 
 #if SH2_DEBUG > 0
 FILE *SH2_Debug = NULL;
@@ -407,6 +408,15 @@ UINT32 Def_WRITEL(UINT32 adr, UINT32 data, UINT32 eax, SH2_CONTEXT *ctx)
 /**********************************/
 
 
+/* gens64: Fetch_Reg is &Fetch[-(low_adr >> 1)] as a 32-bit host address (gaddr, wrapping like the
+   asm's pointer did); the end marker (UINT16 *) -1 stays 0xFFFFFFFF */
+static UINT32 sh2_fetch_reg(UINT32 low_adr, UINT32 high_adr, UINT16 *Fetch)
+{
+	if (Fetch == (UINT16 *) -1)
+		return 0xFFFFFFFF;
+	return GADDR_CHECK(Fetch, (size_t) (high_adr - low_adr) + 1, "SH2 fetch region") - low_adr;
+}
+
 // IMPORTANT : *Fetch have to be DWORD aligned !!!!
 
 void SH2_Add_Fetch(SH2_CONTEXT *SH2, UINT32 low_adr, UINT32 high_adr, UINT16 *Fetch)
@@ -415,11 +425,11 @@ void SH2_Add_Fetch(SH2_CONTEXT *SH2, UINT32 low_adr, UINT32 high_adr, UINT16 *Fe
 
 	for(i = 0; i < 0x100; i++)
 	{
-		if (SH2->Fetch_Region[i].Fetch_Reg == NULL)
+		if (SH2->Fetch_Region[i].Fetch_Reg == 0)
 		{
 			SH2->Fetch_Region[i].Low_Adr = low_adr;
 			SH2->Fetch_Region[i].High_Adr = high_adr;
-			SH2->Fetch_Region[i].Fetch_Reg = &Fetch[0 - (low_adr >> 1)];
+			SH2->Fetch_Region[i].Fetch_Reg = sh2_fetch_reg(low_adr, high_adr, Fetch);
 			break;
 		}
 	}
@@ -434,7 +444,7 @@ void SH2_Set_Fetch_Reg(SH2_CONTEXT *SH2, UINT32 reg, UINT32 low_adr, UINT32 high
 	
 	SH2->Fetch_Region[reg].Low_Adr = low_adr;
 	SH2->Fetch_Region[reg].High_Adr = high_adr;
-	SH2->Fetch_Region[reg].Fetch_Reg = &Fetch[0 - (low_adr >> 1)];
+	SH2->Fetch_Region[reg].Fetch_Reg = sh2_fetch_reg(low_adr, high_adr, Fetch);
 }
 
 

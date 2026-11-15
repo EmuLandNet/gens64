@@ -15,6 +15,7 @@
 #include <string.h>
 #include "z80.h"
 #include "SH2.h"
+#include "gens64_addr.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -102,7 +103,7 @@ typedef char gens64_m68k_bss_size[(sizeof(struct gens64_m68k_bss) == 0x631164) ?
 __attribute__((aligned(64), nocommon)) struct gens64_m68k_bss gens64_m68k_bss;
 #define B gens64_m68k_bss
 /* names starting with L are assembler-private on i386 COFF: decorated alias only */
-#define ALIAS_(n, off) ".globl _" #n "\n.set _" #n ", _gens64_m68k_bss+" #off "\n"
+#define ALIAS_(n, off) ".globl " GSYM #n "\n.set " GSYM #n ", " GSYM "gens64_m68k_bss+" #off "\n"
 #define ALIAS(n, off) ALIAS_(n, off)
 __asm__(
 	ALIAS(Ram_68k, 0) ALIAS(Rom_Data, 0x10000) ALIAS(SRAM, 0x610000) ALIAS(Ram_Backup_Ex, 0x620000)
@@ -1187,26 +1188,26 @@ static void x32_af_data(u32 d)
 {
 	u32 eax = (d & 0xFFFF) * 0x10001, ebx, ecx, base, cf;
 	WR16(_32X_VDP + VX_AF_DATA, d);
-	base = (u32)_32X_VDP_Ram + (((RD32(_32X_VDP + VX_STATE) & 1) ^ 1) << 17);
+	base = GA(_32X_VDP_Ram) + (((RD32(_32X_VDP + VX_STATE) & 1) ^ 1) << 17);	/* (gaddr: 32-bit wrap) */
 	ebx = RD32(_32X_VDP + VX_AF_ST);
 	ecx = RD32(_32X_VDP + VX_AF_LEN) + 1;
 	cf = ecx & 1;
 	ecx >>= 1;
 	if (!ecx)
 	{
-		WR16(base + ebx * 2, eax);
+		WR16(GP(base + ebx * 2), eax);
 		ebx = (ebx & ~0xFFu) | (u8)(ebx + 1);
 		WR32(_32X_VDP + VX_AF_ST, ebx);
 		return;
 	}
 	if (cf)
 	{
-		WR16(base + ebx * 2, eax);
+		WR16(GP(base + ebx * 2), eax);
 		ebx = (ebx & ~0xFFu) | (u8)(ebx + 1);
 	}
 	do
 	{
-		WR32(base + ebx * 2, eax);
+		WR32(GP(base + ebx * 2), eax);
 		ebx = (ebx & ~0xFFu) | (u8)(ebx + 2);
 		ecx--;
 	} while ((int)ecx >= 0);
@@ -1432,7 +1433,12 @@ __attribute__((aligned(64))) struct gens64_m68k_data gens64_m68k_data = {
 	{ RB4(RB4(BAD_W)) },
 };
 #define D gens64_m68k_data
-#define DALIAS(n, f) ".globl _" #n "\n.set _" #n ", _gens64_m68k_data+" #f "\n"
+/* (offsets of the 32-bit layout, scaled to the pointer size: every table is an array of pointers) */
+#if UINTPTR_MAX == 0xFFFFFFFFu
+#define DALIAS(n, f) ".globl " GSYM #n "\n.set " GSYM #n ", " GSYM "gens64_m68k_data+" #f "\n"
+#else
+#define DALIAS(n, f) ".globl " GSYM #n "\n.set " GSYM #n ", " GSYM "gens64_m68k_data+(" #f ")*2\n"
+#endif
 __asm__(
 	DALIAS(Genesis_M68K_Read_Byte_Table, 0x000) DALIAS(Genesis_M68K_Read_Word_Table, 0x080)
 	DALIAS(Genesis_M68K_Write_Byte_Table, 0x100) DALIAS(Genesis_M68K_Write_Byte_Cheat_Table, 0x140)

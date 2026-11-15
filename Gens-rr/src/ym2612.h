@@ -118,8 +118,9 @@ int YM2612_Reset(void);
 int YM2612_Read(void);
 int YM2612_Write(unsigned char adr, unsigned char data);
 void YM2612_Update(int **buf, int length);
-int YM2612_Save_Full(unsigned char SAVE[0x14d0]);
-int YM2612_Restore_Full(const unsigned char SAVE[0x14d0]); 
+#define YM2612_FULL_STATE_SIZE 0x14D0	/* gens64: sizeof(ym2612_) of the 32-bit builds, see ym2612.c */
+int YM2612_Save_Full(unsigned char SAVE[YM2612_FULL_STATE_SIZE]);
+int YM2612_Restore_Full(const unsigned char SAVE[YM2612_FULL_STATE_SIZE]); 
 int YM2612_Save(unsigned char SAVE[0x200]);
 int YM2612_Restore(unsigned char SAVE[0x200]);
 

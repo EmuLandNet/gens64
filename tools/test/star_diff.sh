@@ -15,7 +15,7 @@ s2c=${STAR2C_DIR:-$here/../star2c}
 python3 "$s2c/star2c.py" "$1" "$out/core.c" $sub
 i686-w64-mingw32-objcopy --prefix-symbols=orig_ "$2" "$out/orig.obj"
 if [ ! -f "$out/core.o" ] || [ "$out/core.c" -nt "$out/core.o" ]; then
-	$cc ${STAR_CORE_OPT:-} -Wno-unused-label -DSTAR_INT_ACK=test_int_ack -I"$s2c" -c "$out/core.c" -o "$out/core.o"
+	$cc ${STAR_CORE_OPT:-} -Wno-unused-label -DSTAR_INT_ACK=test_int_ack -I"$s2c" -I"$here/../../Gens-rr/src" -c "$out/core.c" -o "$out/core.o"
 fi
 $cc $def -c "$here/star_diff.c" -o "$out/test.o"
 $cc -fuse-ld=lld -static "$out/test.o" "$out/core.o" "$out/orig.obj" -o "$out/test.exe"

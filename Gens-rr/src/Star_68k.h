@@ -20,30 +20,33 @@ struct STARSCREAM_PROGRAMREGION {
 	unsigned offset;
 };
 
+/* gens64: the host addresses below (offset, memorycall, userdata, the region table pointers and
+   resethandler of the context) are 32-bit gaddr values (gens64_addr.h: GA() / GP()), as the 32-bit
+   core keeps them; the context stays the 196-byte block that GetContext/SetContext copy. */
 struct STARSCREAM_DATAREGION {
 	unsigned lowaddr;
 	unsigned highaddr;
-	void    *memorycall;
-	void    *userdata;
+	unsigned memorycall;
+	unsigned userdata;
 };
 
 /* Memory structures for 16-bit data path */
 #define STARSCREAM_CONTEXTINFO_MEM16                      \
-	struct STARSCREAM_PROGRAMREGION *fetch;               \
-	struct STARSCREAM_DATAREGION    *readbyte;            \
-	struct STARSCREAM_DATAREGION    *readword;            \
-	struct STARSCREAM_DATAREGION    *writebyte;           \
-	struct STARSCREAM_DATAREGION    *writeword;           \
-	struct STARSCREAM_PROGRAMREGION *s_fetch;             \
-	struct STARSCREAM_DATAREGION    *s_readbyte;          \
-	struct STARSCREAM_DATAREGION    *s_readword;          \
-	struct STARSCREAM_DATAREGION    *s_writebyte;         \
-	struct STARSCREAM_DATAREGION    *s_writeword;         \
-	struct STARSCREAM_PROGRAMREGION *u_fetch;             \
-	struct STARSCREAM_DATAREGION    *u_readbyte;          \
-	struct STARSCREAM_DATAREGION    *u_readword;          \
-	struct STARSCREAM_DATAREGION    *u_writebyte;         \
-	struct STARSCREAM_DATAREGION    *u_writeword;         \
+	unsigned fetch;                                       \
+	unsigned readbyte;                                    \
+	unsigned readword;                                    \
+	unsigned writebyte;                                   \
+	unsigned writeword;                                   \
+	unsigned s_fetch;                                     \
+	unsigned s_readbyte;                                  \
+	unsigned s_readword;                                  \
+	unsigned s_writebyte;                                 \
+	unsigned s_writeword;                                 \
+	unsigned u_fetch;                                     \
+	unsigned u_readbyte;                                  \
+	unsigned u_readword;                                  \
+	unsigned u_writebyte;                                 \
+	unsigned u_writeword;                                 \
 
 /* Memory structures for 16-bit data path with function code support */
 #define STARSCREAM_CONTEXTINFO_MEM16FC                    \
@@ -54,21 +57,21 @@ struct STARSCREAM_DATAREGION {
 
 /* Memory structures for 32-bit sizable data path */
 #define STARSCREAM_CONTEXTINFO_MEM32                      \
-	struct STARSCREAM_PROGRAMREGION *fetch;               \
-	struct STARSCREAM_DATAREGION    *readbus;             \
-	struct STARSCREAM_DATAREGION    *writebus;            \
-	struct STARSCREAM_PROGRAMREGION *s_fetch;             \
-	struct STARSCREAM_DATAREGION    *s_readbus;           \
-	struct STARSCREAM_DATAREGION    *s_writebus;          \
-	struct STARSCREAM_PROGRAMREGION *u_fetch;             \
-	struct STARSCREAM_DATAREGION    *u_readbus;           \
-	struct STARSCREAM_DATAREGION    *u_writebus;          \
+	unsigned fetch;                                       \
+	unsigned readbus;                                     \
+	unsigned writebus;                                    \
+	unsigned s_fetch;                                     \
+	unsigned s_readbus;                                   \
+	unsigned s_writebus;                                  \
+	unsigned u_fetch;                                     \
+	unsigned u_readbus;                                   \
+	unsigned u_writebus;                                  \
 	unsigned     (*f_readbus) (unsigned f, unsigned a);   \
 	unsigned     (*f_writebus)(unsigned f, unsigned a);   \
 
 /* Common context info for all 680x0 types */
 #define STARSCREAM_CONTEXTINFO_COMMON                     \
-	void         (*resethandler)(void);                   \
+	unsigned       resethandler;                          \
 	unsigned       dreg[8];                               \
 	unsigned       areg[8];                               \
 	unsigned       asp;                                   \

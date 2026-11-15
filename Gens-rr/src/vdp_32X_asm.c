@@ -10,6 +10,7 @@
  *  - blank mode (0) returns at the first line without drawing anything, the palette strip included.
  * Only C calls these functions (Gens.cpp, Debug.cpp); the asm memory handlers use the variables.
  */
+#include "gens64_addr.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -29,7 +30,7 @@ __attribute__((aligned(64))) struct gens64_32x_vdp gens64_32x_vdp = { { 0 } };
 typedef char gens64_32x_vdp_check[(sizeof(struct gens64_32x_vdp) == 0xA0818) ? 1 : -1];
 
 #define X32_ALIAS(name, off) \
-	".globl __" #name "\n.set __" #name ", _gens64_32x_vdp+" #off "\n"
+	".globl " GSYM "_" #name "\n.set " GSYM "_" #name ", " GSYM "gens64_32x_vdp+" #off "\n"
 __asm__(
 	X32_ALIAS(32X_Palette_16B, 0x0)
 	X32_ALIAS(32X_Palette_32B, 0x20000)

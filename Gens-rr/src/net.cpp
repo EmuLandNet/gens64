@@ -58,7 +58,13 @@ int WINAPI Empty_Kaillera_End_Game()
 
 int Init_Network(void)
 {
+#ifdef _WIN64
+	// gens64: kailleraclient.dll exists only as a 32-bit DLL (stdcall exports such as
+	// _kailleraInit@0): netplay is off in the 64-bit build, the menu entries do nothing.
+	Kaillera_HDLL = NULL;
+#else
 	Kaillera_HDLL = LoadLibrary("kailleraclient.dll");
+#endif
 
 	if (Kaillera_HDLL != NULL)
 	{

@@ -227,16 +227,12 @@ unsigned short Read_CDC_Host_SUB(void)
 				}
 			}
 
-			__asm
+			/* gens64: was an __asm block (word at Buffer + DAC.N, bytes swapped; DAC.N not masked) */
 			{
-				mov esi, CDC.DAC.N
-				lea ebx, CDC.Buffer
-//				and esi, 0x3FFF
-				mov ax, [ebx + esi]
-				add esi, 2
-				rol ax, 8
-				mov CDC.DAC.N, esi
-				mov val, ax
+				unsigned int n = (unsigned int) CDC.DAC.N;
+				const unsigned char *p = CDC.Buffer + n;
+				val = (unsigned short) ((p[0] << 8) | p[1]);
+				CDC.DAC.N = (int) (n + 2);
 			}
 
 #ifdef DEBUG_CD
@@ -280,16 +276,12 @@ unsigned short Read_CDC_Host_MAIN(void)
 				}
 			}
 
-			__asm
+			/* gens64: was an __asm block (word at Buffer + DAC.N, bytes swapped; DAC.N not masked) */
 			{
-				mov esi, CDC.DAC.N
-				lea ebx, CDC.Buffer
-//				and esi, 0x3FFF
-				mov ax, [ebx + esi]
-				add esi, 2
-				rol ax, 8
-				mov CDC.DAC.N, esi
-				mov val, ax
+				unsigned int n = (unsigned int) CDC.DAC.N;
+				const unsigned char *p = CDC.Buffer + n;
+				val = (unsigned short) ((p[0] << 8) | p[1]);
+				CDC.DAC.N = (int) (n + 2);
 			}
 
 #ifdef DEBUG_CD

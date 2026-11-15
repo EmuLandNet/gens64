@@ -1,6 +1,10 @@
 #ifndef _PWM_H_
 #define _PWM_H_
 
+/* gens64: an alias of the asm layout (pwm_asm.c) whose address is not 16-aligned: an array of
+   16+ bytes is otherwise assumed 16-aligned by clang for x86-64 (SSE copies would fault) */
+#define GENS64_ALIGN2 __attribute__((aligned(2)))
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -8,7 +12,7 @@ extern "C" {
 #define FASTCALL __fastcall
 
 extern unsigned short PWM_FIFO_R[8];
-extern unsigned short PWM_FIFO_L[8];
+extern unsigned short PWM_FIFO_L[8] GENS64_ALIGN2;	/* gens64: at pwm_asm.c offset 8, not 16-aligned */
 extern unsigned int PWM_RP_R;
 extern unsigned int PWM_WP_R;
 extern unsigned int PWM_RP_L;

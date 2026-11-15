@@ -15,6 +15,7 @@
  * The entry points the asm memory handlers call (Mem_M68k: the 68000 long read keeps the first word
  * in ecx across two calls) preserve ecx/edx, through thin asm wrappers.
  */
+#include "gens64_addr.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -76,7 +77,7 @@ __attribute__((aligned(64))) struct gens64_vdp gens64_vdp = { { 0 } };
 typedef char gens64_vdp_bss_check[(sizeof(struct gens64_vdp) == 0x1070C) ? 1 : -1];
 
 #define VDP_ALIAS(name, base, off) \
-	".globl _" #name "\n.set _" #name ", _" base "+" #off "\n"
+	".globl " GSYM #name "\n.set " GSYM #name ", " GSYM base "+" #off "\n"
 __asm__(
 	VDP_ALIAS(Genesis_Started, "gens64_vdp_data", 0x140)
 	VDP_ALIAS(SegaCD_Started, "gens64_vdp_data", 0x144)
@@ -136,7 +137,7 @@ int main68k_interrupt(int level, int vector);
 #define B(x, n) (((u8 *)&(x))[n])
 #define W0(x) (*(u16 *)&(x))
 
-static u32 vram_ptr(u32 off) { return (u32)(unsigned long)V.VRam + off; }
+static u32 vram_ptr(u32 off) { return GA(V.VRam) + off; }	/* (gaddr, gens64_addr.h) */
 
 void main68k_releaseCycles(u32 c);
 static void release_cycles(u32 c)

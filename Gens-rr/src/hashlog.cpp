@@ -30,6 +30,7 @@
 // state of frames from..to to <dir>/<frame>.gst for byte-level comparison.
 
 #include <stdio.h>
+#include "gens64_addr.h"
 #include <stdlib.h>
 #include <string.h>
 #include "hashlog.h"
@@ -125,7 +126,7 @@ static void restoreSH2(SH2_CONTEXT *c, const SavedPtrsSH2 *s)
 
 static void normGfxCD(SavedPtrsGfxCD *s)
 {
-	int wram = (int)(intptr_t)Ram_Word_2M, code = (int)(intptr_t)&Calcul_Rot_Comp;
+	int wram = (int)GA(Ram_Word_2M), code = (int)GA(&Calcul_Rot_Comp);	// (gaddr, gens64_addr.h)
 	s->stamp = Stamp_Map_Adr; s->buffer = Buffer_Adr; s->vector = Vector_Adr; s->jmp = Jmp_Adr;
 	// only values that are actually host pointers (they start out as 0 before the first GFX operation)
 	if ((unsigned)(Stamp_Map_Adr - wram) <= 256 * 1024) Stamp_Map_Adr -= wram;

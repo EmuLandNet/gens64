@@ -1,7 +1,16 @@
-# Legacy Gens RR (r341) built as the 32-bit Windows reference exe.
+# Legacy Gens RR (r341) built as the 32-bit Windows reference exe, or as the same classic Win32 program
+# for 64-bit Windows (cmake/toolchain-x86_64-mingw-clang.cmake).
 # Must be compiled exactly like the official MSVC build behaves: see GENS64.md, "Ловушки".
-if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4 OR NOT WIN32)
-  message(FATAL_ERROR "Gens-rr is the 32-bit Windows reference build: use cmake/toolchain-i686-mingw-clang.cmake")
+if(NOT WIN32 OR NOT (CMAKE_SIZEOF_VOID_P EQUAL 4 OR CMAKE_SIZEOF_VOID_P EQUAL 8))
+  message(FATAL_ERROR "Gens-rr is the Windows build: use cmake/toolchain-i686-mingw-clang.cmake (32-bit) or cmake/toolchain-x86_64-mingw-clang.cmake (64-bit)")
+endif()
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(GENS_WIN64 ON)
+  set(GENS_ARCH_TAG x64)
+  set(GENS_TRIPLE_DIR /usr/x86_64-w64-mingw32)
+else()
+  set(GENS_WIN64 OFF)
+  set(GENS_TRIPLE_DIR /usr/i686-w64-mingw32)
 endif()
 
 include(sources.cmake)
@@ -23,7 +32,7 @@ set(WINE_ENV ${CMAKE_COMMAND} -E env WINEPREFIX=${GENS_WINEPREFIX} WINEARCH=win3
 
 # --- include shim (case-insensitive includes, svnrev.h, 7z StdAfx.h) -------------------------------
 execute_process(COMMAND ${Python3_EXECUTABLE} ${TOOLS}/mkshim.py ${R} ${GEN}/ci ${GENS_SVN_REV}
-                        /usr/i686-w64-mingw32/include
+                        ${GENS_TRIPLE_DIR}/include
                 COMMAND_ERROR_IS_FATAL ANY)
 
 # --- gens64 version tag (window title, About box): git revision + asm modules ported to C ---------
@@ -35,7 +44,7 @@ endif()
 set(GENS_VERSION_H ${GEN}/ci/gens64_version.h)
 add_custom_target(gens64_version
   COMMAND ${CMAKE_COMMAND} -DROOT=${PROJECT_SOURCE_DIR} -DOUT=${GENS_VERSION_H}
-          "-DPORTED=${GENS_PORTED_MODULES}" -P ${TOOLS}/version.cmake
+          "-DPORTED=${GENS_PORTED_MODULES}" "-DARCH=${GENS_ARCH_TAG}" -P ${TOOLS}/version.cmake
   BYPRODUCTS ${GENS_VERSION_H} COMMENT "gens64 version tag" VERBATIM)
 
 # --- assembly: original NASMW.EXE under Wine -------------------------------------------------------
@@ -107,8 +116,13 @@ add_dependencies(Gens gens64_version)
 set_target_properties(Gens PROPERTIES OUTPUT_NAME Gens RUNTIME_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR})
 target_include_directories(Gens PRIVATE ${GEN}/ci ${R}/src ${R}/dependencies ${R}/dependencies/DirectX ${R}/7z/CPP ${R})
 target_compile_definitions(Gens PRIVATE _WIN32_WINNT=0x0501 WIN32 NDEBUG _WINDOWS _CRT_SECURE_NO_DEPRECATE EXTRACT_ONLY _NO_CRYPTO)
+if(GENS_WIN64)
+  set(GENS_MARCH -march=x86-64)  # SSE floating point: see docs/asm-quirks.md (PCM step) for the one place it mattered
+else()
+  set(GENS_MARCH -march=i686)    # i686 => x87 floating point, like MSVC 2008/2010 by default
+endif()
 target_compile_options(Gens PRIVATE
-  -O2 -march=i686             # i686 => x87 floating point, like MSVC 2008/2010 by default
+  -O2 ${GENS_MARCH}
   -fms-extensions -fasm-blocks -fno-strict-aliasing -fwrapv -w
   $<$<COMPILE_LANGUAGE:C>:-std=gnu89 -fcommon        # -fcommon: MSVC "communal" C globals (pwm.c/pwm.asm)
      -Wno-error=incompatible-function-pointer-types -Wno-error=int-conversion
@@ -116,6 +130,21 @@ target_compile_options(Gens PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:-std=gnu++11 -include ${GEN}/ci/msvc_compat.h -fdelayed-template-parsing
      -Wno-error=incompatible-function-pointer-types -Wno-error=invalid-token-paste>)
 target_link_options(Gens PRIVATE -static -static-libgcc -static-libstdc++ -Wl,--stack,8388608)
+if(GENS_WIN64)
+  # 64-bit: zlib 1.1.3 and libpng 1.2.0 (the versions of the headers in src/) built from source
+  set(TP ${PROJECT_SOURCE_DIR}/third_party)
+  file(GLOB GENS_ZLIB_SRC ${TP}/zlib-1.1.3/*.c)
+  file(GLOB GENS_PNG_SRC ${TP}/libpng-1.2.0/*.c)
+  add_library(gens_zlib STATIC ${GENS_ZLIB_SRC})
+  target_compile_options(gens_zlib PRIVATE -O2 -w)
+  add_library(gens_png STATIC ${GENS_PNG_SRC})
+  target_include_directories(gens_png PRIVATE ${TP}/libpng-1.2.0 ${TP}/zlib-1.1.3)
+  target_compile_definitions(gens_png PRIVATE PNG_NO_ASSEMBLER_CODE PNG_NO_MMX_CODE)
+  target_compile_options(gens_png PRIVATE -O2 -w)
+  set(GENS_IMAGE_LIBS gens_png gens_zlib)
+else()
+  set(GENS_IMAGE_LIBS ${R}/dependencies/libs/libpng.lib ${R}/dependencies/libs/zlib.lib)
+endif()
 target_link_libraries(Gens PRIVATE
-  ${R}/dependencies/libs/libpng.lib ${R}/dependencies/libs/zlib.lib
+  ${GENS_IMAGE_LIBS}
   htmlhelp vfw32 dsound ddraw dinput dxguid winmm wsock32 comdlg32 comctl32 shell32 ole32 oleaut32 uuid gdi32 user32 advapi32)

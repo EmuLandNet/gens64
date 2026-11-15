@@ -16,6 +16,7 @@
  *    Render_Line_32X with the display off does not update the palette.
  * Only C calls Render_Line / Render_Line_32X (they were pushad/popad), so no register wrappers.
  */
+#include "gens64_addr.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -71,7 +72,7 @@ __attribute__((aligned(64))) struct gens64_rend gens64_rend = { { 0 } };
 typedef char gens64_rend_bss_check[(sizeof(struct gens64_rend) == 0xF88F0) ? 1 : -1];
 
 #define REND_ALIAS(name, base, off) \
-	".globl _" #name "\n.set _" #name ", _" base "+" #off "\n"
+	".globl " GSYM #name "\n.set " GSYM #name ", " GSYM base "+" #off "\n"
 __asm__(
 	REND_ALIAS(TAB336, "gens64_rend_data", 0x0)
 	REND_ALIAS(TAB320, "gens64_rend_data", 0x3C0)
@@ -153,9 +154,9 @@ enum { M_PATTERN_ADR, M_LINE_7, M_X, M_CELL, M_START_A, M_LENGTH_A, M_START_W, M
 #define FLAG32(f) (*(u32 *)(R.Flags + (f)))	/* the asm tests some byte flags with dword reads */
 
 #define B0(x) (*(u8 *)&(x))
-#define RD8(a) (*(const u8 *)(unsigned long)(a))
-#define RD16(a) (*(const u16 *)(unsigned long)(a))
-#define RD32(a) (*(const u32 *)(unsigned long)(a))
+#define RD8(a) (*(const u8 *)GP(a))	/* (a: gaddr, gens64_addr.h) */
+#define RD16(a) (*(const u16 *)GP(a))
+#define RD32(a) (*(const u32 *)GP(a))
 
 #define PRIO_B 0x02
 #define SPR_B 0x20
@@ -270,8 +271,8 @@ static u32 pattern_data(u32 info, int il, u32 *pal)
 	if (info & 0x1000)
 		line ^= 7;
 	if (il)
-		return RD32((unsigned long)VRam + (tile << 6) + line * 8);
-	return RD32((unsigned long)VRam + (tile << 5) + line * 4);
+		return RD32(GA(VRam) + (tile << 6) + line * 8);
+	return RD32(GA(VRam) + (tile << 5) + line * 4);
 }
 
 /* GET_PATTERN_INFO */
@@ -287,9 +288,9 @@ static u32 update_y(int a, int il, u32 edi)
 	if (cell & 0xFF81)
 		return edi;
 	if (a)
-		v = RD32((unsigned long)VSRam + cell * 2);
+		v = RD32(GA(VSRam) + cell * 2);
 	else
-		v = RD16((unsigned long)VSRam + cell * 2 + 2);
+		v = RD16(GA(VSRam) + cell * 2 + 2);
 	if (il)
 		v >>= 1;
 	edi = VDP_Current_Line + v;
@@ -320,7 +321,7 @@ static void render_scroll_b(s32 base, int il, int cellv, int sh)
 	DM[M_X] = H_Cell;
 	DM[M_CELL] = (esi & 1) - 2;
 	esi &= H_Scroll_CMask;
-	edi = first_y(RD32((unsigned long)VSRam + 2), il);
+	edi = first_y(RD32(GA(VSRam) + 2), il);
 
 	for (;;)
 	{
@@ -405,9 +406,9 @@ static void render_scroll_a_win(s32 base, int il, int cellv, int sh)
 	ebp = base + (s32)(m + DM[M_START_A] * 8);
 	DM[M_CELL] = (u32)cell;
 	if (cell >= 0)
-		edi = first_y(RD32((unsigned long)VSRam + ((u32)cell & V_Scroll_MMask) * 2), il);
+		edi = first_y(RD32(GA(VSRam) + ((u32)cell & V_Scroll_MMask) * 2), il);
 	else
-		edi = first_y(RD32((unsigned long)VSRam), il);
+		edi = first_y(RD32(GA(VSRam)), il);
 
 	for (;;)
 	{
@@ -680,7 +681,7 @@ static void render_sprites(s32 base, int il, int sh)
 			prio = (FLAG8(F_ALWAYS_TOP) || (eax & 0x8000)) ? PRIO_B : 0;
 			do
 			{
-				putline_sprite(prio, sh, 1, ebp, base, RD32((unsigned long)VRam + esi), DM[M_PALETTE]);
+				putline_sprite(prio, sh, 1, ebp, base, RD32(GA(VRam) + esi), DM[M_PALETTE]);
 				ebp -= 8;
 				esi += nc;
 			} while (ebp >= (s32)H_MIN);
@@ -698,7 +699,7 @@ static void render_sprites(s32 base, int il, int sh)
 			prio = (FLAG8(F_ALWAYS_TOP) || (eax & 0x8000)) ? PRIO_B : 0;
 			do
 			{
-				putline_sprite(prio, sh, 0, ebp, base, RD32((unsigned long)VRam + esi), DM[M_PALETTE]);
+				putline_sprite(prio, sh, 0, ebp, base, RD32(GA(VRam) + esi), DM[M_PALETTE]);
 				ebp += 8;
 				esi += nc;
 			} while (ebp < (s32)H_MAX);
@@ -875,7 +876,7 @@ void Render_Line_32X(void)
 	src = (_32X_VDP[1] & 1) << 17;
 	line = VDP_Current_Line;
 	line = (line & 0xFFFF0000) | *(u16 *)(_32X_VDP_Ram + src + line * 2);
-	src = (u32)(unsigned long)_32X_VDP_Ram + src + line * 2;
+	src = GA(_32X_VDP_Ram) + src + line * 2;
 	B0(R.Flags[F_REND_MODE]) = (u8)(mode & 3);
 	R.Flags[F_REND_MODE] |= (u8)(sel >> 2);
 	d[-1] = 1;	/* 32X was on */

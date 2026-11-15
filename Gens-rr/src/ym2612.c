@@ -2415,51 +2415,72 @@ static intptr_t YM_RatePtrToState(int* p, int* base, intptr_t msvcNullOff)
    return p - base;
 }
 
-int YM2612_Restore_Full(const unsigned char SAVE[sizeof(ym2612_)])
+/* gens64: the full state is written as the 32-bit builds laid ym2612_ out (YM2612_FULL_STATE_SIZE
+   bytes, the same on every build): 4-byte fields, the double at offset 72, DT as an int offset from
+   DT_TAB, AR/DR/SR/RR as above, OUTp (unused, NULL) as its low 32 bits. */
+static unsigned char *ym_ints(unsigned char *d, const void *s, int n, int save)
 {
-   int channel = 0;
-   int slot = 0;
-
-   memcpy(&YM2612, SAVE, sizeof(ym2612_));
-
-   // re-pointerify / fix pointers
-   for(channel = 0 ; channel < 6 ; channel++)
+   if (save) memcpy(d, s, n * 4); else memcpy((void *)s, d, n * 4);
+   return d + n * 4;
+}
+static unsigned char *ym_slot(unsigned char *d, slot_ *sl, int save)
+{
+   int v[6];
+   if (save)
    {
-      for(slot = 0 ; slot < 4 ; slot++)
-      {
-         YM2612.CHANNEL[channel].SLOT[slot].DT = (int*)((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].DT + (int*)&DT_TAB);
-         YM2612.CHANNEL[channel].SLOT[slot].AR = YM_RatePtrFromState((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].AR, (int*)AR_TAB, MSVC_NULL_RATE_FROM_AR_TAB);
-         YM2612.CHANNEL[channel].SLOT[slot].DR = YM_RatePtrFromState((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].DR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
-         YM2612.CHANNEL[channel].SLOT[slot].SR = YM_RatePtrFromState((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].SR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
-         YM2612.CHANNEL[channel].SLOT[slot].RR = YM_RatePtrFromState((intptr_t)YM2612.CHANNEL[channel].SLOT[slot].RR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
-      }
+      v[0] = (int)((int*)sl->DT - (int*)&DT_TAB);
+      v[1] = (int)YM_RatePtrToState(sl->AR, (int*)AR_TAB, MSVC_NULL_RATE_FROM_AR_TAB);
+      v[2] = (int)YM_RatePtrToState(sl->DR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
+      v[3] = (int)YM_RatePtrToState(sl->SR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
+      v[4] = (int)YM_RatePtrToState(sl->RR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
+      v[5] = (int)(intptr_t)sl->OUTp;
    }
+   d = ym_ints(d, &v[0], 1, save);
+   d = ym_ints(d, &sl->MUL, 7, save);		/* MUL .. SEG */
+   d = ym_ints(d, &v[1], 4, save);
+   d = ym_ints(d, &sl->Fcnt, 10, save);	/* Fcnt .. EincR */
+   d = ym_ints(d, &v[5], 1, save);
+   d = ym_ints(d, &sl->INd, 4, save);		/* INd .. AMSon */
+   if (!save)
+   {
+      sl->DT = (int*)&DT_TAB + v[0];
+      sl->AR = YM_RatePtrFromState(v[1], (int*)AR_TAB, MSVC_NULL_RATE_FROM_AR_TAB);
+      sl->DR = YM_RatePtrFromState(v[2], (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
+      sl->SR = YM_RatePtrFromState(v[3], (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
+      sl->RR = YM_RatePtrFromState(v[4], (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
+      sl->OUTp = (int*)(intptr_t)v[5];
+   }
+   return d;
+}
+static int ym_full(unsigned char *d, int save)
+{
+   unsigned char *d0 = d;
+   int c, k;
+   d = ym_ints(d, &YM2612.Clock, 18, save);	/* Clock .. spacer */
+   if (save) memcpy(d, &YM2612.Frequence, 8); else memcpy(&YM2612.Frequence, d, 8);
+   d += 8;
+   d = ym_ints(d, &YM2612.Inter_Cnt, 2, save);
+   for (c = 0; c < 6; c++)
+   {
+      d = ym_ints(d, YM2612.CHANNEL[c].S0_OUT, 24, save);	/* S0_OUT .. KC */
+      for (k = 0; k < 4; k++)
+         d = ym_slot(d, &YM2612.CHANNEL[c].SLOT[k], save);
+      d = ym_ints(d, &YM2612.CHANNEL[c].FFlag, 1, save);
+   }
+   d = ym_ints(d, YM2612.REG, 2 * 0x100, save);
+   return (int)(d - d0);
+}
+typedef char ym_full_size[(sizeof(int) == 4 && sizeof(double) == 8) ? 1 : -1];
 
+int YM2612_Restore_Full(const unsigned char SAVE[YM2612_FULL_STATE_SIZE])
+{
+   ym_full((unsigned char *)SAVE, 0);
    return 0;
 }
 
-int YM2612_Save_Full(unsigned char SAVE[sizeof(ym2612_)])
+int YM2612_Save_Full(unsigned char SAVE[YM2612_FULL_STATE_SIZE])
 {
-   ym2612_* ymp = ((ym2612_*)SAVE);
-   int channel = 0;
-   int slot = 0;
-
-   memcpy(SAVE, &YM2612, sizeof(ym2612_));
-
-   // un-pointerify
-
-   for(channel = 0 ; channel < 6 ; channel++)
-   {
-      for(slot = 0 ; slot < 4 ; slot++)
-      {
-         ymp->CHANNEL[channel].SLOT[slot].DT = (int*)((int*)ymp->CHANNEL[channel].SLOT[slot].DT - (int*)&DT_TAB);
-         ymp->CHANNEL[channel].SLOT[slot].AR = (int*)YM_RatePtrToState(ymp->CHANNEL[channel].SLOT[slot].AR, (int*)AR_TAB, MSVC_NULL_RATE_FROM_AR_TAB);
-         ymp->CHANNEL[channel].SLOT[slot].DR = (int*)YM_RatePtrToState(ymp->CHANNEL[channel].SLOT[slot].DR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
-         ymp->CHANNEL[channel].SLOT[slot].SR = (int*)YM_RatePtrToState(ymp->CHANNEL[channel].SLOT[slot].SR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
-         ymp->CHANNEL[channel].SLOT[slot].RR = (int*)YM_RatePtrToState(ymp->CHANNEL[channel].SLOT[slot].RR, (int*)DR_TAB, MSVC_NULL_RATE_FROM_DR_TAB);
-      }
-   }
-
+   ym_full(SAVE, 1);
    return 0;
 }
 

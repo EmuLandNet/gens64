@@ -15,6 +15,7 @@
  * The MMX code is written as plain C with the same saturation.
  */
 #include <cpuid.h>
+#include "gens64_addr.h"
 #include "Misc.h"
 
 extern unsigned short MD_Screen[];
@@ -250,7 +251,7 @@ __attribute__((aligned(64))) unsigned char gens64_misc_data[MISC_DATA_PADDED] =
 	0x1F, 0xF8, 0x1F, 0xF8, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
 };
-__asm__(".globl _Small_Font_Data\n.set _Small_Font_Data, _gens64_misc_data\n");
+__asm__(".globl " GSYM "Small_Font_Data\n.set " GSYM "Small_Font_Data, " GSYM "gens64_misc_data\n");
 
 #define FONT (gens64_misc_data)
 #define PAL_BLANC_15 0xA9C

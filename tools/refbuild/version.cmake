@@ -1,5 +1,5 @@
 # Generates gens64_version.h (run at build time): git revision + asm modules already ported to C.
-# Inputs: ROOT, OUT, PORTED (semicolon list)
+# Inputs: ROOT, OUT, PORTED (semicolon list), ARCH (x64 for the 64-bit build, else empty)
 execute_process(COMMAND git -C ${ROOT} describe --always --dirty --abbrev=7
                 OUTPUT_VARIABLE rev OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
 if(NOT rev)
@@ -13,6 +13,9 @@ if(ported STREQUAL "")
   set(tagged "C: -")
 elseif(nported EQUAL 15)
   set(tagged "all asm in C")
+endif()
+if(ARCH)
+  set(tagged "${tagged}, ${ARCH}")
 endif()
 set(text "#define GENS64_REV \"${rev}\"\n#define GENS64_PORTED \"${ported}\"\n#define GENS64_TAG \" gens64-${rev} [${tagged}]\"\n")
 if(EXISTS ${OUT})

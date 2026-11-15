@@ -15,6 +15,7 @@
  *    restore ebx/ecx themselves and Starscream reloads edx, so this is not visible and not kept.
  * Calcul_Rot_Comp and Update_Rot are called from Mem_S68k.asm, which saves what it needs itself.
  */
+#include "gens64_addr.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -47,7 +48,7 @@ __attribute__((aligned(64))) struct gens64_gfx gens64_gfx = { { 0 } };
 typedef char gens64_gfx_check[(sizeof(struct gens64_gfx) == 0x5C) ? 1 : -1];
 
 #define GFX_ALIAS(name, off) \
-	".globl _" #name "\n.set _" #name ", _gens64_gfx+" #off "\n"
+	".globl " GSYM #name "\n.set " GSYM #name ", " GSYM "gens64_gfx+" #off "\n"
 __asm__(
 	GFX_ALIAS(Rot_Comp, 0x00)
 	GFX_ALIAS(Rotation_Running, 0x20)
@@ -72,7 +73,7 @@ int sub68k_interrupt(int level, int vector);
 
 #define G gens64_gfx
 #define B0(x) (*(u8 *)&(x))
-#define WRAM ((u32)(unsigned long)Ram_Word_2M)
+#define WRAM GA(Ram_Word_2M)	/* (host addresses: gaddr, gens64_addr.h) */
 
 int Calcul_Rot_Comp(void);
 
@@ -86,7 +87,7 @@ static const u16 jmp_off[32] =
 	0x3D80, 0x4120, 0x44C0, 0x4880, 0x4C20, 0x4FC0, 0x5360, 0x5720,
 	0x0240, 0x05E0, 0x0980, 0x0D40, 0x10E0, 0x1480, 0x1820, 0x1BE0
 };
-static u32 code_base(void) { return (u32)(unsigned long)&Calcul_Rot_Comp; }
+static u32 code_base(void) { return GA(&Calcul_Rot_Comp); }
 
 /* drawing mode for a Jmp_Adr value, -1 if it is none of the routines */
 static int jmp_mode(u32 jmp, u32 base)
@@ -179,7 +180,7 @@ finish:
 	if (prio == 2 && !pix)
 		return;	/* overwrite: transparent pixels keep the destination */
 	e = G.XD ^ 2;	/* byte swapped */
-	p = (u8 *)(unsigned long)G.Buffer_Adr + (e >> 1);
+	p = (u8 *)GP(G.Buffer_Adr) + (e >> 1);
 	al = *p;
 	if (!(e & 1))
 	{
@@ -210,7 +211,7 @@ static void image_line(int titled, int dot32, int scr16, int prio, u32 x, u32 y)
 			if (scr16) { b = (y >> 7) & 0xFF00; a = (x & 0x007F8000) >> 15; }
 			else { b = (y >> 11) & 0xF0; a = (x & 0x00078000) >> 15; }
 		}
-		image_pixel(titled, dot32, scr16, prio, *(u32 *)(unsigned long)(G.Stamp_Map_Adr + (b + a) * 2), x, y);
+		image_pixel(titled, dot32, scr16, prio, *(u32 *)GP(G.Stamp_Map_Adr + (b + a) * 2), x, y);
 
 		xd = G.XD + 1;
 		x += G.DXS;
@@ -233,10 +234,10 @@ static int image(int mode)
 	G.Buffer_Adr = WRAM + (G.Reg[REG_5E] & 0xFFF8) * 4 + G.YD * 4;
 	G.H_Dot = G.Reg[REG_62] & 0x1FF;
 	v = G.Vector_Adr;
-	x = (*(u32 *)(unsigned long)v << 8) & 0x00FFFF00;
-	y = (*(u32 *)(unsigned long)(v + 2) & 0xFFFF) << 8;
-	G.DXS = (u32)(s32)*(s16 *)(unsigned long)(v + 4);
-	G.DYS = (u32)(s32)*(s16 *)(unsigned long)(v + 6);
+	x = (*(u32 *)GP(v) << 8) & 0x00FFFF00;
+	y = (*(u32 *)GP(v + 2) & 0xFFFF) << 8;
+	G.DXS = (u32)(s32)*(s16 *)GP(v + 4);
+	G.DYS = (u32)(s32)*(s16 *)GP(v + 6);
 	G.Vector_Adr = v + 8;
 	if (G.H_Dot & 0x1FF)
 		image_line(mode & 1, (mode >> 1) & 1, (mode >> 2) & 1, (mode >> 3) & 3, x, y);

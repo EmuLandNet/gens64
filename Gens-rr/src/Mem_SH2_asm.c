@@ -12,6 +12,7 @@
  * Quirks kept: see docs/asm-quirks.md.
  */
 #include "SH2.h"
+#include "gens64_addr.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -73,7 +74,7 @@ void __fastcall PWM_Set_Int(unsigned int int_time);
 #define BSS_SIZE 0x440D15
 __attribute__((aligned(64), nocommon)) u8 gens64_sh2mem_bss[BSS_SIZE];
 #define M (gens64_sh2mem_bss)
-#define MA(n, off) ".globl _" #n "\n.set _" #n ", _gens64_sh2mem_bss+" #off "\n"
+#define MA(n, off) ".globl " GSYM #n "\n.set " GSYM #n ", " GSYM "gens64_sh2mem_bss+" #off "\n"
 __asm__(
 	MA(_32X_Rom, 0x000000) MA(_32X_Ram, 0x400000) MA(_32X_MSH2_Rom, 0x440000) MA(_32X_SSH2_Rom, 0x440800)
 	MA(_MSH2_Reg, 0x440C00) MA(_SSH2_Reg, 0x440C40) MA(_SH2_VDP_Reg, 0x440C80) MA(_32X_Comm, 0x440C90)

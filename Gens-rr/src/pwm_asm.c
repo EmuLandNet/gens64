@@ -6,6 +6,7 @@
  * (and the undecorated names the asm DECL macro also exported) are aliases into one structure.
  */
 #include "pwm.h"
+#include "gens64_addr.h"
 
 #define PWM_BUF_SIZE 4
 
@@ -23,7 +24,7 @@ struct gens64_pwm
 __attribute__((aligned(64), nocommon)) struct gens64_pwm gens64_pwm;
 
 #define PWM_ALIAS(name, off) \
-	".globl _" #name "\n.set _" #name ", _gens64_pwm+" #off "\n"
+	".globl " GSYM #name "\n.set " GSYM #name ", " GSYM "gens64_pwm+" #off "\n"
 __asm__(
 	PWM_ALIAS(PWM_FIFO_R, 0)
 	PWM_ALIAS(PWM_FIFO_L, 8)

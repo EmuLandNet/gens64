@@ -306,11 +306,11 @@ class Gen:
         if s in self.ctx:
             return 'CA(%d)' % self.ctx[s]
         if s == 'Ram_68k':
-            return '(u32)Ram_68k'
+            return 'GA(Ram_68k)'
         if s.startswith('_hook_'):
-            return '(u32)&%s' % s[1:]
+            return 'GA(&%s)' % s[1:]
         if s == '__jmptbl':
-            return '(u32)jmptbl'
+            return 'GA(jmptbl)'
         die('unknown data symbol ' + s)
 
     def addr(self, terms):
@@ -641,7 +641,7 @@ class Gen:
         if mn == 'call':
             o = ops[0]
             if o.kind == 'reg':
-                return '((void (*)(void))%s)();' % o.base, False
+                return '((void (*)(void))GP(%s))();' % o.base, False
             t = o.label
             if t in self.pos:
                 tp = self.pos[t]
@@ -733,7 +733,7 @@ class Gen:
             params = 'u32 a_eax'   # (the asm took the argument in eax)
         s = []
         s.append('%s %s(%s)\n{\n' % ('u32' if rt == 'u32' else 'void', cname, params))
-        s.append('\tu32 r, s[8];\n\tFL sf = Fg;\n\tSAVE_REGS(s);\n\tif (!esp)\n\t\tesp = (u32)(stack_mem + sizeof(stack_mem));\n')
+        s.append('\tu32 r, s[8];\n\tFL sf = Fg;\n\tSAVE_REGS(s);\n\tif (!esp)\n\t\tesp = GA(stack_mem + sizeof(stack_mem));\n')
         if rt == 'eax':
             s.append('\teax = a_eax;\n')
         for i in reversed(range(len(args))):
@@ -761,14 +761,16 @@ typedef int s32;
 typedef unsigned long long u64;
 typedef long long s64;
 #include "x86ops.h"
+#include "gens64_addr.h"
 
-#define RD8(a) (*(u8 *)(a))
-#define RD16(a) (*(u16 *)(a))
-#define RD32(a) (*(u32 *)(a))
-#define WR8(a, v) (*(u8 *)(a) = (u8)(v))
-#define WR16(a, v) (*(u16 *)(a) = (u16)(v))
-#define WR32(a, v) (*(u32 *)(a) = (u32)(v))
-#define CA(o) ((u32)(@P@context + (o)))
+/* the emulated x86 registers and memory operands hold 32-bit host addresses (gaddr, gens64_addr.h) */
+#define RD8(a) (*(u8 *)GP(a))
+#define RD16(a) (*(u16 *)GP(a))
+#define RD32(a) (*(u32 *)GP(a))
+#define WR8(a, v) (*(u8 *)GP(a) = (u8)(v))
+#define WR16(a, v) (*(u16 *)GP(a) = (u16)(v))
+#define WR32(a, v) (*(u32 *)GP(a) = (u32)(v))
+#define CA(o) GA(@P@context + (o))
 
 extern u8 Ram_68k[];
 extern u8 @P@context[];

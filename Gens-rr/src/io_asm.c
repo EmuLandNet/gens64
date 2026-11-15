@@ -15,6 +15,7 @@
  * wrappers keep that. The C names (and the undecorated names DECL exported) alias into one struct.
  */
 #include "io.h"
+#include "gens64_addr.h"
 
 struct gens64_pad
 {
@@ -45,7 +46,7 @@ unsigned char Lag_Frame = 0;
 typedef char gens64_io_layout_check[(sizeof(struct gens64_io) == 448) ? 1 : -1];
 
 #define IO_ALIAS(name, off) \
-	".globl _" #name "\n.set _" #name ", _gens64_io+" off "\n"
+	".globl " GSYM #name "\n.set " GSYM #name ", " GSYM "gens64_io+" off "\n"
 #define PAD_ALIASES(p, base) \
 	IO_ALIAS(Controller_##p##_Type, base "+0") \
 	IO_ALIAS(Controller_##p##_Up, base "+4") \

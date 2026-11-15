@@ -18,6 +18,7 @@
 #include <string.h>
 #include <stddef.h>
 #include "SH2.h"
+#include "gens64_addr.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -35,7 +36,7 @@ typedef unsigned long long u64;
 #define WR16(p, v) (*(u16 *)(p) = (u16)(v))
 #define WR32(p, v) (*(u32 *)(p) = (u32)(v))
 #define BSWAP(v) ((((u32)(v)) >> 24) | ((((u32)(v)) >> 8) & 0xFF00) | ((((u32)(v)) & 0xFF00) << 8) | (((u32)(v)) << 24))
-#define HOST(a) ((u8 *)(a))
+#define HOST(a) ((u8 *)GP(a))	/* host addresses are gaddr (gens64_addr.h) */
 
 #define SH2_NOP_CODE 0x0900
 #define SH2_RUNNING 0x01
@@ -43,13 +44,16 @@ typedef unsigned long long u64;
 #define SH2_DISABLE 0x04
 #define SH2_FAULTED 0x10
 
-typedef char sh2_ctx_size[(sizeof(SH2_CONTEXT) == 0x3740) ? 1 : -1];
 typedef char sh2_ctx_cycle_io[(offsetof(SH2_CONTEXT, Cycle_IO) == 0x10A8) ? 1 : -1];
+#if UINTPTR_MAX == 0xFFFFFFFFu	/* (64-bit: the handler tables hold 8-byte pointers) */
+typedef char sh2_ctx_size[(sizeof(SH2_CONTEXT) == 0x3740) ? 1 : -1];
 typedef char sh2_ctx_io_reg[(offsetof(SH2_CONTEXT, IO_Reg) == 0x34B0) ? 1 : -1];
 typedef char sh2_ctx_wdtsr[(offsetof(SH2_CONTEXT, WDTSR) == 0x371D) ? 1 : -1];
 typedef char sh2_ctx_bcr1[(offsetof(SH2_CONTEXT, BCR1) == 0x373C) ? 1 : -1];
+#endif
 
-/* ---- .bss (layout of the asm) ---- */
+/* ---- .bss (layout of the asm; 64-bit: plain variables, the 8-byte pointers change the layout) ---- */
+#if UINTPTR_MAX == 0xFFFFFFFFu
 struct gens64_sh2_bss {
 	void *OP_Table[0x10000];
 	void *OPDS_Table[0x10000];
@@ -58,15 +62,23 @@ struct gens64_sh2_bss {
 	SH2_CONTEXT S_SH2;
 };
 __attribute__((aligned(64), nocommon)) struct gens64_sh2_bss gens64_sh2_bss;
-#define SA(n, f) ".globl _" #n "\n.set _" #n ", _gens64_sh2_bss+" #f "\n"
-#define STR_(x) #x
-#define STR(x) STR_(x)
+#define SA(n, f) ".globl " GSYM #n "\n.set " GSYM #n ", " GSYM "gens64_sh2_bss+" #f "\n"
 __asm__(SA(OP_Table, 0) SA(OPDS_Table, 0x40000) SA(Set_SR_Table, 0x80000) SA(M_SH2, 0x81000) SA(S_SH2, 0x84740));
 typedef char sh2_bss_m[(offsetof(struct gens64_sh2_bss, M_SH2) == 0x81000) ? 1 : -1];
 typedef char sh2_bss_s[(offsetof(struct gens64_sh2_bss, S_SH2) == 0x84740) ? 1 : -1];
 #define OPT (gens64_sh2_bss.OP_Table)
 #define OPDST (gens64_sh2_bss.OPDS_Table)
 #define SRT (gens64_sh2_bss.Set_SR_Table)
+#else
+__attribute__((aligned(64))) void *OP_Table[0x10000];
+__attribute__((aligned(64))) void *OPDS_Table[0x10000];
+__attribute__((aligned(64))) u32 Set_SR_Table[0x400];
+__attribute__((aligned(64))) SH2_CONTEXT M_SH2;
+__attribute__((aligned(64))) SH2_CONTEXT S_SH2;
+#define OPT OP_Table
+#define OPDST OPDS_Table
+#define SRT Set_SR_Table
+#endif
 
 /* call of a memory table handler */
 #define MCALL(fn, a, d, eax, ctx) (((SH2_HANDLER *)(fn))((a), (d), (eax), (ctx)))
@@ -1126,8 +1138,8 @@ H(SH2_Write_Word_FF)
 /* DMA: transfer through the context's handlers (asm convention: eax = the handler's own address) */
 static void dma_xfer(SH2_CONTEXT *c, void *rf, void *wf, u32 src, u32 dst)
 {
-	u32 v = MCALL(rf, src, 0, (u32)rf, c);
-	MCALL(wf, dst, v, (u32)wf, c);
+	u32 v = MCALL(rf, src, 0, GA(rf), c);	/* (the address as a gaddr: gens64_addr.h) */
+	MCALL(wf, dst, v, GA(wf), c);
 }
 /* CHCRx write (also from DMAOR writes and SH2_DMAx_Request) */
 static void chcr_write(SH2_CONTEXT *c, int ch, u32 d)

@@ -15,6 +15,7 @@
  *  - Z80_WriteW (C entry point) masks the data to 8 bits before the handlers, like the asm.
  */
 #include <stdio.h>
+#include "gens64_addr.h"
 #include "Mem_Z80.h"
 
 extern int List_GG_Max_Active_Index; /* ggenie.cpp: number of slots Fix_Codes scans */
@@ -36,8 +37,8 @@ extern unsigned int Read_VDP_V_Counter(void);
 struct gens64_z80mem { unsigned char ram[8 * 1024]; int bank; };
 __attribute__((aligned(64), nocommon)) struct gens64_z80mem gens64_z80mem;
 __asm__(
-	".globl _Ram_Z80\n.set _Ram_Z80, _gens64_z80mem\n"
-	".globl _Bank_Z80\n.set _Bank_Z80, _gens64_z80mem+8192\n");
+	".globl " GSYM "Ram_Z80\n.set " GSYM "Ram_Z80, " GSYM "gens64_z80mem\n"
+	".globl " GSYM "Bank_Z80\n.set " GSYM "Bank_Z80, " GSYM "gens64_z80mem+8192\n");
 
 static void unverified(const char *what)
 {
