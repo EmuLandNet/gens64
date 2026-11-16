@@ -1281,7 +1281,14 @@ int Do_Genesis_Frame(bool fast)
 		YM2612_Special_Update();
 	}
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM) // gens64: the cartridge's processor, every frame (docs/paprium.md)
-		Paprium_Frame(CPU_Mode);
+	{
+		Paprium_Frame(CPU_Mode, !disableSound);
+		if (!disableSound)
+		{
+			int *pbuf[2] = {LeftAudioBuffer(), RightAudioBuffer()};
+			Paprium_Mix(pbuf, Seg_Length);
+		}
+	}
 	if (YX5200_On) // gens64: MP3 music of the KAISER WAVE board (docs/yx5200.md); advances with sound off too
 	{
 		int *yxbuf[2] = {LeftAudioBuffer(), RightAudioBuffer()};

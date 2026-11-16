@@ -8280,7 +8280,17 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				"(c) 2011-2014 r57shell:" "\r\n"
 				"68000 and Z80 debuggers, RAM Dump," "\r\n"
 				"VDP RAM and VDP Sprites viewers," "\r\n"
-				"32X layers, Sprites Boxing, Lua additions"
+				"32X layers, Sprites Boxing, Lua additions" "\r\n" "\r\n"
+				// gens64: code taken from other projects
+				"YX5200 MP3 player (Death & Lead, The Secret Of" "\r\n"
+				"The Four Winds) from Genesis Plus GX," "\r\n"
+				"(c) 2025 Eke-Eke" "\r\n" "\r\n"
+				"Paprium cartridge processor: \"Project Little Man\"" "\r\n"
+				"high-level emulation from a Genesis Plus GX fork" "\r\n"
+				"(author unknown)" "\r\n" "\r\n"
+				"ROM mappers over 6 MB (Sega, Mega Everdrive)" "\r\n"
+				"after Genesis Plus GX" "\r\n" "\r\n"
+				"MP3 decoding: minimp3 by lieff (public domain)"
 			);
 
 			return true;

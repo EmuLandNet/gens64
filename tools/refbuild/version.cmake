@@ -17,9 +17,9 @@ endif()
 if(ARCH)
   set(tagged "${tagged}, ${ARCH}")
 endif()
-# window title: "Gens64 2.20 WIP (<rev>, amd64|x86)"
+# window title: "Gens64 2.20 WIP (<rev>, x86_64|x86)"
 if(ARCH STREQUAL "x64")
-  set(title_arch "amd64")
+  set(title_arch "x86_64")
 else()
   set(title_arch "x86")
 endif()

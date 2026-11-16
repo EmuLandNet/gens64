@@ -11,8 +11,12 @@
 
    All of it is reached only through paprium.h with Rom_Mapper == 3 (Mem_M68k_asm.c). */
 
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+
+#define MINIMP3_NO_SIMD
+#include "../../third_party/minimp3/minimp3_ex.h"	/* declarations; the implementation is in yx5200.c */
 
 #include "gens64_addr.h"
 #include "Star_68k.h"
@@ -1313,11 +1317,160 @@ sfx_off:
 
 /* ======================= gens64: sound frame ======================= */
 
-/* music: step 2 (MP3 tracks); silent here, the track position is not visible to the game */
+/* ---- music: MP3 tracks in the "paprium" folder next to the ROM (as the GPGX code) ----
+   The position is paprium_s.mp3_ptr, counted in 48 kHz samples from the start of the track (in the
+   savestate). It moves the same with or without the files, so nothing in the state depends on them;
+   the file position follows from it (modulo the track length: the tracks loop). The GPGX code
+   decoded each track whole into memory and kept the four boss tracks decoded; here the open track
+   is read as it plays (minimp3, the implementation is in yx5200.c). The GPGX code played the left
+   channel on both sides; here stereo. */
+
+extern char Recent_Rom[][1024];
+
+static struct
+{
+	int track;		/* track number of the open file, -1: none tried */
+	int ok;			/* file open and decodable */
+	FILE *f;
+	mp3dec_ex_t dec;
+	int hz, ch;
+	uint64_t frames;	/* track length in samples per channel */
+	uint64_t cur;		/* index of the last decoded sample (s[]), ~0: none */
+	int s[2];
+	short buf[2304 * 2];
+	int buf_len, buf_pos;
+} mus = { -1 };
+
+static size_t mus_read_cb(void *b, size_t size, void *user)
+{
+	return fread(b, 1, size, (FILE *)user);
+}
+static int mus_seek_cb(uint64_t pos, void *user)
+{
+	return fseek((FILE *)user, (long)pos, SEEK_SET);
+}
+static mp3dec_io_t mus_io = { mus_read_cb, NULL, mus_seek_cb, NULL };
+
+static void mus_close(void)
+{
+	if (mus.ok)
+		mp3dec_ex_close(&mus.dec);
+	if (mus.f)
+		fclose(mus.f);
+	mus.f = NULL;
+	mus.ok = 0;
+	mus.track = -1;
+}
+
+static void mus_open(int track)
+{
+	char path[1200], *p, *q;
+	const char *name = paprium_track_name(track);
+
+	mus_close();
+	mus.track = track;
+	if (!name)
+		return;
+	/* folder of the ROM (of the archive for an archive) */
+	strncpy(path, Recent_Rom[0], 1023);
+	path[1023] = 0;
+	if ((p = strchr(path, '|')) != NULL)
+		*p = 0;
+	p = strrchr(path, '\\');
+	q = strrchr(path, '/');
+	if (q > p)
+		p = q;
+	if (p)
+		p[1] = 0;
+	else
+		path[0] = 0;
+	strcat(path, "paprium\\");
+	strcat(path, name);
+	if ((mus.f = fopen(path, "rb")) == NULL)
+		return;
+	mus_io.read_data = mus_io.seek_data = mus.f;
+	/* without MP3D_DO_NOT_SCAN: the length is known, and the index makes seeking fast */
+	if (mp3dec_ex_open_cb(&mus.dec, &mus_io, MP3D_SEEK_TO_SAMPLE) != 0 ||
+		mus.dec.info.channels < 1 || mus.dec.info.channels > 2 || mus.dec.info.hz <= 0 || mus.dec.samples == 0)
+	{
+		mp3dec_ex_close(&mus.dec);
+		fclose(mus.f);
+		mus.f = NULL;
+		return;
+	}
+	mus.ok = 1;
+	mus.hz = mus.dec.info.hz;
+	mus.ch = mus.dec.info.channels;
+	mus.frames = mus.dec.samples / (uint64_t)mus.ch;
+	mus.cur = ~(uint64_t)0;
+}
+
+/* decode the next sample of the track into s[] (from the start again at the end) */
+static void mus_next(void)
+{
+	if (mus.buf_pos >= mus.buf_len)
+	{
+		int max = (int)(sizeof(mus.buf) / sizeof(mus.buf[0])) / mus.ch * mus.ch;
+		mus.buf_len = (int)mp3dec_ex_read(&mus.dec, mus.buf, max);
+		mus.buf_pos = 0;
+		if (mus.buf_len < mus.ch)
+		{
+			mp3dec_ex_seek(&mus.dec, 0);
+			mus.buf_len = (int)mp3dec_ex_read(&mus.dec, mus.buf, max);
+			mus.cur = ~(uint64_t)0;
+			if (mus.buf_len < mus.ch)
+			{
+				mus.s[0] = mus.s[1] = 0;
+				mus.buf_len = 0;
+				return;
+			}
+		}
+	}
+	mus.s[0] = mus.buf[mus.buf_pos];
+	mus.s[1] = mus.buf[mus.buf_pos + mus.ch - 1];
+	mus.buf_pos += mus.ch;
+	mus.cur++;
+}
+
+static int paprium_sound_on;	/* Paprium_Frame: decode the music only when it is heard */
+
 static void paprium_music_out(int *out_l, int *out_r)
 {
-	*out_l = 0;
-	*out_r = 0;
+	int l = 0, r = 0;
+
+	if (paprium_s.music_track) {
+		if (paprium_sound_on) {
+			if (mus.track != paprium_s.music_track)
+				mus_open(paprium_s.music_track);
+			if (mus.ok) {
+				/* nearest sample of the file for this 48 kHz sample */
+				uint64_t want = ((uint64_t)(uint32)paprium_s.mp3_ptr * (uint64_t)mus.hz / 48000u) % mus.frames;
+				if (want != mus.cur) {
+					if (mus.cur == ~(uint64_t)0 || want < mus.cur || want > mus.cur + 4) {
+						mp3dec_ex_seek(&mus.dec, want * (uint64_t)mus.ch);
+						mus.buf_len = mus.buf_pos = 0;
+						mus.cur = want - 1;
+					}
+					while (mus.cur != want) {
+						uint64_t before = mus.cur;
+						mus_next();
+						if (mus.cur == before || mus.cur == ~(uint64_t)0)
+							break;	/* end of file or wrapped */
+					}
+				}
+				l = mus.s[0];
+				r = mus.s[1];
+			}
+		}
+
+		l = (l * paprium_s.music_volume) / 256;
+		r = (r * paprium_s.music_volume) / 256;
+
+		paprium_s.mp3_ptr++;
+	}
+
+	*out_l = l;
+	*out_r = r;
 }
 
 /* as paprium_audio() of the GPGX code, for a given number of 48 kHz samples */
@@ -1372,8 +1525,9 @@ static void paprium_audio(int samples)
 	pap.track_last = paprium_s.music_track;
 }
 
-void Paprium_Frame(int pal)
+void Paprium_Frame(int pal, int sound)
 {
+	paprium_sound_on = sound;
 	/* 48000 samples a second; a frame is 262 (NTSC) or 313 (PAL) lines of 3420 master clocks */
 	uint32 clock = pal ? 53203424u : 53693175u;
 	uint32 per_frame = (pal ? 313u : 262u) * 3420u;
@@ -1386,7 +1540,31 @@ void Paprium_Frame(int pal)
 	{ int i, n = *(uint16*)(paprium_s.ram + 0x1F16); char b[4096]; int l = 0;
 	  for (i = 0; i < n && i < 120; i++) { uint16 *e = (uint16*)(paprium_s.ram + 0x1400 + i*16); l += sprintf(b + l, " %04X:%X", ((e[2]&0xFF) | ((e[5]&0xFF)<<8)) << 1, (e[1]&0xFF) | ((e[3]&0xFF)<<8)); }
 	  TRACE("%u frame list n=%d%s\n", trace_frame, n, b); }
+	{ int i; double e = 0; for (i = 0; i < paprium_out_count; i++) e += (double)paprium_out[0][i] * paprium_out[0][i];
+	  if (trace_frame % 30 == 0) TRACE("%u music track=%02X ok=%d pos=%d vol=%d/%d rms=%.0f\n", trace_frame, paprium_s.music_track, mus.ok, paprium_s.mp3_ptr, paprium_s.music_volume, paprium_s.sfx_volume, paprium_out_count ? __builtin_sqrt(e / paprium_out_count) : 0.0); }
 #endif
+}
+
+/* the frame's sound (48 kHz) resampled to the output and added to it */
+void Paprium_Mix(int **buf, int length)
+{
+	int i, n = paprium_out_count;
+	if (n <= 0 || length <= 0)
+		return;
+	for (i = 0; i < length; i++)
+	{
+		/* linear between the two nearest 48 kHz samples */
+		unsigned long long x = (unsigned long long)i * (unsigned)n * 65536u / (unsigned)length;
+		int k = (int)(x >> 16), f = (int)(x & 0xFFFF);
+		int k1 = k + 1 < n ? k + 1 : k;
+		buf[0][i] += paprium_out[0][k] + (((paprium_out[0][k1] - paprium_out[0][k]) * f) >> 16);
+		buf[1][i] += paprium_out[1][k] + (((paprium_out[1][k1] - paprium_out[1][k]) * f) >> 16);
+	}
+}
+
+void Paprium_Close(void)
+{
+	mus_close();
 }
 
 /* ======================= gens64: memory ======================= */
@@ -1584,6 +1762,7 @@ void Paprium_Reset(void)
 {
 	int ptr;
 
+	mus_close();
 	memset(&paprium_box, 0, sizeof(paprium_box));
 	memset(&pap, 0, sizeof(pap));
 	memcpy(paprium_s.ram, Rom_Data, 0x10000);

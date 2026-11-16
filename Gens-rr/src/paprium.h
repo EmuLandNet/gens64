@@ -28,8 +28,12 @@ void Paprium_Install(void **rb, void **rw, void **wb, void **ww);
 int Paprium_Fetch(struct STARSCREAM_PROGRAMREGION *f);
 /* VDP DMA source word (000000-9FFFFF) */
 unsigned int Paprium_DMA_Word(unsigned int a);
-/* once per emulated frame (sound state and the data the game reads back) */
-void Paprium_Frame(int pal);
+/* once per emulated frame (sound state and the data the game reads back); sound: the music is heard */
+void Paprium_Frame(int pal, int sound);
+/* add the frame's sound (effects, echo, MP3 music) to the output buffers */
+void Paprium_Mix(int **buf, int length);
+/* ROM closed: close the music file */
+void Paprium_Close(void);
 /* savestate block */
 void Paprium_Save(unsigned char *data);
 void Paprium_Load(const unsigned char *data);
@@ -41,7 +45,9 @@ void Paprium_Load(const unsigned char *data);
 #define Paprium_Install(rb, rw, wb, ww) ((void)0)
 #define Paprium_Fetch(f) 0
 #define Paprium_DMA_Word(a) 0u
-#define Paprium_Frame(pal) ((void)0)
+#define Paprium_Frame(pal, sound) ((void)0)
+#define Paprium_Mix(buf, length) ((void)0)
+#define Paprium_Close() ((void)0)
 #define Paprium_Save(data) ((void)0)
 #define Paprium_Load(data) ((void)0)
 
