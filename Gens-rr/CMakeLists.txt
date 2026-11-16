@@ -134,6 +134,11 @@ target_compile_options(Gens PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:-std=gnu++11 -include ${GEN}/ci/msvc_compat.h -fdelayed-template-parsing
      -Wno-error=incompatible-function-pointer-types -Wno-error=invalid-token-paste>)
 target_link_options(Gens PRIVATE -static -static-libgcc -static-libstdc++ -Wl,--stack,8388608)
+# Release exes are stripped (no symbol table: ~3.4 MB less). -DGENS64_STRIP=OFF keeps the symbols for debugging.
+option(GENS64_STRIP "strip the symbol table from Gens.exe" ON)
+if(GENS64_STRIP)
+  target_link_options(Gens PRIVATE -s)
+endif()
 if(GENS_WIN64)
   # 64-bit: zlib 1.1.3 and libpng 1.2.0 (the versions of the headers in src/) built from source
   set(TP ${PROJECT_SOURCE_DIR}/third_party)
