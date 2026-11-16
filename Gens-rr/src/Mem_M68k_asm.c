@@ -19,6 +19,7 @@
 #include "yx5200.h"
 #include "paprium.h"
 #include "eeprom_spi.h"
+#include "flash_cfi.h"
 
 #ifndef ROM_DATA_MAX
 #define ROM_DATA_MAX (32 * 1024 * 1024)	/* as in Mem_M68k.h */
@@ -1803,6 +1804,50 @@ static void mapper_install(void)
 		Paprium_Install(D.RB, D.RW, D.WB, D.WW);	/* gens64: docs/paprium.md */
 }
 
+/* gens64: flash save of The Secret Of The Four Winds (flash_cfi.c, docs/yx5200.md): the chip
+   answers in 64 KB banks 0 (000000-00FFFF) and 3F (3F0000-3FFFFF, the save sector = SRAM);
+   everything else goes to the usual Genesis handlers */
+static int flash_bank(u32 a)
+{
+	return a < 0x10000 || (a >= 0x3F0000 && a <= 0x3FFFFF);
+}
+static u32 flash_rw(u32 a)
+{
+	if (flash_bank(a) && (Flash_CFI_Busy() || a >= 0x3F0000))
+		return Flash_CFI_Read(a >> 1) & 0xFFFF;
+	return ((rd_t)D.Genesis_RW[(a >> 19) & 0x1F])(a);
+}
+static u32 flash_rb(u32 a)
+{
+	if (flash_bank(a) && (Flash_CFI_Busy() || a >= 0x3F0000))
+	{
+		u32 d = Flash_CFI_Read(a >> 1);
+		return (a & 1) ? (d & 0xFF) : ((d >> 8) & 0xFF);
+	}
+	return ((rd_t)D.Genesis_RB[(a >> 19) & 0x1F])(a);
+}
+static void flash_wb(u32 a, u32 d)
+{
+	if (!flash_bank(a))
+		((wr_t)D.Genesis_WB[(a >> 20) & 0xF])(a, d);
+	else if (a & 1)	/* only /LWR is connected (GPGX, verified on the board) */
+		Flash_CFI_Write(a >> 1, (d & 0xFF) << 8 | (d & 0xFF));
+}
+static void flash_ww(u32 a, u32 d)
+{
+	if (!flash_bank(a))
+		((wr_t)D.Genesis_WW[(a >> 20) & 0xF])(a, d);
+	else
+		Flash_CFI_Write(a >> 1, d & 0xFFFF);
+}
+static void flash_install(void)
+{
+	D.RB[0] = (void *)flash_rb; D.RW[0] = (void *)flash_rw;
+	D.RB[7] = (void *)flash_rb; D.RW[7] = (void *)flash_rw;
+	D.WB[0] = (void *)flash_wb; D.WW[0] = (void *)flash_ww;
+	D.WB[3] = (void *)flash_wb; D.WW[3] = (void *)flash_ww;
+}
+
 /* ======================= entry points ======================= */
 
 void Init_Memory_M68K(int System_ID)
@@ -1855,6 +1900,8 @@ void Init_Memory_M68K(int System_ID)
 	}
 	if (Rom_Mapper)
 		mapper_install();
+	else if (Flash_CFI_On)
+		flash_install();
 }
 
 u32 M68K_RB(u32 adr)

@@ -8292,6 +8292,8 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				"after Genesis Plus GX" "\r\n" "\r\n"
 				"Pier Solar (T-5740 board): mapper and SPI EEPROM" "\r\n"
 				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
+				"CFI flash save (The Secret Of The Four Winds)" "\r\n"
+				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
 				"MP3 decoding: minimp3 by lieff (public domain)"
 			);
 

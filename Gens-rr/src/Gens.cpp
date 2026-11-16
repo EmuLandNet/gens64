@@ -34,6 +34,7 @@
 #include "ram_search.h"
 #include "luascript.h"
 #include "yx5200.h"
+#include "flash_cfi.h"
 #include "paprium.h"
 
 
@@ -849,6 +850,7 @@ void Init_Genesis_Bios(void)
 	CPU_Mode = 0;
 	VDP_Num_Vis_Lines = 224;
 	YX5200_Close();
+	Flash_CFI_Init(0);
 	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	Gens64_M68K_Settings(0);
 	M68K_Reset(0,1);
@@ -958,6 +960,7 @@ int Init_Genesis(struct Rom *MD_Rom)
 	M68K_Init(); // Modif N. -- added for symmetry, maybe it helps something
 	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	YX5200_Init();	// gens64: MP3 player of the KAISER WAVE board (docs/yx5200.md)
+	Flash_CFI_Init(YX5200_On == 2);	// gens64: Four Winds' flash save (docs/yx5200.md); before M68K_Reset installs the handlers
 	Gens64_M68K_Settings(1);	// gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
 	M68K_Reset(0,1);
 	Z80_Reset();
@@ -1550,6 +1553,7 @@ int Init_32X(struct Rom *MD_Rom)
 	MSH2_Reset();
 	SSH2_Reset();
 	YX5200_Close();
+	Flash_CFI_Init(0);
 	Mapper_Init(1);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	Gens64_M68K_Settings(0);
 	M68K_Reset(1,1);
@@ -2113,6 +2117,7 @@ int Init_SegaCD(char *iso_name)
 
 	M68K_Init(); // Modif N. -- added for symmetry, maybe it helps something
 	YX5200_Close();
+	Flash_CFI_Init(0);
 	Mapper_Init(2);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	Gens64_M68K_Settings(0);
 	M68K_Reset(2,1);

@@ -1430,6 +1430,7 @@ typedef unsigned __int64 uint64_t;
 #include <stdint.h>
 #include "paprium.h"
 #include "eeprom_spi.h"
+#include "flash_cfi.h"
 #endif
 
 typedef int32_t SBits;
@@ -2280,6 +2281,7 @@ DEFINE_LUA_FUNCTION(state_create, "[location]")
 	if (Ram_68k_2MB || Ram_2MB_Setting) len += RAM_EXT_SIZE; // gens64: 2 MB RAM (docs/overclock.md)
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM) len += PAPRIUM_STATE_SIZE; // gens64: docs/paprium.md
 	if (Rom_Mapper == ROM_MAPPER_T5740) len += EEPROM_SPI_STATE_SIZE; // gens64: docs/large-roms.md
+	if (Flash_CFI_On) len += FLASH_CFI_STATE_SIZE; // gens64: docs/yx5200.md
 
 	// allocate the in-memory/anonymous savestate
 	unsigned char* stateBuffer = (unsigned char*)lua_newuserdata(L, len + 16); // 16 is for performance alignment reasons

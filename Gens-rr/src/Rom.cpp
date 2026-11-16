@@ -24,6 +24,7 @@
 #include "OpenArchive.h"
 #include <assert.h>
 #include "yx5200.h"
+#include "flash_cfi.h"
 #include "paprium.h"
 
 
@@ -755,6 +756,7 @@ void Free_Rom(Rom *Rom_MD)
 	if (GYM_Dumping) Stop_GYM_Dump();
 	if (SegaCD_Started) Stop_CD();
 	YX5200_Close(); // gens64: closes the MP3 track (docs/yx5200.md)
+	Flash_CFI_Init(0); // gens64: Four Winds' flash save (docs/yx5200.md)
 	Paprium_Close(); // gens64: the Paprium music file (docs/paprium.md)
 	Net_Play = 0;
 	Genesis_Started = 0;

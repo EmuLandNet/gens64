@@ -31,6 +31,7 @@
 #include "yx5200.h"
 #include "paprium.h"
 #include "eeprom_spi.h"
+#include "flash_cfi.h"
 #include "ggenie.h"
 #include "io.h"
 #include "misc.h"
@@ -277,6 +278,11 @@ int Load_State_From_Buffer(unsigned char *buf)
 		EEPROM_SPI_Load(buf);
 		buf += EEPROM_SPI_STATE_SIZE;
 	}
+	if (Flash_CFI_On && !SegaCD_Started && !_32X_Started) // gens64: Four Winds' flash save (docs/yx5200.md)
+	{
+		Flash_CFI_Load(buf);
+		buf += FLASH_CFI_STATE_SIZE;
+	}
 	if (SegaCD_Started)
 	{
 		buf += Import_SegaCD(buf); // Uncommented - function now exists
@@ -381,6 +387,8 @@ int Load_State(char *Name)
 			len += PAPRIUM_STATE_SIZE;
 		if (Rom_Mapper == ROM_MAPPER_T5740) // gens64: Pier Solar's EEPROM (docs/large-roms.md)
 			len += EEPROM_SPI_STATE_SIZE;
+		if (Flash_CFI_On) // gens64: Four Winds' flash save (docs/yx5200.md)
+			len += FLASH_CFI_STATE_SIZE;
 		fseek(f, 0, SEEK_SET);
 	}
 
@@ -594,6 +602,7 @@ int Save_State_To_Buffer (unsigned char *buf)
 	if (Ram_68k_2MB) len += RAM_EXT_SIZE; // gens64 (docs/overclock.md)
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM && !SegaCD_Started && !_32X_Started) len += PAPRIUM_STATE_SIZE; // gens64 (docs/paprium.md)
 	if (Rom_Mapper == ROM_MAPPER_T5740 && !SegaCD_Started && !_32X_Started) len += EEPROM_SPI_STATE_SIZE; // gens64 (docs/large-roms.md)
+	if (Flash_CFI_On && !SegaCD_Started && !_32X_Started) len += FLASH_CFI_STATE_SIZE; // gens64 (docs/yx5200.md)
 
 	memset(buf, 0, len);
 
@@ -613,6 +622,11 @@ int Save_State_To_Buffer (unsigned char *buf)
 	{
 		EEPROM_SPI_Save(buf);
 		buf += EEPROM_SPI_STATE_SIZE;
+	}
+	if (Flash_CFI_On && !SegaCD_Started && !_32X_Started)
+	{
+		Flash_CFI_Save(buf);
+		buf += FLASH_CFI_STATE_SIZE;
 	}
 	if (SegaCD_Started)
 	{

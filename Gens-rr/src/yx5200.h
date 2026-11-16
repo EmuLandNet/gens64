@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-extern int YX5200_On;	/* the loaded ROM has the player (set by YX5200_Init) */
+extern int YX5200_On;	/* the loaded ROM has the player (set by YX5200_Init): 1 Death & Lead, 2 Four Winds */
 
 /* after a Genesis ROM is loaded (byteswapped ROM, Rom_Size set) */
 void YX5200_Init(void);

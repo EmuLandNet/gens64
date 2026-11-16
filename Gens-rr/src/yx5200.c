@@ -179,9 +179,10 @@ void YX5200_Init(void)
 			unsigned short real = 0;
 			if (checksum == 0x2284 || checksum == 0x45C1)
 				real = real_checksum();
-			if ((checksum == 0x2284 && real == 0x8DCF) ||	/* Death & Lead */
-				(checksum == 0x45C1 && real == 0xC613))		/* The Secret Of The Four Winds */
+			if (checksum == 0x2284 && real == 0x8DCF)	/* Death & Lead */
 				YX5200_On = 1;
+			if (checksum == 0x45C1 && real == 0xC613)	/* The Secret Of The Four Winds (+ flash save) */
+				YX5200_On = 2;
 		}
 	}
 	YX5200_Reset();
