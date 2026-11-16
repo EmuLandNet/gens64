@@ -263,6 +263,41 @@ char _32X_Plane_High_On = 1;
 char _32X_Plane_Low_On = 1;
 char Swap_32X_Plane_Priority = 0;
 
+// gens64: 68000 speed and 2 MB RAM (docs/overclock.md). The settings (menu, config, movie, state)
+// take effect only for the Genesis; with Sega CD / 32X the effective values are 100% and 64 KB.
+#define M68K_LINE_CYC(c) ((M68K_Speed == 100) ? (c) : (int)((c) * M68K_Speed / 100))	// a point of the line at the 68000's speed
+int M68K_Speed_Setting = 100;
+int Ram_2MB_Setting = 0;
+
+void Gens64_M68K_Settings(int genesis)
+{
+	unsigned char ram = (genesis && Ram_2MB_Setting) ? 1 : 0;
+	M68K_Speed = genesis ? M68K_Speed_Setting : 100;
+	if (ram && !Ram_68k_2MB)
+		memset(Ram_Ext, 0, RAM_EXT_SIZE);
+	Ram_68k_2MB = ram;
+}
+
+// CPL_M68K for the current region and M68K_Speed (r341's value at 100%)
+void Gens64_Set_CPL_M68K(void)
+{
+	int base = CPU_Mode ? Round_Double((((double) CLOCK_PAL / 7.0) / 50.0) / 312.0)
+	                    : Round_Double((((double) CLOCK_NTSC / 7.0) / 60.0) / 262.0);
+	CPL_M68K = (M68K_Speed == 100) ? base : Round_Double((double) base * M68K_Speed / 100.0);
+}
+
+// apply changed settings while a game runs (menu, movie, savestate)
+void Gens64_M68K_Settings_Changed(void)
+{
+	int genesis = Genesis_Started && !SegaCD_Started && !_32X_Started;
+	Gens64_M68K_Settings(genesis);
+	if (genesis)
+	{
+		Gens64_Set_CPL_M68K();
+		M68K_Update_Fetch();
+	}
+}
+
 unsigned char CD_Data[1024];		// Used for hard reset to know the game name
 int SRAM_Was_On = 0;
 
@@ -812,6 +847,7 @@ void Init_Genesis_Bios(void)
 	CPU_Mode = 0;
 	VDP_Num_Vis_Lines = 224;
 	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
+	Gens64_M68K_Settings(0);
 	M68K_Reset(0,1);
 	Z80_Reset();
 	Reset_VDP();
@@ -918,6 +954,7 @@ int Init_Genesis(struct Rom *MD_Rom)
 
 	M68K_Init(); // Modif N. -- added for symmetry, maybe it helps something
 	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
+	Gens64_M68K_Settings(1);	// gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
 	M68K_Reset(0,1);
 	Z80_Reset();
 	Reset_VDP();
@@ -949,6 +986,7 @@ int Init_Genesis(struct Rom *MD_Rom)
 		YM2612_Init(CLOCK_NTSC / 7, Sound_Rate, YM2612_Improv);
 		PSG_Init(CLOCK_NTSC / 15, Sound_Rate);
 	}
+	Gens64_Set_CPL_M68K();	// gens64: 68000 speed (docs/overclock.md)
 
 	if (Auto_Fix_CS) Fix_Checksum();
 
@@ -1149,7 +1187,7 @@ int Do_Genesis_Frame(bool fast)
 		if (DMAT_Length) main68k_addCycles(Update_DMA());
 		VDP_Status |= 0x0004;			// HBlank = 1
 //		main68k_exec(Cycles_M68K - 436);
-		main68k_exec(Cycles_M68K - 404);
+		main68k_exec(Cycles_M68K - M68K_LINE_CYC(404));
 		VDP_Status &= 0xFFFB;			// HBlank = 0
 
 		if (--HInt_Counter < 0)
@@ -1193,7 +1231,7 @@ int Do_Genesis_Frame(bool fast)
 	}
 
 	VDP_Status |= 0x000C;			// VBlank = 1 et HBlank = 1 (retour de balayage vertical en cours)
-	main68k_exec(Cycles_M68K - 360);
+	main68k_exec(Cycles_M68K - M68K_LINE_CYC(360));
 	if (Z80_State == 3) z80_Exec(&M_Z80, Cycles_Z80 - 168);
 	else z80_Set_Odo(&M_Z80, Cycles_Z80 - 168);
 
@@ -1225,7 +1263,7 @@ int Do_Genesis_Frame(bool fast)
 		if (DMAT_Length) main68k_addCycles(Update_DMA());
 		VDP_Status |= 0x0004;					// HBlank = 1
 //		main68k_exec(Cycles_M68K - 436);
-		main68k_exec(Cycles_M68K - 404);
+		main68k_exec(Cycles_M68K - M68K_LINE_CYC(404));
 		VDP_Status &= 0xFFFB;					// HBlank = 0
 
 		main68k_exec(Cycles_M68K);
@@ -1494,6 +1532,7 @@ int Init_32X(struct Rom *MD_Rom)
 	MSH2_Reset();
 	SSH2_Reset();
 	Mapper_Init(1);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
+	Gens64_M68K_Settings(0);
 	M68K_Reset(1,1);
 	Z80_Reset();
 	Reset_VDP();
@@ -2055,6 +2094,7 @@ int Init_SegaCD(char *iso_name)
 
 	M68K_Init(); // Modif N. -- added for symmetry, maybe it helps something
 	Mapper_Init(2);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
+	Gens64_M68K_Settings(0);
 	M68K_Reset(2,1);
 	S68K_Init(); // Modif N. -- added, needed to fully reset the sub68k
 	S68K_Reset();

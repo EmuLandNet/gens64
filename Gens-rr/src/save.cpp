@@ -259,6 +259,11 @@ int Load_State_From_Buffer(unsigned char *buf)
 	unsigned char* bufStart = buf;
 
 	buf += Import_Genesis(buf); //upthmodif - fixed for new, additive, length determination
+	if (Ram_68k_2MB) // gens64: the 2 MB RAM follows the Genesis block (Genesis only, docs/overclock.md)
+	{
+		memcpy(Ram_Ext, buf, RAM_EXT_SIZE);
+		buf += RAM_EXT_SIZE;
+	}
 	if (SegaCD_Started)
 	{
 		buf += Import_SegaCD(buf); // Uncommented - function now exists
@@ -352,6 +357,15 @@ int Load_State(char *Name)
 	fseek(f,0,SEEK_SET);
 	if (version == 0x6) len += 0x1239;
 	if (version == 0x7) len -= 5;
+	// gens64: a Genesis state with the 2 MB RAM is longer (docs/overclock.md)
+	if (version >= 9 && !SegaCD_Started && !_32X_Started)
+	{
+		unsigned char st[4];
+		fseek(f, GENESIS_SETTINGS_OFFSET, SEEK_SET);
+		if (fread(st, 1, 4, f) == 4 && st[0] == 'S' && (st[3] & 1))
+			len += RAM_EXT_SIZE;
+		fseek(f, 0, SEEK_SET);
+	}
 
 	memset(buf, 0, len);
 	if (fread(buf, 1, len, f))
@@ -560,10 +574,17 @@ int Save_State_To_Buffer (unsigned char *buf)
 	if (SegaCD_Started) len += SEGACD_LENGTH_EX; //upthmodif - fixed for new, additive, length determination
 	else if (_32X_Started) len += G32X_LENGTH_EX; //upthmodif - fixed for new, additive, length determination
 
+	if (Ram_68k_2MB) len += RAM_EXT_SIZE; // gens64 (docs/overclock.md)
+
 	memset(buf, 0, len);
 
 	Export_Genesis(buf);
 	buf += GENESIS_STATE_LENGTH; //upthmodif - fixed for new, additive, length determination
+	if (Ram_68k_2MB)
+	{
+		memcpy(buf, Ram_Ext, RAM_EXT_SIZE);
+		buf += RAM_EXT_SIZE;
+	}
 	if (SegaCD_Started)
 	{
 		Export_SegaCD(buf); //upthmodif - uncommented, function now exiss
@@ -1226,7 +1247,21 @@ int Import_Genesis(unsigned char * Data)
 		ImportDataAuto(&Cycles_Z80, Data, offset, 4);
 		ImportDataAuto(&Gen_Mode, Data, offset, 4);
 		ImportDataAuto(&Gen_Version, Data, offset, 4);
-		if(Version >= 9) offset += 12; // alignment for performance
+		if(Version >= 9)
+		{
+			// gens64: 68000 speed and 2 MB RAM (see Export_Genesis); a state without them has the
+			// standard values
+			int sp = 100, ram = 0;
+			if (Data[offset] == 'S')
+			{
+				sp = Data[offset + 1] | (Data[offset + 2] << 8);
+				ram = Data[offset + 3] & 1;
+			}
+			if (Genesis_Started && !SegaCD_Started && !_32X_Started &&
+				(sp != M68K_Speed_Setting || ram != Ram_2MB_Setting))
+				Gens64_Set_M68K_Settings(sp, ram, false);
+			offset += 12; // alignment for performance
+		}
 		ImportDataAuto(H_Counter_Table, Data, offset, 512 * 2);
 		ImportDataAuto(&VDP_Reg, Data, offset, sizeof(VDP_Reg));
 		ImportDataAuto(&Ctrl, Data, offset, sizeof(Ctrl));
@@ -1476,7 +1511,21 @@ void Export_Genesis(unsigned char * Data)
 		ExportDataAuto(&Cycles_Z80, Data, offset, 4);
 		ExportDataAuto(&Gen_Mode, Data, offset, 4);
 		ExportDataAuto(&Gen_Version, Data, offset, 4);
-		if(Version >= 9) offset += 12; // alignment for performance
+		if(Version >= 9)
+		{
+			// gens64 (docs/overclock.md): 68000 speed and 2 MB RAM in this alignment padding: 'S',
+			// speed in % (16 bits), flags (bit 0: 2 MB RAM, whose 1984 KB follow the Genesis block).
+			// Zero, as before, with the standard settings.
+			assert(offset == GENESIS_SETTINGS_OFFSET);
+			if (M68K_Speed != 100 || Ram_68k_2MB)
+			{
+				Data[offset] = 'S';
+				Data[offset + 1] = (unsigned char)M68K_Speed;
+				Data[offset + 2] = (unsigned char)(M68K_Speed >> 8);
+				Data[offset + 3] = Ram_68k_2MB ? 1 : 0;
+			}
+			offset += 12; // alignment for performance
+		}
 		ExportDataAuto(H_Counter_Table, Data, offset, 512 * 2);
 		ExportDataAuto(&VDP_Reg, Data, offset, sizeof(VDP_Reg));
 		ExportDataAuto(&Ctrl, Data, offset, sizeof(Ctrl));
@@ -2545,6 +2594,11 @@ int Save_Config(char *File_Name)
 	wsprintf(Str_Tmp, "%d", SegaCD_Accurate);
 	WritePrivateProfileString("CPU", "Perfect synchro between main and sub CPU (Sega CD)", Str_Tmp, Conf_File);
 
+	wsprintf(Str_Tmp, "%d", M68K_Speed_Setting); // gens64 (docs/overclock.md)
+	WritePrivateProfileString("CPU", "68000 Speed", Str_Tmp, Conf_File);
+	wsprintf(Str_Tmp, "%d", Ram_2MB_Setting);
+	WritePrivateProfileString("CPU", "68000 RAM 2MB", Str_Tmp, Conf_File);
+
 	wsprintf(Str_Tmp, "%d", MSH2_Speed);
 	WritePrivateProfileString("CPU", "Main SH2 Speed", Str_Tmp, Conf_File);
 	wsprintf(Str_Tmp, "%d", SSH2_Speed);
@@ -3059,6 +3113,10 @@ int Load_Config(char *File_Name, void *Game_Active)
 	Country_Order[2] = GetPrivateProfileInt("CPU", "Prefered Country 3", 2, Conf_File);
 
 	SegaCD_Accurate = GetPrivateProfileInt("CPU", "Perfect synchro between main and sub CPU (Sega CD)", 1, Conf_File);
+
+	M68K_Speed_Setting = GetPrivateProfileInt("CPU", "68000 Speed", 100, Conf_File); // gens64 (docs/overclock.md)
+	if (M68K_Speed_Setting < 100 || M68K_Speed_Setting > 1300) M68K_Speed_Setting = 100;
+	Ram_2MB_Setting = GetPrivateProfileInt("CPU", "68000 RAM 2MB", 0, Conf_File) ? 1 : 0;
 
 	MSH2_Speed = GetPrivateProfileInt("CPU", "Main SH2 Speed", 100, Conf_File);
 	SSH2_Speed = GetPrivateProfileInt("CPU", "Slave SH2 Speed", 100, Conf_File);

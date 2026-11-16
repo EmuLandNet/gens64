@@ -49,6 +49,8 @@ struct typeMovie
 	int Vfreq;		//' 0 =60Hz  1=50Hz                
 	int StateRequired; // ' 0= No savestate required 1=Savestate required
 	int TriplePlayerHack; // 0=No triple player hack 1=yes
+	int M68KSpeed; // gens64: 68000 speed in % (100 = normal), docs/overclock.md
+	int Ram2MB; // gens64: 68000 RAM 2 MB
 	unsigned char Type;
 	bool Recorded;
 	bool ClearSRAM;

@@ -29,7 +29,9 @@ extern "C" {
 	#define SUB_STRING " debug"
 #endif
 
-#ifndef PUBLIC_RELEASE
+#if defined(GENS64_TITLE) /* gens64: "Gens64 2.20 WIP (<rev>, amd64|x86)" (tools/refbuild/version.cmake) */
+	#define GENS_NAME GENS64_TITLE
+#elif !defined(PUBLIC_RELEASE)
 	#define GENS_NAME GENS_RR_VERSION SUB_STRING
 #elif
 	#define GENS_NAME GENS_RR_VERSION
@@ -109,6 +111,13 @@ extern int Sprite_Boxing;
 
 #ifdef __cplusplus
 extern bool FakeVDPScreen;
+// gens64: 68000 speed (%, 100-1300) and 2 MB RAM settings (docs/overclock.md)
+extern int M68K_Speed_Setting;
+extern int Ram_2MB_Setting;
+void Gens64_M68K_Settings(int genesis);
+void Gens64_Set_CPL_M68K(void);
+void Gens64_M68K_Settings_Changed(void);
+void Gens64_Set_M68K_Settings(int pct, int ram2mb, bool quiet); // G_main.cpp: settings + menu + message
 #define VDP_REG_SET2 (FakeVDPScreen ? VDP_Reg.Set2 : (unsigned int)VDP_Reg_Set2_Current)
 #define VDP_REG_SET4 (FakeVDPScreen ? VDP_Reg.Set4 : (unsigned int)VDP_Reg_Set4_Current)
 /* size of the shown frame (needs vdp_io.h, Debug, Game, FrameCount and CPU_Mode) */

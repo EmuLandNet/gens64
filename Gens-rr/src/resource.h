@@ -651,6 +651,15 @@
 #define ID_GRAPHICS_LAYERSWAP32X        40532
 #define ID_GRAPHICS_TOGGLE32X           40533
 #define ID_GRAPHICS_SPRITEBOXING        40534
+#define ID_M68K_SPEED_100               40540
+#define ID_M68K_SPEED_150               40541
+#define ID_M68K_SPEED_200               40542
+#define ID_M68K_SPEED_300               40543
+#define ID_M68K_SPEED_400               40544
+#define ID_M68K_SPEED_800               40545
+#define ID_M68K_SPEED_1300              40546
+#define ID_M68K_SPEED_CUSTOM            40547
+#define ID_M68K_RAM_2MB                 40548
 #define IDC_C_HEX_LINES                 42191
 #define IDC_C_HEX_TEXT                  42192
 #define IDC_C_HEX_GOTO                  42193
@@ -674,6 +683,7 @@
 // gens64: debugger from Gens r57shell mod
 #define IDD_DEBUG                       162
 #define IDD_EDIT_BREAK                  163
+#define IDD_M68K_SPEED                  164
 #define ID_M68K_DEBUG_WINDOW            40526
 #define ID_Z80_DEBUG_WINDOW             40527
 #define IDC_STEP_INTO                   50113
@@ -694,6 +704,8 @@
 #define IDC_WHY_BREAK                   50128
 #define IDC_FORBID                      50129
 #define IDC_ENABLE                      50130
+#define IDC_M68K_SPEED_EDIT             50131
+#define IDC_M68K_SPEED_MHZ              50132
 
 // Next default values for new objects
 // 

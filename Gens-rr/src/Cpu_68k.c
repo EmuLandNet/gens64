@@ -36,6 +36,51 @@ struct STARSCREAM_PROGRAMREGION M68K_Fetch[32] =	/* gens64: 32 entries (r341: 7)
 /* gens64: code fetch for the mapper of ROMs over 6 MB (Mem_M68k_asm.c): one region per run of
    512 KB windows of 000000-9FFFFF whose pages follow each other, then the Genesis RAM regions.
    Starscream looks the regions up on jumps, so a bank switch takes effect at the next jump. */
+/* gens64: Genesis RAM fetch regions from entry n on, then the end marker: r341's FF0000, F00000 and
+   EF0000 (mirrors), or with the 2 MB RAM (docs/overclock.md) FF0000 and E00000-FEFFFF (Ram_Ext) */
+static void ram_fetch(int n)
+{
+	M68K_Fetch[n].lowaddr = 0xFF0000;
+	M68K_Fetch[n].highaddr = 0xFFFFFF;
+	M68K_Fetch[n].offset = GA(&Ram_68k[0]) - 0xFF0000;
+	n++;
+	if (Ram_68k_2MB)
+	{
+		M68K_Fetch[n].lowaddr = 0xE00000;
+		M68K_Fetch[n].highaddr = 0xFEFFFF;
+		M68K_Fetch[n].offset = GA(&Ram_Ext[0]) - 0xE00000;
+		n++;
+	}
+	else
+	{
+		M68K_Fetch[n].lowaddr = 0xF00000;
+		M68K_Fetch[n].highaddr = 0xF0FFFF;
+		M68K_Fetch[n].offset = GA(&Ram_68k[0]) - 0xF00000;
+		n++;
+		M68K_Fetch[n].lowaddr = 0xEF0000;
+		M68K_Fetch[n].highaddr = 0xEFFFFF;
+		M68K_Fetch[n].offset = GA(&Ram_68k[0]) - 0xEF0000;
+		n++;
+	}
+	M68K_Fetch[n].lowaddr = -1;
+	M68K_Fetch[n].highaddr = -1;
+	M68K_Fetch[n].offset = 0;
+}
+
+/* gens64: Genesis code fetch regions after a change of Rom_Mapper's pages or Ram_68k_2MB */
+void M68K_Update_Fetch(void)
+{
+	if (Rom_Mapper)
+	{
+		M68K_Set_Rom_Fetch();
+		return;
+	}
+	M68K_Fetch[0].lowaddr = 0x000000;
+	M68K_Fetch[0].highaddr = Rom_Size - 1;
+	M68K_Fetch[0].offset = GA(&Rom_Data[0]) - 0x000000;
+	ram_fetch(1);
+}
+
 void M68K_Set_Rom_Fetch(void)
 {
 	int n = 0;
@@ -51,21 +96,7 @@ void M68K_Set_Rom_Fetch(void)
 		n++;
 		i = j;
 	}
-	M68K_Fetch[n].lowaddr = 0xFF0000;
-	M68K_Fetch[n].highaddr = 0xFFFFFF;
-	M68K_Fetch[n].offset = GA(&Ram_68k[0]) - 0xFF0000;
-	n++;
-	M68K_Fetch[n].lowaddr = 0xF00000;
-	M68K_Fetch[n].highaddr = 0xF0FFFF;
-	M68K_Fetch[n].offset = GA(&Ram_68k[0]) - 0xF00000;
-	n++;
-	M68K_Fetch[n].lowaddr = 0xEF0000;
-	M68K_Fetch[n].highaddr = 0xEFFFFF;
-	M68K_Fetch[n].offset = GA(&Ram_68k[0]) - 0xEF0000;
-	n++;
-	M68K_Fetch[n].lowaddr = -1;
-	M68K_Fetch[n].highaddr = -1;
-	M68K_Fetch[n].offset = 0;
+	ram_fetch(n);
 }
 		
 struct STARSCREAM_DATAREGION M68K_Read_Byte[5] =
@@ -222,6 +253,7 @@ void M68K_Reset(int System_ID, char Hard)
 	if (Hard)
 	{
 		memset(Ram_68k, 0, 64 * 1024);
+		memset(Ram_Ext, 0, RAM_EXT_SIZE);	// gens64: 2 MB RAM (docs/overclock.md)
 
 		M68K_Fetch[0].lowaddr = 0x000000;
 		M68K_Fetch[0].highaddr = Rom_Size - 1;
@@ -245,7 +277,8 @@ void M68K_Reset(int System_ID, char Hard)
 			M68K_Fetch[4].highaddr = -1;
 			M68K_Fetch[4].offset = 0;
 
-
+			if (Ram_68k_2MB)
+				ram_fetch(1);	// gens64: 2 MB RAM (docs/overclock.md)
 		}
 		else if (System_ID == _32X)
 		{

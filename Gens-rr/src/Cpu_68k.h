@@ -12,6 +12,8 @@ extern struct S68000CONTEXT Context_68K;
 int M68K_Init();
 int S68K_Init();
 void M68K_Reset(int System_ID, char Hard);
+void M68K_Set_Rom_Fetch(void);	/* gens64: mapper of ROMs over 6 MB */
+void M68K_Update_Fetch(void);	/* gens64: Genesis fetch regions (mapper, 2 MB RAM) */
 void S68K_Reset();
 void M68K_Reset_CPU();
 void S68K_Reset_CPU();

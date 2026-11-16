@@ -100,6 +100,7 @@ struct side_mem
 struct side_mem smem[2] __attribute__((aligned(16))) = { { { 1 } } };
 #define rom_w(s) smem[s].rom
 #define ROM8(s, a) (((u8 *)smem[s].rom)[(a) ^ 1])
+u8 Ram_68k_2MB;	/* gens64: 2 MB RAM flag tested by the main core's RAM fast path (0: as the original) */
 __asm__(".globl _Ram_68k\n.set _Ram_68k, _smem + 0x160000\n"
 	".globl orig_Ram_68k\n.set orig_Ram_68k, _smem + 0xA0000\n");
 typedef char size_check[(sizeof(struct side_mem) == 0xC0000 && __builtin_offsetof(struct side_mem, ram) == 0xA0000) ? 1 : -1];

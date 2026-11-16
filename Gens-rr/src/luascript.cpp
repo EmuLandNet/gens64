@@ -2275,6 +2275,7 @@ DEFINE_LUA_FUNCTION(state_create, "[location]")
 	if (_32X_Started) len += G32X_LENGTH_EX;
 	if (!Game)
 		len += max(SEGACD_LENGTH_EX, G32X_LENGTH_EX);
+	if (Ram_68k_2MB || Ram_2MB_Setting) len += RAM_EXT_SIZE; // gens64: 2 MB RAM (docs/overclock.md)
 
 	// allocate the in-memory/anonymous savestate
 	unsigned char* stateBuffer = (unsigned char*)lua_newuserdata(L, len + 16); // 16 is for performance alignment reasons
@@ -2321,6 +2322,9 @@ DEFINE_LUA_FUNCTION(state_save, "location[,option]")
 			unsigned char* stateBuffer = (unsigned char*)lua_touserdata(L,1);
 			if(stateBuffer)
 			{
+				// gens64: a savestate object made before the 2 MB RAM was turned on is too small
+				if (Ram_68k_2MB && lua_objlen(L,1) < (size_t)(GENESIS_STATE_LENGTH + RAM_EXT_SIZE + 16))
+					luaL_error(L, "savestate.save: this savestate object was created without the 2 MB 68000 RAM; create a new one");
 				stateBuffer += ((16 - (int)stateBuffer) & 15); // for performance alignment reasons
 				Save_State_To_Buffer(stateBuffer);
 			}

@@ -21,6 +21,8 @@ typedef void (*fn_t)(void);
 u8 Rom_Data[0x400000 + 0x40000];
 u32 Rom_Size;
 u32 Rom_Mapper, Rom_Page[32];	/* gens64: mapper of ROMs over 6 MB (0 here: r341 path) */
+u32 M68K_Speed = 100;	/* gens64: 68000 speed, 2 MB RAM (docs/overclock.md): off here */
+u8 Ram_68k_2MB, Ram_Ext[16];
 u16 Cell_Conv_Tab[64 * 1024];
 u8 Ram_68k[64 * 1024];
 u8 Ram_Prg[512 * 1024 + 0x40000];

@@ -16,6 +16,12 @@ extern unsigned char Mapper_Bank[8], Mapper_Ctrl;
 void Mapper_Init(int system);
 void Mapper_Reset(void);
 void Mapper_Restore(void);
+
+/* gens64: 68000 speed (% of the normal clock) and 2 MB RAM, effective values (docs/overclock.md) */
+#define RAM_EXT_SIZE 0x1F0000	/* E00000-FEFFFF */
+extern unsigned int M68K_Speed;
+extern unsigned char Ram_68k_2MB;
+extern unsigned char Ram_Ext[RAM_EXT_SIZE];
 extern unsigned char SRAM[64 * 1024];
 extern unsigned char Ram_Backup_Ex[64 * 1024];
 extern unsigned char Genesis_Rom[2 * 1024];

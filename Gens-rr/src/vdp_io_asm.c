@@ -119,6 +119,8 @@ __asm__(
 extern u8 Rom_Data[];
 extern u32 Rom_Size;
 extern u32 Rom_Mapper, Rom_Page[32];	/* gens64: mapper for ROMs over 6 MB (Mem_M68k_asm.c) */
+extern u32 M68K_Speed;	/* gens64: 68000 speed in % and 2 MB RAM (Mem_M68k_asm.c, docs/overclock.md) */
+extern u8 Ram_68k_2MB, Ram_Ext[];
 extern u16 Cell_Conv_Tab[];
 extern u8 MD_Palette[], MD_Palette32[], MD_Screen[], MD_Screen32[];
 extern u8 Sprite_Struct[];
@@ -329,6 +331,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 	{
 	case 0: src &= 0x003FFFFE; break;
 	case 9: src &= 0x00FFFFFE; break;	/* gens64: ROM through the mapper (ROMs over 6 MB) */
+	case 10: src = (src - 0xE00000) & 0x1FFFFE; break;	/* gens64: 2 MB RAM, E00000-FEFFFF */
 	case 1: src &= 0xFFFE; break;
 	case 2: src = (src & 0x0001FFFE) + (u32)Bank_M68K; break;
 	case 3: src = (src - 2) & 0x0003FFFE; break;
@@ -355,6 +358,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 		{
 		case 0: w = *(u16 *)(Rom_Data + src); src += 2; break;
 		case 9: w = *(u16 *)(Rom_Data + Rom_Page[(src >> 19) & 31] + (src & 0x7FFFF)); src += 2; break;
+		case 10: w = *(u16 *)(Ram_Ext + src); src = (src + 2) % 0x1F0000; break;
 		case 1: w = *(u16 *)(Ram_68k + src); src = (src & 0xFFFF0000) | ((src + 2) & 0xFFFF); break;
 		case 2: w = *(u16 *)(Ram_Prg + src); src += 2; break;
 		case 3: w = *(u16 *)(Ram_Word_2M + src); src += 2; break;
@@ -452,6 +456,9 @@ static void do_dma(u32 t)
 			}
 		}
 	}
+	/* gens64: 2 MB RAM: E00000-FEFFFF is its own memory */
+	if (sel == 1 && Ram_68k_2MB && src >= 0xE00000 && src < 0xFF0000)
+		sel = 10;
 	if (type & 2)
 		dst &= 0x7F;
 	W0(V.VDP_Status) |= 0x0002;
@@ -606,7 +613,10 @@ u32 Read_VDP_Status(void)
 
 static u32 line_cycles(void)
 {
-	return ((u32)main68k_readOdometer() - ((u32)Cycles_M68K - (u32)CPL_M68K)) & 0x1FF;
+	u32 c = (u32)main68k_readOdometer() - ((u32)Cycles_M68K - (u32)CPL_M68K);
+	if (M68K_Speed != 100)	/* gens64: overclocked 68000: position in the line at the normal clock */
+		c = c * 100 / M68K_Speed;
+	return c & 0x1FF;
 }
 
 u32 Read_VDP_H_Counter(void)

@@ -35,6 +35,7 @@
 #include <string.h>
 #include "hashlog.h"
 #include "save.h"
+#include "Mem_M68k.h"	// gens64: Ram_68k_2MB
 #include "movie.h"
 #include "vdp_io.h"
 #include "Star_68k.h"
@@ -163,9 +164,11 @@ void HashLog_OnFrame(int rendered)
 	M_Z80.BasePC = z80base;
 
 	// --- hash per section ---
-	unsigned long long hg = fnv1a64(hashBuf, GENESIS_STATE_LENGTH);
+	// gens64: with the 2 MB RAM (docs/overclock.md) it follows the Genesis block and is part of its hash
+	int glen = GENESIS_STATE_LENGTH + (Ram_68k_2MB ? RAM_EXT_SIZE : 0);
+	unsigned long long hg = fnv1a64(hashBuf, glen);
 	char cd[24] = "-", x32[24] = "-";
-	const unsigned char *p = hashBuf + GENESIS_STATE_LENGTH;
+	const unsigned char *p = hashBuf + glen;
 	if (SegaCD_Started)
 	{
 		sprintf(cd, "%016llx", fnv1a64(p, SEGACD_LENGTH_EX));

@@ -504,6 +504,8 @@ void InitMovie(typeMovie * aMovie)
 	aMovie->Vfreq = (CPU_Mode)?1:0;
 	aMovie->StateRequired = 0;
 	aMovie->TriplePlayerHack = 0;
+	aMovie->M68KSpeed = 100; // gens64
+	aMovie->Ram2MB = 0;
 	aMovie->Type = TYPEGMV;
 	aMovie->Recorded = false;
 	aMovie->ClearSRAM = true;
@@ -529,6 +531,8 @@ void CopyMovie(typeMovie * MovieSrc, typeMovie * MovieDest)
 	MovieDest->StateFrame = MovieSrc->StateFrame;
 	MovieDest->Vfreq = MovieSrc->Vfreq;
 	MovieDest->TriplePlayerHack = MovieSrc->TriplePlayerHack;
+	MovieDest->M68KSpeed = MovieSrc->M68KSpeed; // gens64
+	MovieDest->Ram2MB = MovieSrc->Ram2MB;
 	MovieDest->StateRequired = MovieSrc->StateRequired;
 	MovieDest->ClearSRAM = MovieSrc->ClearSRAM;
 
@@ -625,12 +629,27 @@ int GetMovieInfo(char *FileName,typeMovie *aMovie)
 			aMovie->Vfreq=((t&128)>>7);
 			aMovie->StateRequired=((t&64)>>6);
 			aMovie->TriplePlayerHack=((t&32)>>5);
+			// gens64 (docs/overclock.md): byte 23 = 1: 68000 speed in % (16 bits) and flags (bit 0:
+			// 2 MB RAM) in the last 3 bytes of the comment (61-63). Byte 23 is 0 in other Gens versions'
+			// movies (the low bits of byte 22 are not free: many movies have 0x1F there).
+			aMovie->M68KSpeed=100;
+			aMovie->Ram2MB=0;
+			if(fgetc(test)==1)
+			{
+				fseek(test,61,SEEK_SET);
+				int lo=fgetc(test), hi=fgetc(test), fl=fgetc(test);
+				int sp=(lo&255)|((hi&255)<<8);
+				if(sp>=100 && sp<=1300) aMovie->M68KSpeed=sp;
+				aMovie->Ram2MB=fl&1;
+			}
 		}
 		else
 		{
 			aMovie->Vfreq=CPU_Mode?1:0;
 			aMovie->StateRequired=0;
 			aMovie->TriplePlayerHack=0;
+			aMovie->M68KSpeed=100;
+			aMovie->Ram2MB=0;
 		}
 	}
 	else
@@ -735,6 +754,26 @@ void WriteMovieHeader(typeMovie *aMovie)
 		fseek(aMovie->File,24,SEEK_SET);
 		EmbedPreloadedTracksInNote(aMovie->Note);
 		fwrite(aMovie->Note,40,1,aMovie->File);
+		if(aMovie->Version>='A'-'0')
+		{
+			// gens64: 68000 speed and 2 MB RAM (see GetMovieInfo). Standard settings: byte 23 stays 0
+			// and the comment untouched; otherwise its last 3 bytes are used.
+			bool ext = M68K_Speed != 100 || Ram_68k_2MB;
+			fseek(aMovie->File,23,SEEK_SET);
+			int was=fgetc(aMovie->File);
+			if(ext || was==1)
+			{
+				fseek(aMovie->File,23,SEEK_SET);
+				fputc(ext?1:0,aMovie->File);
+			}
+			if(ext)
+			{
+				fseek(aMovie->File,61,SEEK_SET);
+				fputc(M68K_Speed&255,aMovie->File);
+				fputc((M68K_Speed>>8)&255,aMovie->File);
+				fputc(Ram_68k_2MB?1:0,aMovie->File);
+			}
+		}
 	}
 }
 

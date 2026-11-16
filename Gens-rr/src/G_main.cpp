@@ -556,6 +556,98 @@ static int Change_32X_Layer(int command)
 	return 1;
 }
 
+// gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
+static const int M68K_Speed_Presets[] = {100, 150, 200, 300, 400, 800, 1300};
+#define M68K_SPEED_MIN 100
+#define M68K_SPEED_MAX 1300
+
+static double M68K_MHz(int pct)
+{
+	return (CPU_Mode ? (double) CLOCK_PAL : (double) CLOCK_NTSC) / 7.0 / 1000000.0 * pct / 100.0;
+}
+
+// the settings must not change in the middle of a movie (they are written into it)
+static bool M68K_Settings_Locked(void)
+{
+	if (MainMovie.File && (MainMovie.Status == MOVIE_PLAYING || MainMovie.Status == MOVIE_RECORDING))
+	{
+		MESSAGE_L("Not while a movie is playing or recording", "Not while a movie is playing or recording")
+		return true;
+	}
+	return false;
+}
+
+void Gens64_Set_M68K_Settings(int pct, int ram2mb, bool quiet)
+{
+	if (pct < M68K_SPEED_MIN) pct = M68K_SPEED_MIN;
+	if (pct > M68K_SPEED_MAX) pct = M68K_SPEED_MAX;
+	M68K_Speed_Setting = pct;
+	Ram_2MB_Setting = ram2mb ? 1 : 0;
+	Gens64_M68K_Settings_Changed();
+	if (!quiet)
+	{
+		char message [256];
+		sprintf(message, "68000: %d%% (%.2f MHz), RAM %s", pct, M68K_MHz(pct), Ram_2MB_Setting ? "2 MB" : "64 KB");
+		MESSAGE_L(message, message)
+	}
+	Build_Main_Menu();
+}
+
+static LRESULT CALLBACK M68KSpeedProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
+{
+	char text[64];
+	BOOL ok;
+	int v;
+	switch (uMsg)
+	{
+		case WM_INITDIALOG:
+			SetDlgItemInt(hDlg, IDC_M68K_SPEED_EDIT, M68K_Speed_Setting, FALSE);
+			// fall through: show the MHz
+		case WM_USER:
+			v = GetDlgItemInt(hDlg, IDC_M68K_SPEED_EDIT, &ok, FALSE);
+			if (ok && v >= M68K_SPEED_MIN && v <= M68K_SPEED_MAX)
+				sprintf(text, "%% = %.2f MHz", M68K_MHz(v));
+			else
+				sprintf(text, "%% (%d-%d)", M68K_SPEED_MIN, M68K_SPEED_MAX);
+			SetDlgItemText(hDlg, IDC_M68K_SPEED_MHZ, text);
+			if (uMsg == WM_INITDIALOG)
+			{
+				// focus on the value, selected: typing replaces it
+				SetFocus(GetDlgItem(hDlg, IDC_M68K_SPEED_EDIT));
+				SendDlgItemMessage(hDlg, IDC_M68K_SPEED_EDIT, EM_SETSEL, 0, -1);
+				return FALSE;
+			}
+			return TRUE;
+		case WM_COMMAND:
+			if (LOWORD(wParam) == IDC_M68K_SPEED_EDIT && HIWORD(wParam) == EN_CHANGE)
+			{
+				SendMessage(hDlg, WM_USER, 0, 0);
+				return TRUE;
+			}
+			if (LOWORD(wParam) == IDOK)
+			{
+				v = GetDlgItemInt(hDlg, IDC_M68K_SPEED_EDIT, &ok, FALSE);
+				if (!ok || v < M68K_SPEED_MIN || v > M68K_SPEED_MAX)
+				{
+					MessageBeep(MB_ICONWARNING);
+					return TRUE;
+				}
+				EndDialog(hDlg, v);
+				return TRUE;
+			}
+			if (LOWORD(wParam) == IDCANCEL)
+			{
+				EndDialog(hDlg, 0);
+				return TRUE;
+			}
+			break;
+		case WM_CLOSE:
+			EndDialog(hDlg, 0);
+			return TRUE;
+	}
+	return FALSE;
+}
+
 static int Change_SpriteBoxing(void)
 {
 	Sprite_Boxing = !Sprite_Boxing;
@@ -1372,6 +1464,7 @@ int Change_Country(HWND hWnd, int Num)
 		CD_Access_Timer = 2096;
 		Timer_Step = 135708;
 	}
+	Gens64_Set_CPL_M68K();	// gens64: 68000 speed (docs/overclock.md)
 
 	if (Sound_Enable)
 	{
@@ -2490,6 +2583,11 @@ void BeginMoviePlayback()
 
 	struct Temp { Temp() {EnableStopAllLuaScripts(false);} ~Temp() {EnableStopAllLuaScripts(true);}} dontStopScriptsHere;
 
+	// gens64: a movie plays with the 68000 speed and RAM it was recorded with (docs/overclock.md)
+	if (MainMovie.Status == MOVIE_PLAYING &&
+		(MainMovie.M68KSpeed != M68K_Speed_Setting || MainMovie.Ram2MB != Ram_2MB_Setting))
+		Gens64_Set_M68K_Settings(MainMovie.M68KSpeed, MainMovie.Ram2MB, false);
+
 	FrameCount=0;
 	LagCount = 0;
 	LagCountPersistent = 0;
@@ -3439,6 +3537,32 @@ dialogAgain: //Nitsuja added this
 						DialogsOpen--;
 						if(answer == IDCANCEL) { MainMovie.Status=0; return 0; }
 					}
+					// gens64: non-standard 68000 speed / RAM (docs/overclock.md)
+					if(Genesis_Started && (M68K_Speed_Setting != 100 || Ram_2MB_Setting))
+					{
+						char text[512];
+						{
+							char line[128];
+							text[0] = 0;
+							strcat(text, "The 68000 is set to non-standard values:\n");
+							if (M68K_Speed_Setting != 100)
+							{
+								sprintf(line, "  speed %d%% (%.2f MHz)\n", M68K_Speed_Setting, M68K_MHz(M68K_Speed_Setting));
+								strcat(text, line);
+							}
+							if (Ram_2MB_Setting)
+								strcat(text, "  RAM 2 MB\n");
+							strcat(text, "\nThe movie stores them, but other Gens versions and other emulators ignore them: "
+								"there the movie will play with the standard values and desync.\n\n"
+								"Reset to the standard values (100%, 64 KB RAM) before recording?\n"
+								"Yes: reset.  No: record with the current values.");
+						}
+						DialogsOpen++;
+						int answer = MessageBox(hWnd, text, "Non-standard 68000 settings", MB_YESNOCANCEL | MB_ICONWARNING);
+						DialogsOpen--;
+						if(answer == IDCANCEL) { MainMovie.Status=0; return 0; }
+						if(answer == IDYES) Gens64_Set_M68K_Settings(100, 0, false);
+					}
 					if(MainMovie.StateRequired)
 					{
 						FrameCount=0;
@@ -4205,6 +4329,28 @@ dialogAgain: //Nitsuja added this
 
 				case ID_CPU_ACCURATE_SYNCHRO:
 					Change_SegaCD_Synchro();
+					return 0;
+
+				case ID_M68K_SPEED_100: case ID_M68K_SPEED_150: case ID_M68K_SPEED_200: case ID_M68K_SPEED_300:
+				case ID_M68K_SPEED_400: case ID_M68K_SPEED_800: case ID_M68K_SPEED_1300:
+					if (!M68K_Settings_Locked())
+						Gens64_Set_M68K_Settings(M68K_Speed_Presets[command - ID_M68K_SPEED_100], Ram_2MB_Setting, false);
+					return 0;
+
+				case ID_M68K_SPEED_CUSTOM:
+					if (!M68K_Settings_Locked())
+					{
+						DialogsOpen++;
+						int v = (int) DialogBox(ghInstance, MAKEINTRESOURCE(IDD_M68K_SPEED), hWnd, (DLGPROC) M68KSpeedProc);
+						DialogsOpen--;
+						if (v > 0)
+							Gens64_Set_M68K_Settings(v, Ram_2MB_Setting, false);
+					}
+					return 0;
+
+				case ID_M68K_RAM_2MB:
+					if (!M68K_Settings_Locked())
+						Gens64_Set_M68K_Settings(M68K_Speed_Setting, !Ram_2MB_Setting, false);
 					return 0;
 
 				case ID_CPU_COUNTRY_AUTO:
@@ -5010,6 +5156,7 @@ HMENU Build_Main_Menu(void)
 	HMENU CPUDebug;
 #endif
 	HMENU CPUCountry;
+	HMENU CPUM68KSpeed; // gens64
 	HMENU CPUCountryOrder;
 	HMENU CPUSlowDownSpeed;
 	HMENU SoundRate;
@@ -5061,6 +5208,7 @@ HMENU Build_Main_Menu(void)
 	CPUDebug = CreatePopupMenu();
 #endif
 	CPUCountry = CreatePopupMenu();
+	CPUM68KSpeed = CreatePopupMenu(); // gens64
 	CPUCountryOrder = CreatePopupMenu();
 	CPUSlowDownSpeed = CreatePopupMenu();
 	SoundRate = CreatePopupMenu();
@@ -5459,6 +5607,11 @@ HMENU Build_Main_Menu(void)
 
 	MENU_L(CPU, i++, Flags | MF_POPUP,
 		(UINT_PTR)CPUCountry, "Country", "", "&Country");
+	// gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
+	MENU_L(CPU, i++, Flags | MF_POPUP,
+		(UINT_PTR)CPUM68KSpeed, "68000 Speed", "", "68000 &Speed");
+	MENU_L(CPU, i++, Flags | (Ram_2MB_Setting ? MF_CHECKED : MF_UNCHECKED),
+		ID_M68K_RAM_2MB, "68000 RAM 2 MB (debug)", "", "68000 RAM &2 MB (debug)");
 
 	InsertMenu(CPU, i++, MF_SEPARATOR, NULL, NULL);
 
@@ -5580,6 +5733,28 @@ HMENU Build_Main_Menu(void)
 			ID_CPU_DEBUG_32X_VDP, "32X - VDP", "", "32X - VDP");
 	}
 #endif
+
+	// 68000 SPEED (gens64) //
+
+	Flags = MF_BYPOSITION | MF_STRING;
+	{
+		char label[64];
+		bool preset = false;
+		int k;
+		for (k = 0; k < (int)(sizeof(M68K_Speed_Presets) / sizeof(M68K_Speed_Presets[0])); k++)
+		{
+			int p = M68K_Speed_Presets[k];
+			sprintf(label, p == 100 ? "%d%% (%.2f MHz, normal)" : "%d%% (%.2f MHz)", p, M68K_MHz(p));
+			if (p == M68K_Speed_Setting) preset = true;
+			InsertMenu(CPUM68KSpeed, k, Flags | (p == M68K_Speed_Setting ? MF_CHECKED : MF_UNCHECKED), ID_M68K_SPEED_100 + k, label);
+		}
+		InsertMenu(CPUM68KSpeed, k++, MF_SEPARATOR, NULL, NULL);
+		if (preset)
+			sprintf(label, "Custom...");
+		else
+			sprintf(label, "Custom: %d%% (%.2f MHz)...", M68K_Speed_Setting, M68K_MHz(M68K_Speed_Setting));
+		InsertMenu(CPUM68KSpeed, k++, Flags | (preset ? MF_UNCHECKED : MF_CHECKED), ID_M68K_SPEED_CUSTOM, label);
+	}
 
 	// COUNTRY //
 
@@ -8098,9 +8273,8 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 			SetDlgItemText(hDlg, IDC_EDIT1,
 				"Original version (c) 1999/2002 by Stéphane Dallongeville" "\r\n" "\r\n"
-				"More about this version at:" "\r\n"
-				"http://code.google.com/p/gens-rerecording/" "\r\n"
-				"http://tasvideos.org/forum/" "\r\n" "\r\n"
+				// gens64: base version instead of the Gens RR links
+				"Based on Gens Re-Recording v11c (svn341)" "\r\n" "\r\n"
 				// gens64: features ported from Gens r57shell mod (docs/r57shell-mod.md)
 				"Includes features of Gens r57shell mod" "\r\n"
 				"(c) 2011-2014 r57shell:" "\r\n"

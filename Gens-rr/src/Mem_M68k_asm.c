@@ -117,6 +117,24 @@ __attribute__((aligned(64))) u8 Rom_Data[ROM_DATA_MAX];
    ("SEGA SSF" header: window 0 too, A130F0 word with bit 15, bit 13 = ROM writable).
    Rom_Page: byte offset in Rom_Data of each 512 KB window of 000000-9FFFFF (entries 20-31 unused). */
 u32 Rom_Mapper, Rom_Mask;
+
+/* gens64: 68000 speed and 2 MB RAM (docs/overclock.md). Effective values, set by Gens.cpp only for
+   the Genesis (100 and 0 with Sega CD / 32X): M68K_Speed in % of the normal clock (100 = r341),
+   Ram_68k_2MB: E00000-FEFFFF is 1984 KB of own RAM (Ram_Ext) instead of mirrors of FF0000-FFFFFF.
+   With Ram_68k_2MB the Starscream RAM fast path is skipped and every RAM access comes here. */
+u32 M68K_Speed = 100;
+u8 Ram_68k_2MB;
+#define RAM_EXT_SIZE 0x1F0000
+__attribute__((aligned(64))) u8 Ram_Ext[RAM_EXT_SIZE];
+#define RAM_PTR(a) ((Ram_68k_2MB && (a) < 0xFF0000) ? Ram_Ext + ((a) - 0xE00000) : B.Ram_68k + ((a) & 0xFFFF))
+/* 68000 cycles (up to the end of the line) -> the normal clock, for tables indexed by them */
+static u32 m68k_unscale(u32 n)
+{
+	if (M68K_Speed == 100)
+		return n;
+	n = n * 100 / M68K_Speed;
+	return n > 511 ? 511 : n;
+}
 u32 Rom_Page[32];
 u8 Mapper_Bank[8], Mapper_Ctrl;
 /* names starting with L are assembler-private on i386 COFF: decorated alias only */
@@ -177,7 +195,7 @@ static void busreq_write(int release)
 		if (st & 2)
 			return;
 		WR8(&B.Z80_State, st | 2);
-		n = B.Cycles_M68K - main68k_readOdometer();
+		n = m68k_unscale(B.Cycles_M68K - main68k_readOdometer());
 		z80_Set_Odo(&M_Z80, B.Cycles_Z80 - B.Z80_M68K_Cycle_Tab[n]);
 		return;
 	}
@@ -187,7 +205,7 @@ static void busreq_write(int release)
 	WR8(&B.Last_BUS_REQ_St, (st & 2) != 0);
 	if (!(st & 2))
 		return;
-	n = B.Cycles_M68K - odo;
+	n = m68k_unscale(B.Cycles_M68K - odo);
 	WR8(&B.Z80_State, st & ~2);
 	z80_Exec(&M_Z80, (int)(B.Cycles_Z80 - B.Z80_M68K_Cycle_Tab[n]));
 }
@@ -243,6 +261,8 @@ static u32 M68K_Read_Byte_RomC(u32 a)
 #define M68K_Read_Byte_RomF M68K_Read_Byte_RomC
 static u32 M68K_Read_Byte_Ram(u32 a)
 {
+	if (Ram_68k_2MB)
+		return RAM_PTR(a & 0xFFFFFE)[(a & 1) ^ 1];
 	return B.Ram_68k[(a & 0xFFFF) ^ 1];
 }
 /* A10000-A1000D/F I/O ports */
@@ -316,6 +336,8 @@ static u32 M68K_Read_Word_RomC(u32 a)
 #define M68K_Read_Word_RomF M68K_Read_Word_RomC
 static u32 M68K_Read_Word_Ram(u32 a)
 {
+	if (Ram_68k_2MB)
+		return RD16(RAM_PTR(a & 0xFFFFFE));
 	return RD16(B.Ram_68k + (a & 0xFFFF));
 }
 static u32 io_read_word(u32 a, int ser)
@@ -381,6 +403,11 @@ static void M68K_Write_Byte_ROM2(u32 a, u32 d)
 }
 static void M68K_Write_Byte_Ram(u32 a, u32 d)
 {
+	if (Ram_68k_2MB)
+	{
+		RAM_PTR(a & 0xFFFFFE)[(a & 1) ^ 1] = (u8)d;
+		return;
+	}
 	B.Ram_68k[(a & 0xFFFF) ^ 1] = (u8)d;
 }
 static void z80_window_write(u32 a, u32 d)
@@ -460,6 +487,11 @@ static void M68K_Write_Word_SRAM(u32 a, u32 d)
 }
 static void M68K_Write_Word_Ram(u32 a, u32 d)
 {
+	if (Ram_68k_2MB)
+	{
+		WR16(RAM_PTR(a & 0xFFFFFE), d);
+		return;
+	}
 	WR16(B.Ram_68k + (a & 0xFFFF), d);
 }
 /* word write to the Z80 window: the byte handler gets dl = dh = low byte (upper half of edx from
