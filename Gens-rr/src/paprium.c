@@ -24,6 +24,8 @@
 unsigned int main68k_readPC(void);
 static FILE *trace_f;
 static unsigned trace_frame;
+static unsigned dma_n, dma_lo = ~0u, dma_hi, run_start = ~0u, run_last, run_len;
+static char runs[4096]; static int runs_len;
 #define TRACE(...) do { if (!trace_f) trace_f = fopen("paprium_trace.txt", "w"); if (trace_f) { fprintf(trace_f, __VA_ARGS__); fflush(trace_f); } } while (0)
 #else
 #define TRACE(...) ((void)0)
@@ -1381,7 +1383,9 @@ void Paprium_Frame(int pal)
 	paprium_audio(samples);
 #ifdef PAPRIUM_TRACE
 	trace_frame++;
-	if (trace_frame % 30 == 0) TRACE("%u frame pc=%06X\n", trace_frame, main68k_readPC());
+	{ int i, n = *(uint16*)(paprium_s.ram + 0x1F16); char b[4096]; int l = 0;
+	  for (i = 0; i < n && i < 120; i++) { uint16 *e = (uint16*)(paprium_s.ram + 0x1400 + i*16); l += sprintf(b + l, " %04X:%X", ((e[2]&0xFF) | ((e[5]&0xFF)<<8)) << 1, (e[1]&0xFF) | ((e[3]&0xFF)<<8)); }
+	  TRACE("%u frame list n=%d%s\n", trace_frame, n, b); }
 #endif
 }
 
@@ -1459,6 +1463,10 @@ static void paprium_w16(uint32 address, uint32 data)
 	*(uint16 *)(paprium_s.ram + address) = data;
 
 	if( address == 0x1FEA ) {
+#ifdef PAPRIUM_TRACE
+		if (dma_n) { if (run_len) runs_len += sprintf(runs + runs_len, " %04X:%X", run_start, run_len); TRACE("%u   dma %u words%s\n", trace_frame, dma_n, runs); dma_n = 0; dma_lo = ~0u; dma_hi = 0; runs_len = 0; runs[0] = 0; run_len = 0; run_last = 0; }
+#endif
+		{ extern int VDP_Current_Line; TRACE("L%03d ", VDP_Current_Line); }
 		TRACE("%u pc=%06X cmd %04X  1E10: %04X %04X %04X %04X\n", trace_frame, main68k_readPC(), data,
 			*(uint16 *)(paprium_s.ram + 0x1E10), *(uint16 *)(paprium_s.ram + 0x1E12), *(uint16 *)(paprium_s.ram + 0x1E14), *(uint16 *)(paprium_s.ram + 0x1E16));
 		paprium_cmd(data);
@@ -1549,6 +1557,11 @@ int Paprium_Fetch(struct STARSCREAM_PROGRAMREGION *f)
 
 unsigned int Paprium_DMA_Word(unsigned int a)
 {
+#ifdef PAPRIUM_TRACE
+	if (1) { dma_n++; if (a < dma_lo) dma_lo = a; if (a > dma_hi) dma_hi = a;
+		if (a != run_last + 2) { if (run_len && runs_len < 4000) runs_len += sprintf(runs + runs_len, " %X:%X", run_start, run_len); run_start = a; run_len = 0; }
+		run_len++; run_last = a; }
+#endif
 	return read_word(a & 0xFFFFFE);
 }
 

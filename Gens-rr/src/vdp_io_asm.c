@@ -306,6 +306,15 @@ u32 Update_DMA(void)
 {
 	u32 i = (REG[R_SET4] & 1) * 4 + (V.DMAT_Type & 3), c, cpl = (u32)CPL_M68K, old;
 
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
+	{
+		/* gens64: as the Genesis Plus GX fork's fast_dma_hack for Paprium (docs/paprium.md): a DMA
+		   takes no bus time, so the game's DMA list fits in the vertical blank */
+		V.DMAT_Length = 0;
+		W0(V.VDP_Status) &= 0xFFFD;
+		return 0;
+	}
+
 	if (V.VDP_Current_Line < V.VDP_Num_Vis_Lines && (B0(REG[R_SET2]) & 0x40))
 		i += 8;
 	c = gens64_vdp_data.DMA_Timing_Table[i];
