@@ -37,6 +37,7 @@
 #include "flash_cfi.h"
 #include "svp.h"
 #include "sfteam.h"
+extern "C" void Gens64_Update_Ram_Write_Hook(void); extern "C" int Gens64_Prefetch_Hack; extern "C" void Gens64_Prefetch_Flush(void); // gens64: Mem_M68k_asm.c
 #include "paprium.h"
 
 
@@ -281,6 +282,7 @@ void Gens64_M68K_Settings(int genesis)
 	if (ram && !Ram_68k_2MB)
 		memset(Ram_Ext, 0, RAM_EXT_SIZE);
 	Ram_68k_2MB = ram;
+	Gens64_Update_Ram_Write_Hook(); // gens64: Mem_M68k_asm.c
 }
 
 // CPL_M68K for the current region and M68K_Speed (r341's value at 100%)
@@ -1292,6 +1294,7 @@ int Do_Genesis_Frame(bool fast)
 		PSG_Special_Update();
 		YM2612_Special_Update();
 	}
+	if (Gens64_Prefetch_Hack) Gens64_Prefetch_Flush(); // gens64: Escape 2042 (docs/flash-save.md)
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM) // gens64: the cartridge's processor, every frame (docs/paprium.md)
 	{
 		Paprium_Frame(CPU_Mode, !disableSound);

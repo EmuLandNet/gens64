@@ -1,3 +1,4 @@
+#include <stdio.h>
 /* gens64: C port of Mem_M68k.asm (+ Mem_M68K_CD.inc, Mem_M68K_32X.inc) from Gens RR r341:
  * the main 68000 memory map for Genesis, Sega CD and 32X.
  *
@@ -130,6 +131,14 @@ u32 Rom_Mapper, Rom_Mask;
    With Ram_68k_2MB the Starscream RAM fast path is skipped and every RAM access comes here. */
 u32 M68K_Speed = 100;
 u8 Ram_68k_2MB;
+/* gens64: the main 68000 core's RAM write fast path is skipped when set (Starscream Star.c):
+   Ram_68k_2MB, or the Escape 2042 prefetch hack (writes to FF0000-FFFFFF through M68K_WB/WW) */
+u8 Gens64_Ram_Write_Hook;
+void Gens64_Update_Ram_Write_Hook(void)
+{
+	extern int Gens64_Prefetch_Hack;
+	Gens64_Ram_Write_Hook = (Ram_68k_2MB || Gens64_Prefetch_Hack) ? 1 : 0;
+}
 #define RAM_EXT_SIZE 0x1F0000
 __attribute__((aligned(64))) u8 Ram_Ext[RAM_EXT_SIZE];
 #define RAM_PTR(a) ((Ram_68k_2MB && (a) < 0xFF0000) ? Ram_Ext + ((a) - 0xE00000) : B.Ram_68k + ((a) & 0xFFFF))
@@ -433,8 +442,55 @@ static void M68K_Write_Byte_ROM2(u32 a, u32 d)
 	else
 		M68K_Write_Byte_SRAM(a, d);
 }
+/* gens64: 68000 prefetch of the next instruction word, for Escape 2042 only (docs/flash-save.md).
+   Its flash check routine in RAM rewrites the word right after the writing instruction; a real
+   68000 (and GPGX, M68K_EMULATE_PREFETCH) has already fetched it and runs the old word. Gens'
+   core reads code straight from memory, so the write to that word is held back (pending) until a
+   write from another instruction, a write to the same word again, or the end of the frame. */
+int Gens64_Prefetch_Hack = 0;
+extern unsigned main68k_readPC(void);
+static u32 pf_addr, pf_pc;
+static u16 pf_word;
+static int pf_pending;
+void Gens64_Prefetch_Flush(void)
+{
+	if (pf_pending)
+	{
+		WR16(B.Ram_68k + pf_addr, pf_word);
+		pf_pending = 0;
+	}
+}
+/* a: RAM address, word: new word at a & FFFE (for a byte write: merged); 1 if held back */
+static int pf_write(u32 a, u32 word)
+{
+	u32 pc = main68k_readPC() & 0xFFFFFF;
+#ifdef PF_TRACE
+	{
+		static FILE *f;
+		if (!f) f = fopen("pf_trace.txt", "w");
+		if (f && (a & 0xFFFF) < 0x100) { fprintf(f, "%06X %04X pc %06X pend %d\n", a & 0xFFFFFF, word & 0xFFFF, pc, pf_pending); fflush(f); }
+	}
+#endif
+	if (pf_pending && (pc != pf_pc || (a & 0xFFFE) == pf_addr))
+		Gens64_Prefetch_Flush();
+	if (pc < 0xFF0000 || (pc & 0xFFFE) != (a & 0xFFFE))
+		return 0;
+	pf_pending = 1;
+	pf_addr = a & 0xFFFE;
+	pf_pc = pc;
+	pf_word = (u16)word;
+	return 1;
+}
+
 static void M68K_Write_Byte_Ram(u32 a, u32 d)
 {
+	if (Gens64_Prefetch_Hack && !Ram_68k_2MB)
+	{
+		u16 w = RD16(B.Ram_68k + (a & 0xFFFE));
+		w = (a & 1) ? (u16)((w & 0xFF00) | (d & 0xFF)) : (u16)((w & 0x00FF) | (d & 0xFF) << 8);
+		if (pf_write(a, w))
+			return;
+	}
 	if (Ram_68k_2MB)
 	{
 		RAM_PTR(a & 0xFFFFFE)[(a & 1) ^ 1] = (u8)d;
@@ -526,6 +582,8 @@ static void M68K_Write_Word_SRAM(u32 a, u32 d)
 }
 static void M68K_Write_Word_Ram(u32 a, u32 d)
 {
+	if (Gens64_Prefetch_Hack && !Ram_68k_2MB && pf_write(a, d))
+		return;
 	if (Ram_68k_2MB)
 	{
 		WR16(RAM_PTR(a & 0xFFFFFE), d);
@@ -2045,6 +2103,9 @@ void Init_Memory_M68K(int System_ID)
 		sf_install();
 	if (Flash_CFI_On)
 		flash_install();	/* after the mapper: ColocoDX (8 MB) */
+	Gens64_Prefetch_Flush();
+	Gens64_Prefetch_Hack = Flash_CFI_Flashkit();	/* Escape 2042 */
+	Gens64_Update_Ram_Write_Hook();
 #ifdef ROMW_TRACE
 	romw_install();
 #endif

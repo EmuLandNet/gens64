@@ -259,6 +259,7 @@ static void gen_variables(void) {
 	emit("\n");
 	emit("\textern Ram_68k\n");
 	emit("\textern _Ram_68k_2MB\n");	/* gens64 */
+	emit("\textern _Gens64_Ram_Write_Hook\n");	/* gens64: Ram_68k_2MB or the Escape 2042 prefetch hack */
 #ifdef HOOKS_ENABLED
 	emit("\textern _hook_exec\n");
 
@@ -1731,7 +1732,7 @@ static void gen_writebw(int size)
 #endif
 		emit("\tcmp edx, 0xE00000\n");
 		emit("\tjb short .Not_In_Ram\n");
-		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB (docs/overclock.md) */
+		emit("\ttest byte [_Gens64_Ram_Write_Hook], 1\n");	/* gens64: 2 MB RAM or the Escape 2042 prefetch hack: through M68K_WB/WW */
 		emit("\tjnz near .Not_In_Ram\n");
 		emit("\txor edx, 1\n");
 		emit("\tand edx, 0xFFFF\n");
@@ -1789,7 +1790,7 @@ static void gen_writebw(int size)
 #endif
 		emit("\tcmp edx, 0xE00000\n");
 		emit("\tjb short .Not_In_Ram\n");
-		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB (docs/overclock.md) */
+		emit("\ttest byte [_Gens64_Ram_Write_Hook], 1\n");	/* gens64: 2 MB RAM or the Escape 2042 prefetch hack: through M68K_WB/WW */
 		emit("\tjnz near .Not_In_Ram\n");
 		emit("\tand edx, 0xFFFF\n");
 		emit("\tmov [Ram_68k + edx], cx\n");
@@ -1851,7 +1852,7 @@ static void gen_writel(void)
 	emit("\trol ecx, 16\n");
 	emit("\tcmp edx, 0xE00000\n");
 	emit("\tjb short .Not_In_Ram\n");
-		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB (docs/overclock.md) */
+		emit("\ttest byte [_Gens64_Ram_Write_Hook], 1\n");	/* gens64: 2 MB RAM or the Escape 2042 prefetch hack: through M68K_WB/WW */
 		emit("\tjnz near .Not_In_Ram\n");
 	emit("\tand edx, 0xFFFF\n");
 	emit("\tmov [Ram_68k + edx], ecx\n");
@@ -1916,7 +1917,7 @@ static void gen_writedecl(void)
 #endif
 	emit("\tcmp edx, 0xE00000\n");
 	emit("\tjb short .Not_In_Ram\n");
-		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB (docs/overclock.md) */
+		emit("\ttest byte [_Gens64_Ram_Write_Hook], 1\n");	/* gens64: 2 MB RAM or the Escape 2042 prefetch hack: through M68K_WB/WW */
 		emit("\tjnz near .Not_In_Ram\n");
 	emit("\trol ecx, 16\n");
 	emit("\tand edx, 0xFFFF\n");

@@ -34,6 +34,7 @@
 #include "flash_cfi.h"
 #include "svp.h"
 #include "sfteam.h"
+extern "C" int Gens64_Prefetch_Hack; extern "C" void Gens64_Prefetch_Flush(void);
 #include "ggenie.h"
 #include "io.h"
 #include "misc.h"
@@ -625,6 +626,7 @@ int Save_State_To_Buffer (unsigned char *buf)
 
 	memset(buf, 0, len);
 
+	if (Gens64_Prefetch_Hack) Gens64_Prefetch_Flush(); // gens64: Escape 2042 (docs/flash-save.md)
 	Export_Genesis(buf);
 	buf += GENESIS_STATE_LENGTH; //upthmodif - fixed for new, additive, length determination
 	if (Ram_68k_2MB)

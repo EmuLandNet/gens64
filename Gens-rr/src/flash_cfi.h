@@ -13,7 +13,8 @@ extern int Flash_CFI_On;	/* the loaded ROM saves in flash (Mem_M68k_asm.c instal
 void Flash_CFI_Init(int enable);
 int Flash_CFI_Bank(unsigned int bank);	/* 64 KB bank answered by the chip (0 and the save sectors) */
 int Flash_CFI_Banks(unsigned char *list);	/* those banks (up to 5), returns the count */
-int Flash_CFI_Busy(void);	/* not in read mode: reads give ID/CFI/OTP data */
+int Flash_CFI_Busy(void);
+int Flash_CFI_Flashkit(void);	/* Escape 2042 (Flashkit-MD, M29W320EB): also needs Gens64_Prefetch_Hack */	/* not in read mode: reads give ID/CFI/OTP data */
 /* addresses in words (68000 address >> 1), as on the chip */
 void Flash_CFI_Write(unsigned int address, unsigned int data);
 unsigned int Flash_CFI_Read(unsigned int address);

@@ -371,6 +371,14 @@ void M68K_Reset(int System_ID, char Hard)
  	main68k_reset();
  
  	Init_Memory_M68K(System_ID);
+	{
+		/* gens64: Escape 2042: RAM writes through M68K_WB for the prefetch hack (Mem_M68k_asm.c) */
+		extern int Gens64_Prefetch_Hack;
+		int hack = System_ID == GENESIS && Gens64_Prefetch_Hack;
+		M68K_Write_Byte[0].memorycall = hack ? GA(M68K_WB) : 0;
+		M68K_Write_Word[0].memorycall = hack ? GA(M68K_WW) : 0;
+		M68K_Write_Byte[0].userdata = M68K_Write_Word[0].userdata = hack ? 0 : GA(Ram_68k);
+	}
 }
 
 

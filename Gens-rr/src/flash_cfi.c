@@ -241,6 +241,11 @@ int Flash_CFI_Banks(unsigned char *list)
 	return nbanks + 1;
 }
 
+int Flash_CFI_Flashkit(void)
+{
+	return Flash_CFI_On && chip == M29W320EB;
+}
+
 int Flash_CFI_Busy(void)
 {
 	return flash.mode != FLASH_READ;
@@ -260,6 +265,18 @@ void Flash_CFI_Write(unsigned int address, unsigned int data)
 {
 	int slot = bank_slot((address >> 15) & 0xff);	/* 64 KB bank (address in words) */
 	TRACE("W %06X %04X mode %u pc %06X\n", address << 1, data, flash.mode, main68k_readPC());
+#ifdef FLASH_TRACE
+	{
+		extern unsigned char Ram_68k[];
+		static int dumped;
+		if (!dumped++)
+		{
+			FILE *f = fopen("ram_dump.bin", "wb");
+			int k;
+			if (f) { for (k = 0; k < 0x400; k++) fputc(Ram_68k[k ^ 1], f); fclose(f); }
+		}
+	}
+#endif
 
 	if (flash.mode == FLASH_PROGRAM)
 	{
