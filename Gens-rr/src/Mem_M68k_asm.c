@@ -1542,8 +1542,22 @@ static u32 mapped_sram(u32 a)
 {
 	return (B.SRAM_ON & 1) && a >= B.SRAM_Start && a <= B.SRAM_End;
 }
+/* gens64: Mega Everdrive (Rom_Mapper 2): a window showing bank 31 is the cartridge's SRAM, not ROM
+   (Krikzz's SSF extension; SRAM writes need bit 13 of A130F0). Kept in the 64 KB SRAM of Gens (.srm,
+   savestates); the window repeats it every 64 KB (the Pro maps 512 KB at 200000, the X7 256 KB at
+   240000: both start at offset 0 here). Returns the SRAM byte offset, or -1. */
+static int ed_sram(u32 a)
+{
+	u32 w = a >> 19;
+	if (Rom_Mapper != 2 || w >= 8 || (Mapper_Bank[w] & 0x1F) != 31)
+		return -1;
+	return (int)(a & 0xFFFF);
+}
 static u32 M68K_Read_Byte_Mapped(u32 a)
 {
+	int e = ed_sram(a);
+	if (e >= 0)
+		return RD8(B.SRAM + e);
 	if (mapped_sram(a))
 	{
 		if (RD8(&B.SRAM_Custom) & 1)
@@ -1554,6 +1568,12 @@ static u32 M68K_Read_Byte_Mapped(u32 a)
 }
 static u32 M68K_Read_Word_Mapped(u32 a)
 {
+	int e = ed_sram(a);
+	if (e >= 0)
+	{
+		u16 v = RD16(B.SRAM + (e & 0xFFFE));
+		return (u16)(v << 8 | v >> 8);
+	}
 	if (mapped_sram(a))
 	{
 		u16 v;
@@ -1567,6 +1587,13 @@ static u32 M68K_Read_Word_Mapped(u32 a)
 /* 000000-3FFFFF: Everdrive's ROM is RAM when bit 13 of A130F0 is set, otherwise SRAM as usual */
 static void M68K_Write_Byte_Mapped(u32 a, u32 d)
 {
+	int e = ed_sram(a);
+	if (e >= 0)
+	{
+		if (Mapper_Ctrl & 0x20)
+			WR8(B.SRAM + e, (u8)d);
+		return;
+	}
 	if ((Mapper_Ctrl & 0x20) && a < 0x400000)
 	{
 		Rom_Data[(Rom_Page[a >> 19] + (a & 0x7FFFF)) ^ 1] = (u8)d;
@@ -1576,6 +1603,13 @@ static void M68K_Write_Byte_Mapped(u32 a, u32 d)
 }
 static void M68K_Write_Word_Mapped(u32 a, u32 d)
 {
+	int e = ed_sram(a);
+	if (e >= 0)
+	{
+		if (Mapper_Ctrl & 0x20)
+			WR16(B.SRAM + (e & 0xFFFE), (u16)(d << 8 | (d & 0xFFFF) >> 8));
+		return;
+	}
 	if ((Mapper_Ctrl & 0x20) && a < 0x400000)
 	{
 		WR16(Rom_Data + Rom_Page[a >> 19] + (a & 0x7FFFE), d);
