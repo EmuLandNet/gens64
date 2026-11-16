@@ -1463,6 +1463,16 @@ int Init_32X(struct Rom *MD_Rom)
 			SH2_CONTEXT* context = (contextNum == 0) ? &M_SH2 : &S_SH2;
 			memset(&context->IO_Reg, 0, sizeof(context->IO_Reg));
 			memset(&context->DVCR, 0, sizeof(context->BCR1) + ((char*)&context->BCR1 - (char*)&context->DVCR));
+			// gens64 (WWF WrestleMania - The Arcade Game, docs/32x.md): the memset above also cleared
+			// what SH2_Init sets once and nothing sets again: the clock divider tables of the watchdog
+			// and free running timers (with zeros the timers ran at the wrong rate: WWF desynced from
+			// Gens RR 11, which had no memset, at frame 118) and BCR1 (0x03F0, bit 15 = slave).
+			// Restore them as SH2_Init sets them. Other 32X movies: same emulation, see docs/32x.md.
+			context->BCR1 = 0x03F0 | (contextNum ? 0x8000 : 0);
+			static const unsigned char wdt[8] = {16 - 1, 16 - 6, 16 - 7, 16 - 8, 16 - 9, 16 - 10, 16 - 12, 16 - 13};
+			static const unsigned char frt[4] = {8 - 3, 8 - 5, 8 - 7, 0};
+			memcpy(context->WDT_Tab, wdt, 8);
+			memcpy(context->FRT_Tab, frt, 4);
 		}
 		memset(_32X_Ram, 0, sizeof(_32X_Ram));
 		memset(_MSH2_Reg, 0, sizeof(_MSH2_Reg));

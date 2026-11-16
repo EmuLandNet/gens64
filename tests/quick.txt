@@ -9,3 +9,4 @@ terminator 5000
 s1mmu 20000
 doomres32x
 spiderman32x
+wwf32x

@@ -845,6 +845,13 @@ void Render_Line(void)
 
 /* ---- Render_Line_32X ---- */
 
+/* gens64: with the PRI bit of the 32X bitmap mode register the 32X pixels' priority bit (0x8000) is
+   inverted before compositing (Render_MD_Screen32X), as in Gens RR 11. r341 flipped 0x1000 here (a
+   blue bit), so PRI had no effect on priority and changed colours (WWF WrestleMania - The Arcade Game:
+   docs/32x.md). Output only. tools/test/vdp_rend_diff sets 0x1000 to compare with the original. */
+u32 gens64_32x_pri_xor = 0x8000;
+
+
 void Render_Line_32X(void)
 {
 	s32 base = (s32)((const u32 *)&D)[VDP_Current_Line];	/* lines > 239 read on into TAB320 */
@@ -894,8 +901,8 @@ void Render_Line_32X(void)
 			u32 a = RD32(src + 0), b = RD32(src + 4);
 			if (sel & 0x10)
 			{
-				a ^= 0x10001000;
-				b ^= 0x10001000;
+				a ^= gens64_32x_pri_xor * 0x10001;
+				b ^= gens64_32x_pri_xor * 0x10001;
 			}
 			*(u32 *)(d + 0) = a;
 			*(u32 *)(d + 2) = b;
@@ -922,8 +929,8 @@ void Render_Line_32X(void)
 			}
 			if (sel & 0x10)
 			{
-				a ^= 0x1000;
-				b ^= 0x1000;
+				a ^= (u16)gens64_32x_pri_xor;
+				b ^= (u16)gens64_32x_pri_xor;
 			}
 			d[0] = a;
 			d[1] = b;
@@ -940,7 +947,7 @@ void Render_Line_32X(void)
 			u16 c = _32X_VDP_CRam[RD8(src + 0)];
 			u32 k = (u32)RD8(src + 1) + 1, j;
 			if (sel & 0x10)
-				c ^= 0x1000;
+				c ^= (u16)gens64_32x_pri_xor;
 			src += 2;
 			if (left <= k)
 			{
