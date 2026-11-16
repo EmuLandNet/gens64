@@ -18,6 +18,7 @@
 #include "gens64_addr.h"
 #include "yx5200.h"
 #include "paprium.h"
+#include "eeprom_spi.h"
 
 #ifndef ROM_DATA_MAX
 #define ROM_DATA_MAX (32 * 1024 * 1024)	/* as in Mem_M68k.h */
@@ -287,6 +288,8 @@ static u32 M68K_Read_Byte_Misc(u32 a)
 		return (RD8(&B.Z80_State) & 6) ? 0 : z80_window_read(a);
 	if (a == 0xA11100)
 		return busreq_read_byte(CYCLE_FOR_TAKE_Z80_BUS_GENESIS);
+	if (Rom_Mapper == ROM_MAPPER_T5740 && a >= 0xA13000 && a <= 0xA130FF)
+		return EEPROM_SPI_Read();	/* gens64: SPI EEPROM output (docs/large-roms.md) */
 	if (a > 0xA1000D)
 		return 0;
 	return io_read_byte(a, 1);
@@ -361,6 +364,8 @@ static u32 M68K_Read_Word_Misc(u32 a)
 		return (RD8(&B.Z80_State) & 6) ? 0 : z80_window_read(a);	/* byte handler: ah = 0 */
 	if (a == 0xA11100)
 		return busreq_read_word(CYCLE_FOR_TAKE_Z80_BUS_GENESIS, 1);
+	if (Rom_Mapper == ROM_MAPPER_T5740 && a >= 0xA13000 && a <= 0xA130FF)
+		return EEPROM_SPI_Read();
 	if (a > 0xA1000D)
 		return 0;
 	return io_read_word(a, 1);
@@ -1556,6 +1561,9 @@ static int ed_sram(u32 a)
 static u32 M68K_Read_Byte_Mapped(u32 a)
 {
 	int e = ed_sram(a);
+	/* gens64: T-5740: byte reads of 018100-0181FF give the start of the ROM (Pier Solar checks it) */
+	if (Rom_Mapper == ROM_MAPPER_T5740 && (a & 0xFFFF00) == 0x018100)
+		return Rom_Data[(a & 0x7FFF) ^ 1];
 	if (e >= 0)
 		return RD8(B.SRAM + e);
 	if (mapped_sram(a))
@@ -1664,6 +1672,16 @@ void Mapper_Restore(void)
 }
 
 /* Rom_Size and the header are set: choose the mapper (system: 0 Genesis, 1 32X, 2 Sega CD) */
+/* T-5740 board (Pier Solar): product "T-5740..." in the header (as Genesis Plus GX) */
+static int t5740_detect(void)
+{
+	static const char id[] = "T-5740";
+	int i;
+	for (i = 0; i < 6; i++)
+		if (Rom_Data[(0x183 + i) ^ 1] != (u8)id[i])
+			return 0;
+	return 1;
+}
 void Mapper_Init(int system)
 {
 	u32 size = 0x80000;
@@ -1679,6 +1697,18 @@ void Mapper_Init(int system)
 	/* "SEGA SSF" (the header is byteswapped in Rom_Data) */
 	if (Paprium_Detect())
 		Rom_Mapper = ROM_MAPPER_PAPRIUM;	/* gens64: docs/paprium.md */
+	else if (t5740_detect())
+	{
+		/* gens64: Pier Solar's board: 3 bank registers and an SPI EEPROM (docs/large-roms.md) */
+		u32 i;
+		Rom_Mapper = ROM_MAPPER_T5740;
+		EEPROM_SPI_Init();
+		/* no .srm yet (all zero): a blank EEPROM reads FF, as in Genesis Plus GX */
+		for (i = 0; i < 0x10000 && !B.SRAM[i]; i++)
+			;
+		if (i == 0x10000)
+			memset(B.SRAM, 0xFF, 0x10000);
+	}
 	else
 	Rom_Mapper = (Rom_Data[0x101] == 'S' && Rom_Data[0x100] == 'E' && Rom_Data[0x103] == 'G' && Rom_Data[0x102] == 'A' &&
 		Rom_Data[0x105] == ' ' && Rom_Data[0x104] == 'S' && Rom_Data[0x107] == 'S' && Rom_Data[0x106] == 'F') ? 2 : 1;
@@ -1696,6 +1726,24 @@ void Mapper_Init(int system)
 static int mapper_write(u32 a, u32 d, int word)
 {
 	u32 r = (a & 0xE) >> 1;
+	if (Rom_Mapper == ROM_MAPPER_T5740)
+	{
+		/* gens64: T-5740 (Genesis Plus GX mapper_t5740_w): byte registers at odd addresses;
+		   A13001 mode (ignored), A13003/05/07 the 512 KB page of 280000/300000/380000, A13009 SPI */
+		if (word || !(a & 1))
+			return 1;
+		switch (a & 0xFF)
+		{
+		case 0x01: Mapper_Ctrl = (u8)d; break;
+		case 0x03: case 0x05: case 0x07:
+			Mapper_Bank[5 + ((a & 0xFF) - 3) / 2] = (u8)(d & 0x0F);
+			mapper_update();
+			break;
+		case 0x09: EEPROM_SPI_Write(d & 0xFF); break;
+		default: break;
+		}
+		return 1;
+	}
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
 		return 1;	/* no bank registers, no SRAM window (docs/paprium.md) */
 	if (Rom_Mapper == 2)

@@ -99,6 +99,7 @@ set(GENS_C_CXX_SOURCES
   src/wave.c
   src/ym2612.c
   src/yx5200.c
+  src/eeprom_spi.c
   src/z80dis.c
   dependencies/mp3_dec/common.c
   dependencies/mp3_dec/dct64_i386.c

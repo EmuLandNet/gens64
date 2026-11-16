@@ -8290,6 +8290,8 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				"(author unknown)" "\r\n" "\r\n"
 				"ROM mappers over 6 MB (Sega, Mega Everdrive)" "\r\n"
 				"after Genesis Plus GX" "\r\n" "\r\n"
+				"Pier Solar (T-5740 board): mapper and SPI EEPROM" "\r\n"
+				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
 				"MP3 decoding: minimp3 by lieff (public domain)"
 			);
 
