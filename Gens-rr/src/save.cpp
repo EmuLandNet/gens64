@@ -33,6 +33,7 @@
 #include "eeprom_spi.h"
 #include "flash_cfi.h"
 #include "svp.h"
+#include "sfteam.h"
 #include "ggenie.h"
 #include "io.h"
 #include "misc.h"
@@ -289,6 +290,12 @@ int Load_State_From_Buffer(unsigned char *buf)
 		SVP_Load(buf);
 		buf += SVP_STATE_SIZE;
 	}
+	if (SF_Type && !SegaCD_Started && !_32X_Started) // gens64: Super Fighter Team boards (docs/sfteam.md)
+	{
+		SF_Load(buf);
+		buf += SF_STATE_SIZE;
+		M68K_Update_Fetch();
+	}
 	if (SegaCD_Started)
 	{
 		buf += Import_SegaCD(buf); // Uncommented - function now exists
@@ -397,6 +404,8 @@ int Load_State(char *Name)
 			len += Flash_CFI_State_Size();
 		if (SVP_On) // gens64: Virtua Racing's DSP (docs/svp.md)
 			len += SVP_STATE_SIZE;
+		if (SF_Type) // gens64: Super Fighter Team boards (docs/sfteam.md)
+			len += SF_STATE_SIZE;
 		fseek(f, 0, SEEK_SET);
 	}
 
@@ -612,6 +621,7 @@ int Save_State_To_Buffer (unsigned char *buf)
 	if (Rom_Mapper == ROM_MAPPER_T5740 && !SegaCD_Started && !_32X_Started) len += EEPROM_SPI_STATE_SIZE; // gens64 (docs/large-roms.md)
 	if (Flash_CFI_On && !SegaCD_Started && !_32X_Started) len += Flash_CFI_State_Size(); // gens64 (docs/flash-save.md)
 	if (SVP_On && !SegaCD_Started && !_32X_Started) len += SVP_STATE_SIZE; // gens64 (docs/svp.md)
+	if (SF_Type && !SegaCD_Started && !_32X_Started) len += SF_STATE_SIZE; // gens64 (docs/sfteam.md)
 
 	memset(buf, 0, len);
 
@@ -641,6 +651,11 @@ int Save_State_To_Buffer (unsigned char *buf)
 	{
 		SVP_Save(buf);
 		buf += SVP_STATE_SIZE;
+	}
+	if (SF_Type && !SegaCD_Started && !_32X_Started)
+	{
+		SF_Save(buf);
+		buf += SF_STATE_SIZE;
 	}
 	if (SegaCD_Started)
 	{

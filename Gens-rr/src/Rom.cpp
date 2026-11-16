@@ -26,6 +26,7 @@
 #include "yx5200.h"
 #include "flash_cfi.h"
 #include "svp.h"
+#include "sfteam.h"
 #include "paprium.h"
 
 
@@ -759,6 +760,7 @@ void Free_Rom(Rom *Rom_MD)
 	YX5200_Close(); // gens64: closes the MP3 track (docs/yx5200.md)
 	Flash_CFI_Init(0); // gens64: flash save (docs/flash-save.md)
 	SVP_Close(); // gens64: docs/svp.md
+	SF_Close(); // gens64: docs/sfteam.md
 	Paprium_Close(); // gens64: the Paprium music file (docs/paprium.md)
 	Net_Play = 0;
 	Genesis_Started = 0;

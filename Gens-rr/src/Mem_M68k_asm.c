@@ -21,6 +21,7 @@
 #include "eeprom_spi.h"
 #include "flash_cfi.h"
 #include "svp.h"
+#include "sfteam.h"
 
 #ifndef ROM_DATA_MAX
 #define ROM_DATA_MAX (32 * 1024 * 1024)	/* as in Mem_M68k.h */
@@ -292,6 +293,11 @@ static u32 M68K_Read_Byte_Misc(u32 a)
 		return busreq_read_byte(CYCLE_FOR_TAKE_Z80_BUS_GENESIS);
 	if (Rom_Mapper == ROM_MAPPER_T5740 && a >= 0xA13000 && a <= 0xA130FF)
 		return EEPROM_SPI_Read();	/* gens64: SPI EEPROM output (docs/large-roms.md) */
+	if (SF_Type && a >= 0xA13000 && a <= 0xA130FF)
+	{
+		u32 d;	/* gens64: SF-004 page register (docs/sfteam.md) */
+		return SF_Time_Read(&d) ? d : 0;
+	}
 	if (SVP_On && (a & 0xFFFF00) == 0xA15000)
 	{
 		u32 d;	/* gens64: SVP registers (docs/svp.md) */
@@ -374,6 +380,11 @@ static u32 M68K_Read_Word_Misc(u32 a)
 		return busreq_read_word(CYCLE_FOR_TAKE_Z80_BUS_GENESIS, 1);
 	if (Rom_Mapper == ROM_MAPPER_T5740 && a >= 0xA13000 && a <= 0xA130FF)
 		return EEPROM_SPI_Read();
+	if (SF_Type && a >= 0xA13000 && a <= 0xA130FF)
+	{
+		u32 d;
+		return SF_Time_Read(&d) ? d : 0;
+	}
 	if (SVP_On && (a & 0xFFFF00) == 0xA15000)
 	{
 		u32 d;
@@ -479,6 +490,8 @@ static void M68K_Write_Byte_Misc(u32 a, u32 d)
 	}
 	if (Rom_Mapper && a >= 0xA13000 && a <= 0xA130FF && mapper_write(a, d, 0))
 		return;
+	if (SF_Type && a >= 0xA13000 && a <= 0xA130FF)
+		return;	/* gens64: no /TIME handler on the SF boards (docs/sfteam.md) */
 	if (YX5200_On && a >= 0xA13000 && a <= 0xA130FF && !(a & 1))
 	{
 		YX5200_Write(d & 1);	/* gens64: KAISER WAVE /UWR: D0 is the MP3 player's RX line (docs/yx5200.md) */
@@ -549,6 +562,8 @@ static void M68K_Write_Word_Misc(u32 a, u32 d)
 		return;
 	if (SVP_On && (a & 0xFFFF00) == 0xA15000 && SVP_Reg_Write_Word(a, d))
 		return;	/* gens64: SVP XST (docs/svp.md) */
+	if (SF_Type && a >= 0xA13000 && a <= 0xA130FF)
+		return;
 	if (YX5200_On && a >= 0xA13000 && a <= 0xA130FF)
 	{
 		YX5200_Write(d & 1);
@@ -1895,6 +1910,33 @@ static void svp_install(void)
 	D.WB[3] = (void *)svp_wb; D.WW[3] = (void *)svp_ww;
 }
 
+/* gens64: Super Fighter Team boards (sfteam.c, docs/sfteam.md): 000000-47FFFF in 64 KB banks */
+extern void M68K_Update_Fetch(void);
+static u32 sf_rb(u32 a) { return SF_Read_Byte(a); }
+static u32 sf_rw(u32 a) { return SF_Read_Word(a); }
+static void sf_wb(u32 a, u32 d)
+{
+	if (SF_Write_Byte(a, d))
+		M68K_Update_Fetch();
+}
+static void sf_ww(u32 a, u32 d)
+{
+	if (SF_Write_Word(a, d))
+		M68K_Update_Fetch();
+}
+static void sf_install(void)
+{
+	int i;
+	for (i = 0; i <= 8; i++)
+	{
+		D.RB[i] = (void *)sf_rb; D.RW[i] = (void *)sf_rw;
+	}
+	for (i = 0; i <= 4; i++)
+	{
+		D.WB[i] = (void *)sf_wb; D.WW[i] = (void *)sf_ww;
+	}
+}
+
 static void flash_install(void)
 {
 	unsigned char list[8];
@@ -1999,6 +2041,8 @@ void Init_Memory_M68K(int System_ID)
 		mapper_install();
 	else if (SVP_On)
 		svp_install();
+	else if (SF_Type)
+		sf_install();
 	if (Flash_CFI_On)
 		flash_install();	/* after the mapper: ColocoDX (8 MB) */
 #ifdef ROMW_TRACE

@@ -1432,6 +1432,7 @@ typedef unsigned __int64 uint64_t;
 #include "eeprom_spi.h"
 #include "flash_cfi.h"
 #include "svp.h"
+#include "sfteam.h"
 #endif
 
 typedef int32_t SBits;
@@ -2284,6 +2285,7 @@ DEFINE_LUA_FUNCTION(state_create, "[location]")
 	if (Rom_Mapper == ROM_MAPPER_T5740) len += EEPROM_SPI_STATE_SIZE; // gens64: docs/large-roms.md
 	if (Flash_CFI_On) len += Flash_CFI_State_Size(); // gens64: docs/flash-save.md
 	if (SVP_On) len += SVP_STATE_SIZE; // gens64: docs/svp.md
+	if (SF_Type) len += SF_STATE_SIZE; // gens64: docs/sfteam.md
 
 	// allocate the in-memory/anonymous savestate
 	unsigned char* stateBuffer = (unsigned char*)lua_newuserdata(L, len + 16); // 16 is for performance alignment reasons

@@ -14,6 +14,7 @@
 #include "gens64_addr.h"
 #include "yx5200.h"
 #include "svp.h"
+#include "sfteam.h"
 #include "paprium.h"
 
 
@@ -81,6 +82,20 @@ void M68K_Update_Fetch(void)
 	M68K_Fetch[0].lowaddr = 0x000000;
 	M68K_Fetch[0].highaddr = Rom_Size - 1;
 	M68K_Fetch[0].offset = GA(&Rom_Data[0]) - 0x000000;
+	if (SF_Type)
+	{
+		/* gens64: Super Fighter Team boards: the ROM banks (docs/sfteam.md) */
+		SF_Region r[24];
+		int i, n = SF_Fetch(r, 24);
+		for (i = 0; i < n; i++)
+		{
+			M68K_Fetch[i].lowaddr = r[i].low;
+			M68K_Fetch[i].highaddr = r[i].high;
+			M68K_Fetch[i].offset = GA(&Rom_Data[r[i].rom_offset]) - r[i].low;
+		}
+		ram_fetch(n);
+		return;
+	}
 	if (SVP_On)
 	{
 		/* gens64: code in the SVP DRAM (docs/svp.md) */
@@ -341,6 +356,11 @@ void M68K_Reset(int System_ID, char Hard)
 		Mapper_Reset();	/* gens64: ROMs over 6 MB (nothing otherwise) */
 		if (YX5200_On)
 			YX5200_Reset();	/* gens64: MP3 player (docs/yx5200.md) */
+		if (SF_Type)
+		{
+			SF_Reset(Hard);	/* gens64: Super Fighter Team boards (docs/sfteam.md) */
+			M68K_Update_Fetch();
+		}
 		if (SVP_On)
 		{
 			SVP_Reset(Hard);	/* gens64: Virtua Racing's DSP (docs/svp.md) */

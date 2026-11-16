@@ -36,6 +36,7 @@
 #include "yx5200.h"
 #include "flash_cfi.h"
 #include "svp.h"
+#include "sfteam.h"
 #include "paprium.h"
 
 
@@ -853,6 +854,7 @@ void Init_Genesis_Bios(void)
 	YX5200_Close();
 	Flash_CFI_Init(0);
 	SVP_Close();
+	SF_Close();
 	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	Gens64_M68K_Settings(0);
 	M68K_Reset(0,1);
@@ -964,6 +966,7 @@ int Init_Genesis(struct Rom *MD_Rom)
 	YX5200_Init();	// gens64: MP3 player of the KAISER WAVE board (docs/yx5200.md)
 	Flash_CFI_Init(1);	// gens64: flash save (Four Winds, Life on Mars, ColocoDX...; docs/flash-save.md); before M68K_Reset installs the handlers
 	SVP_Init();	// gens64: Virtua Racing's DSP, "SV" in the header (docs/svp.md); before M68K_Reset
+	SF_Init();	// gens64: Super Fighter Team boards SF-001/002/004 (docs/sfteam.md); before M68K_Reset
 	Gens64_M68K_Settings(1);	// gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
 	M68K_Reset(0,1);
 	Z80_Reset();
@@ -1561,6 +1564,7 @@ int Init_32X(struct Rom *MD_Rom)
 	YX5200_Close();
 	Flash_CFI_Init(0);
 	SVP_Close();
+	SF_Close();
 	Mapper_Init(1);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	Gens64_M68K_Settings(0);
 	M68K_Reset(1,1);
@@ -2126,6 +2130,7 @@ int Init_SegaCD(char *iso_name)
 	YX5200_Close();
 	Flash_CFI_Init(0);
 	SVP_Close();
+	SF_Close();
 	Mapper_Init(2);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	Gens64_M68K_Settings(0);
 	M68K_Reset(2,1);

@@ -103,6 +103,7 @@ set(GENS_C_CXX_SOURCES
   src/flash_cfi.c
   src/svp.c
   src/ssp16.c
+  src/sfteam.c
   src/z80dis.c
   dependencies/mp3_dec/common.c
   dependencies/mp3_dec/dct64_i386.c
