@@ -13,6 +13,7 @@
 #include "cd_sys.h"
 #include "gens64_addr.h"
 #include "yx5200.h"
+#include "svp.h"
 #include "paprium.h"
 
 
@@ -80,6 +81,15 @@ void M68K_Update_Fetch(void)
 	M68K_Fetch[0].lowaddr = 0x000000;
 	M68K_Fetch[0].highaddr = Rom_Size - 1;
 	M68K_Fetch[0].offset = GA(&Rom_Data[0]) - 0x000000;
+	if (SVP_On)
+	{
+		/* gens64: code in the SVP DRAM (docs/svp.md) */
+		M68K_Fetch[1].lowaddr = 0x300000;
+		M68K_Fetch[1].highaddr = 0x31FFFF;
+		M68K_Fetch[1].offset = GA(&svp->dram[0]) - 0x300000;
+		ram_fetch(2);
+		return;
+	}
 	ram_fetch(1);
 }
 
@@ -331,6 +341,12 @@ void M68K_Reset(int System_ID, char Hard)
 		Mapper_Reset();	/* gens64: ROMs over 6 MB (nothing otherwise) */
 		if (YX5200_On)
 			YX5200_Reset();	/* gens64: MP3 player (docs/yx5200.md) */
+		if (SVP_On)
+		{
+			SVP_Reset(Hard);	/* gens64: Virtua Racing's DSP (docs/svp.md) */
+			if (Hard)
+				M68K_Update_Fetch();	/* + the DRAM fetch region */
+		}
 	}
  	main68k_reset();
  

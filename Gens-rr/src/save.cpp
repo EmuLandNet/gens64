@@ -32,6 +32,7 @@
 #include "paprium.h"
 #include "eeprom_spi.h"
 #include "flash_cfi.h"
+#include "svp.h"
 #include "ggenie.h"
 #include "io.h"
 #include "misc.h"
@@ -283,6 +284,11 @@ int Load_State_From_Buffer(unsigned char *buf)
 		Flash_CFI_Load(buf);
 		buf += FLASH_CFI_STATE_SIZE;
 	}
+	if (SVP_On && !SegaCD_Started && !_32X_Started) // gens64: Virtua Racing's DSP (docs/svp.md)
+	{
+		SVP_Load(buf);
+		buf += SVP_STATE_SIZE;
+	}
 	if (SegaCD_Started)
 	{
 		buf += Import_SegaCD(buf); // Uncommented - function now exists
@@ -389,6 +395,8 @@ int Load_State(char *Name)
 			len += EEPROM_SPI_STATE_SIZE;
 		if (Flash_CFI_On) // gens64: Four Winds' flash save (docs/yx5200.md)
 			len += FLASH_CFI_STATE_SIZE;
+		if (SVP_On) // gens64: Virtua Racing's DSP (docs/svp.md)
+			len += SVP_STATE_SIZE;
 		fseek(f, 0, SEEK_SET);
 	}
 
@@ -603,6 +611,7 @@ int Save_State_To_Buffer (unsigned char *buf)
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM && !SegaCD_Started && !_32X_Started) len += PAPRIUM_STATE_SIZE; // gens64 (docs/paprium.md)
 	if (Rom_Mapper == ROM_MAPPER_T5740 && !SegaCD_Started && !_32X_Started) len += EEPROM_SPI_STATE_SIZE; // gens64 (docs/large-roms.md)
 	if (Flash_CFI_On && !SegaCD_Started && !_32X_Started) len += FLASH_CFI_STATE_SIZE; // gens64 (docs/yx5200.md)
+	if (SVP_On && !SegaCD_Started && !_32X_Started) len += SVP_STATE_SIZE; // gens64 (docs/svp.md)
 
 	memset(buf, 0, len);
 
@@ -627,6 +636,11 @@ int Save_State_To_Buffer (unsigned char *buf)
 	{
 		Flash_CFI_Save(buf);
 		buf += FLASH_CFI_STATE_SIZE;
+	}
+	if (SVP_On && !SegaCD_Started && !_32X_Started)
+	{
+		SVP_Save(buf);
+		buf += SVP_STATE_SIZE;
 	}
 	if (SegaCD_Started)
 	{

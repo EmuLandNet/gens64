@@ -118,6 +118,7 @@ __asm__(
 
 /* other modules */
 extern u8 Rom_Data[];
+#include "svp.h"
 extern u32 Rom_Size;
 extern u32 Rom_Mapper, Rom_Page[32];	/* gens64: mapper for ROMs over 6 MB (Mem_M68k_asm.c) */
 extern u32 M68K_Speed;	/* gens64: 68000 speed in % and 2 MB RAM (Mem_M68k_asm.c, docs/overclock.md) */
@@ -342,6 +343,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 	case 0: src &= 0x003FFFFE; break;
 	case 9: src &= 0x00FFFFFE; break;	/* gens64: ROM through the mapper (ROMs over 6 MB) */
 	case 11: src &= 0x00FFFFFE; break;	/* gens64: Paprium (docs/paprium.md) */
+	case 12: src &= 0x00FFFFFE; break;	/* gens64: SVP (docs/svp.md) */
 	case 10: src = (src - 0xE00000) & 0x1FFFFE; break;	/* gens64: 2 MB RAM, E00000-FEFFFF */
 	case 1: src &= 0xFFFE; break;
 	case 2: src = (src & 0x0001FFFE) + (u32)Bank_M68K; break;
@@ -361,6 +363,14 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 	}
 	V.Ctrl.DMA = 0;
 
+	if (sel == 12)
+	{
+		/* gens64: SVP, as GPGX: the source word is one bus cycle late, so the first word
+		   written is stale (skipped: destination + increment) and the last source word is lost */
+		bx = (bx & 0xFFFF0000) | ((bx + inc) & 0xFFFF);
+		if (!--len)
+			goto end_dma;
+	}
 	do
 	{
 		u32 di = bx & 0xFFFF;
@@ -370,6 +380,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 		case 0: w = *(u16 *)(Rom_Data + src); src += 2; break;
 		case 9: w = *(u16 *)(Rom_Data + Rom_Page[(src >> 19) & 31] + (src & 0x7FFFF)); src += 2; break;
 		case 11: w = (u16)Paprium_DMA_Word(src); src += 2; break;
+		case 12: w = (u16)SVP_Read_Word(src); src = (src & 0xFFFE0000) | ((src + 2) & 0x1FFFF); break;
 		case 10: w = *(u16 *)(Ram_Ext + src); src = (src + 2) % 0x1F0000; break;
 		case 1: w = *(u16 *)(Ram_68k + src); src = (src & 0xFFFF0000) | ((src + 2) & 0xFFFF); break;
 		case 2: w = *(u16 *)(Ram_Prg + src); src += 2; break;
@@ -388,6 +399,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 		bx = (bx & 0xFFFF0000) | ((bx + inc) & 0xFFFF);
 	} while (--len);
 
+end_dma:
 	/* .End_DMA */
 	{
 		u32 n = REG[R_DMA_LENGTH];
@@ -470,6 +482,9 @@ static void do_dma(u32 t)
 			}
 		}
 	}
+	/* gens64: SVP: everything below 400000 (ROM, DRAM, cell views) goes through the chip's glue */
+	if (SVP_On && src < 0x400000)
+		sel = 12;
 	/* gens64: 2 MB RAM: E00000-FEFFFF is its own memory */
 	if (sel == 1 && Ram_68k_2MB && src >= 0xE00000 && src < 0xFF0000)
 		sel = 10;

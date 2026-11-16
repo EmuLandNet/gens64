@@ -20,6 +20,7 @@
 #include "paprium.h"
 #include "eeprom_spi.h"
 #include "flash_cfi.h"
+#include "svp.h"
 
 #ifndef ROM_DATA_MAX
 #define ROM_DATA_MAX (32 * 1024 * 1024)	/* as in Mem_M68k.h */
@@ -291,6 +292,12 @@ static u32 M68K_Read_Byte_Misc(u32 a)
 		return busreq_read_byte(CYCLE_FOR_TAKE_Z80_BUS_GENESIS);
 	if (Rom_Mapper == ROM_MAPPER_T5740 && a >= 0xA13000 && a <= 0xA130FF)
 		return EEPROM_SPI_Read();	/* gens64: SPI EEPROM output (docs/large-roms.md) */
+	if (SVP_On && (a & 0xFFFF00) == 0xA15000)
+	{
+		u32 d;	/* gens64: SVP registers (docs/svp.md) */
+		if (SVP_Reg_Read(a, 0, &d))
+			return d;
+	}
 	if (a > 0xA1000D)
 		return 0;
 	return io_read_byte(a, 1);
@@ -367,6 +374,12 @@ static u32 M68K_Read_Word_Misc(u32 a)
 		return busreq_read_word(CYCLE_FOR_TAKE_Z80_BUS_GENESIS, 1);
 	if (Rom_Mapper == ROM_MAPPER_T5740 && a >= 0xA13000 && a <= 0xA130FF)
 		return EEPROM_SPI_Read();
+	if (SVP_On && (a & 0xFFFF00) == 0xA15000)
+	{
+		u32 d;
+		if (SVP_Reg_Read(a, 1, &d))
+			return d;
+	}
 	if (a > 0xA1000D)
 		return 0;
 	return io_read_word(a, 1);
@@ -534,6 +547,8 @@ static void M68K_Write_Word_Misc(u32 a, u32 d)
 	}
 	if (Rom_Mapper && a >= 0xA13000 && a <= 0xA130FF && mapper_write(a, d, 1))
 		return;
+	if (SVP_On && (a & 0xFFFF00) == 0xA15000 && SVP_Reg_Write_Word(a, d))
+		return;	/* gens64: SVP XST (docs/svp.md) */
 	if (YX5200_On && a >= 0xA13000 && a <= 0xA130FF)
 	{
 		YX5200_Write(d & 1);
@@ -1840,6 +1855,40 @@ static void flash_ww(u32 a, u32 d)
 	else
 		Flash_CFI_Write(a >> 1, d & 0xFFFF);
 }
+/* gens64: SVP (svp.c, docs/svp.md): DRAM at 300000-31FFFF, its cell views at 390000-3AFFFF */
+static int svp_area(u32 a)
+{
+	return (a >= 0x300000 && a < 0x320000) || (a >= 0x390000 && a < 0x3B0000);
+}
+static u32 svp_rb(u32 a)
+{
+	return svp_area(a) ? SVP_Read_Byte(a) : ((rd_t)D.Genesis_RB[(a >> 19) & 0x1F])(a);
+}
+static u32 svp_rw(u32 a)
+{
+	return svp_area(a) ? SVP_Read_Word(a) : ((rd_t)D.Genesis_RW[(a >> 19) & 0x1F])(a);
+}
+static void svp_wb(u32 a, u32 d)
+{
+	if (a >= 0x300000 && a < 0x320000)
+		SVP_Write_Byte(a, d & 0xFF);
+	else
+		((wr_t)D.Genesis_WB[(a >> 20) & 0xF])(a, d);
+}
+static void svp_ww(u32 a, u32 d)
+{
+	if (a >= 0x300000 && a < 0x320000)
+		SVP_Write_Word(a, d & 0xFFFF);
+	else
+		((wr_t)D.Genesis_WW[(a >> 20) & 0xF])(a, d);
+}
+static void svp_install(void)
+{
+	D.RB[6] = (void *)svp_rb; D.RW[6] = (void *)svp_rw;
+	D.RB[7] = (void *)svp_rb; D.RW[7] = (void *)svp_rw;
+	D.WB[3] = (void *)svp_wb; D.WW[3] = (void *)svp_ww;
+}
+
 static void flash_install(void)
 {
 	D.RB[0] = (void *)flash_rb; D.RW[0] = (void *)flash_rw;
@@ -1902,6 +1951,8 @@ void Init_Memory_M68K(int System_ID)
 		mapper_install();
 	else if (Flash_CFI_On)
 		flash_install();
+	else if (SVP_On)
+		svp_install();
 }
 
 u32 M68K_RB(u32 adr)

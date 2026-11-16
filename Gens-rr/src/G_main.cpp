@@ -8294,6 +8294,9 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
 				"CFI flash save (The Secret Of The Four Winds)" "\r\n"
 				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
+				"SVP (Virtua Racing): SSP1601 DSP interpreter" "\r\n"
+				"(c) 2008 Grazvydas \"notaz\" Ignotas," "\r\n"
+				"as modified for Genesis Plus GX by Eke-Eke" "\r\n" "\r\n"
 				"MP3 decoding: minimp3 by lieff (public domain)"
 			);
 
