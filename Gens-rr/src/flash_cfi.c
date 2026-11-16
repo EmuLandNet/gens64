@@ -10,6 +10,15 @@
 
 extern unsigned char SRAM[64 * 1024];
 
+#ifdef FLASH_TRACE
+#include <stdio.h>
+static FILE *tf;
+extern unsigned main68k_readPC(void);
+#define TRACE(...) do { if (!tf) tf = fopen("flash_trace.txt", "w"); fprintf(tf, __VA_ARGS__); fflush(tf); } while (0)
+#else
+#define TRACE(...) ((void)0)
+#endif
+
 #define CFI_QUERY_TABLE_LEN 0x41
 #define SAVE_BANK 0x3F
 
@@ -53,6 +62,7 @@ void Flash_CFI_Init(int on)
 	int i;
 	memset(&flash, 0, sizeof(flash));
 	Flash_CFI_On = on;
+	TRACE("init %d\n", on);
 	if (!on)
 		return;
 	/* no .srm yet (all zero): an erased sector reads FF, as in Genesis Plus GX */
@@ -67,9 +77,11 @@ int Flash_CFI_Busy(void)
 	return flash.mode != FLASH_READ;
 }
 
+
 void Flash_CFI_Write(unsigned int address, unsigned int data)
 {
 	unsigned int index = (address >> 15) & 0xff;	/* 64 KB bank (address in words) */
+	TRACE("W %06X %04X mode %u pc %06X\n", address << 1, data, flash.mode, main68k_readPC());
 
 	if (flash.mode == FLASH_PROGRAM)
 	{
@@ -152,6 +164,8 @@ void Flash_CFI_Write(unsigned int address, unsigned int data)
 
 unsigned int Flash_CFI_Read(unsigned int address)
 {
+	if (flash.mode != FLASH_READ)
+		TRACE("R %06X mode %u\n", address << 1, flash.mode);
 	switch (flash.mode)
 	{
 	case FLASH_OTP_ENABLED:
@@ -178,11 +192,14 @@ unsigned int Flash_CFI_Read(unsigned int address)
 void Flash_CFI_Save(unsigned char *d)
 {
 	memset(d, 0, FLASH_CFI_STATE_SIZE);
+	TRACE("save %X %X %u\n", flash.addr, flash.data, flash.mode);
 	d[0] = 'F';
-	d[1] = (unsigned char)flash.addr;
+	d[1] = (unsigned char)flash.addr;	/* in words, up to 7FFFFF after a program write */
 	d[2] = (unsigned char)(flash.addr >> 8);
-	d[3] = (unsigned char)flash.data;
-	d[4] = (unsigned char)flash.mode;
+	d[3] = (unsigned char)(flash.addr >> 16);
+	d[4] = (unsigned char)flash.data;
+	d[5] = (unsigned char)(flash.data >> 8);
+	d[6] = (unsigned char)flash.mode;
 }
 
 void Flash_CFI_Load(const unsigned char *d)
@@ -190,7 +207,7 @@ void Flash_CFI_Load(const unsigned char *d)
 	memset(&flash, 0, sizeof(flash));
 	if (d[0] != 'F')
 		return;
-	flash.addr = d[1] | (unsigned int)d[2] << 8;
-	flash.data = d[3];
-	flash.mode = d[4] <= FLASH_OTP_EXIT_UNLOCKED ? d[4] : FLASH_READ;
+	flash.addr = d[1] | (unsigned int)d[2] << 8 | (unsigned int)d[3] << 16;
+	flash.data = d[4] | (unsigned int)d[5] << 8;
+	flash.mode = d[6] <= FLASH_OTP_EXIT_UNLOCKED ? d[6] : FLASH_READ;
 }
