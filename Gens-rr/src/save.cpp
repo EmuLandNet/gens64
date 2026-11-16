@@ -29,6 +29,7 @@
 #include "lc89510.h"
 #include "scrshot.h"
 #include "yx5200.h"
+#include "paprium.h"
 #include "ggenie.h"
 #include "io.h"
 #include "misc.h"
@@ -265,6 +266,11 @@ int Load_State_From_Buffer(unsigned char *buf)
 		memcpy(Ram_Ext, buf, RAM_EXT_SIZE);
 		buf += RAM_EXT_SIZE;
 	}
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM && !SegaCD_Started && !_32X_Started) // gens64: docs/paprium.md
+	{
+		Paprium_Load(buf);
+		buf += PAPRIUM_STATE_SIZE;
+	}
 	if (SegaCD_Started)
 	{
 		buf += Import_SegaCD(buf); // Uncommented - function now exists
@@ -365,6 +371,8 @@ int Load_State(char *Name)
 		fseek(f, GENESIS_SETTINGS_OFFSET, SEEK_SET);
 		if (fread(st, 1, 4, f) == 4 && st[0] == 'S' && (st[3] & 1))
 			len += RAM_EXT_SIZE;
+		if (Rom_Mapper == ROM_MAPPER_PAPRIUM) // gens64: Paprium's chip (docs/paprium.md)
+			len += PAPRIUM_STATE_SIZE;
 		fseek(f, 0, SEEK_SET);
 	}
 
@@ -576,6 +584,7 @@ int Save_State_To_Buffer (unsigned char *buf)
 	else if (_32X_Started) len += G32X_LENGTH_EX; //upthmodif - fixed for new, additive, length determination
 
 	if (Ram_68k_2MB) len += RAM_EXT_SIZE; // gens64 (docs/overclock.md)
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM && !SegaCD_Started && !_32X_Started) len += PAPRIUM_STATE_SIZE; // gens64 (docs/paprium.md)
 
 	memset(buf, 0, len);
 
@@ -585,6 +594,11 @@ int Save_State_To_Buffer (unsigned char *buf)
 	{
 		memcpy(buf, Ram_Ext, RAM_EXT_SIZE);
 		buf += RAM_EXT_SIZE;
+	}
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM && !SegaCD_Started && !_32X_Started)
+	{
+		Paprium_Save(buf);
+		buf += PAPRIUM_STATE_SIZE;
 	}
 	if (SegaCD_Started)
 	{

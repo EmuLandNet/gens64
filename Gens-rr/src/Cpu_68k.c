@@ -13,6 +13,7 @@
 #include "cd_sys.h"
 #include "gens64_addr.h"
 #include "yx5200.h"
+#include "paprium.h"
 
 
 #define GENESIS 0
@@ -86,6 +87,11 @@ void M68K_Set_Rom_Fetch(void)
 {
 	int n = 0;
 	unsigned i = 0;
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
+	{
+		ram_fetch(Paprium_Fetch(M68K_Fetch));	/* the chip's RAM at 000000-00FFFF (docs/paprium.md) */
+		return;
+	}
 	while (i < 20)
 	{
 		unsigned j = i + 1;

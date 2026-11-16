@@ -1428,6 +1428,7 @@ typedef unsigned __int32 uint32_t;
 typedef unsigned __int64 uint64_t;
 #else
 #include <stdint.h>
+#include "paprium.h"
 #endif
 
 typedef int32_t SBits;
@@ -2276,6 +2277,7 @@ DEFINE_LUA_FUNCTION(state_create, "[location]")
 	if (!Game)
 		len += max(SEGACD_LENGTH_EX, G32X_LENGTH_EX);
 	if (Ram_68k_2MB || Ram_2MB_Setting) len += RAM_EXT_SIZE; // gens64: 2 MB RAM (docs/overclock.md)
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM) len += PAPRIUM_STATE_SIZE; // gens64: docs/paprium.md
 
 	// allocate the in-memory/anonymous savestate
 	unsigned char* stateBuffer = (unsigned char*)lua_newuserdata(L, len + 16); // 16 is for performance alignment reasons

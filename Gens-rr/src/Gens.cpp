@@ -34,6 +34,7 @@
 #include "ram_search.h"
 #include "luascript.h"
 #include "yx5200.h"
+#include "paprium.h"
 
 
 // uncomment this to run a simple test every frame for potential desyncs
@@ -1279,6 +1280,8 @@ int Do_Genesis_Frame(bool fast)
 		PSG_Special_Update();
 		YM2612_Special_Update();
 	}
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM) // gens64: the cartridge's processor, every frame (docs/paprium.md)
+		Paprium_Frame(CPU_Mode);
 	if (YX5200_On) // gens64: MP3 music of the KAISER WAVE board (docs/yx5200.md); advances with sound off too
 	{
 		int *yxbuf[2] = {LeftAudioBuffer(), RightAudioBuffer()};

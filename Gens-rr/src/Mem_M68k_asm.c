@@ -17,6 +17,7 @@
 #include "SH2.h"
 #include "gens64_addr.h"
 #include "yx5200.h"
+#include "paprium.h"
 
 #ifndef ROM_DATA_MAX
 #define ROM_DATA_MAX (32 * 1024 * 1024)	/* as in Mem_M68k.h */
@@ -1587,6 +1588,16 @@ static void M68K_Write_Word_Mapped(u32 a, u32 d)
 static void mapper_update(void)
 {
 	u32 i;
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
+	{
+		/* gens64: Paprium has no bank registers (docs/paprium.md) */
+		for (i = 0; i < 20; i++)
+			Rom_Page[i] = (i << 19) & Rom_Mask;
+		for (i = 20; i < 32; i++)
+			Rom_Page[i] = 0;
+		M68K_Set_Rom_Fetch();
+		return;
+	}
 	Rom_Page[0] = (Rom_Mapper == 2) ? ((u32)(Mapper_Bank[0] & 0x1F) << 19) & Rom_Mask : 0;
 	for (i = 1; i < 8; i++)
 		Rom_Page[i] = ((u32)Mapper_Bank[i] << 19) & Rom_Mask;
@@ -1607,6 +1618,8 @@ void Mapper_Reset(void)
 		Mapper_Bank[i] = (u8)i;
 	Mapper_Ctrl = 0;
 	mapper_update();
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
+		Paprium_Reset();	/* gens64: the cartridge's processor (docs/paprium.md) */
 }
 
 /* after loading a savestate (Mapper_Bank/Mapper_Ctrl restored) */
@@ -1630,6 +1643,9 @@ void Mapper_Init(int system)
 	if (B.Rom_Size < size)
 		memset(Rom_Data + B.Rom_Size, 0xFF, size - B.Rom_Size);
 	/* "SEGA SSF" (the header is byteswapped in Rom_Data) */
+	if (Paprium_Detect())
+		Rom_Mapper = ROM_MAPPER_PAPRIUM;	/* gens64: docs/paprium.md */
+	else
 	Rom_Mapper = (Rom_Data[0x101] == 'S' && Rom_Data[0x100] == 'E' && Rom_Data[0x103] == 'G' && Rom_Data[0x102] == 'A' &&
 		Rom_Data[0x105] == ' ' && Rom_Data[0x104] == 'S' && Rom_Data[0x107] == 'S' && Rom_Data[0x106] == 'F') ? 2 : 1;
 	if (Rom_Mapper == 2 && size < 16 * 1024 * 1024)
@@ -1646,6 +1662,8 @@ void Mapper_Init(int system)
 static int mapper_write(u32 a, u32 d, int word)
 {
 	u32 r = (a & 0xE) >> 1;
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
+		return 1;	/* no bank registers, no SRAM window (docs/paprium.md) */
 	if (Rom_Mapper == 2)
 	{
 		if ((a & 0xF0) != 0xF0)
@@ -1699,6 +1717,8 @@ static void mapper_install(void)
 		D.WB[i] = (void *)M68K_Write_Byte_Mapped;
 		D.WW[i] = (void *)M68K_Write_Word_Mapped;
 	}
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
+		Paprium_Install(D.RB, D.RW, D.WB, D.WW);	/* gens64: docs/paprium.md */
 }
 
 /* ======================= entry points ======================= */

@@ -23,7 +23,7 @@ extern "C" {
 #define G32X_LENGTH_EX            G32X_V9_LENGTH_EX
 
 // gens64: + the 2 MB RAM (1984 KB after the Genesis block, Genesis only: docs/overclock.md)
-#define MAX_STATE_FILE_LENGTH (GENESIS_STATE_LENGTH + SEGACD_LENGTH_EX + G32X_LENGTH_EX + 0x1F0000)
+#define MAX_STATE_FILE_LENGTH (GENESIS_STATE_LENGTH + SEGACD_LENGTH_EX + G32X_LENGTH_EX + 0x1F0000 + 0x47000) // gens64: + 2 MB RAM (docs/overclock.md), + Paprium (PAPRIUM_STATE_SIZE, docs/paprium.md)
 // gens64: 'S', 68000 speed and 2 MB RAM flag in the alignment padding before H_Counter_Table
 #define GENESIS_SETTINGS_OFFSET 0x33EB4
 

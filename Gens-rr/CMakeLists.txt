@@ -160,3 +160,13 @@ endif()
 target_link_libraries(Gens PRIVATE
   ${GENS_IMAGE_LIBS}
   htmlhelp vfw32 dsound ddraw dinput dxguid winmm wsock32 comdlg32 comctl32 shell32 ole32 oleaut32 uuid gdi32 user32 advapi32)
+
+# Paprium (T-574120-00): high-level emulation of the cartridge's processor, all in src/paprium.c
+# (docs/paprium.md). OFF leaves it out: the hooks become empty and the ROM does not boot.
+option(GENS64_PAPRIUM "Paprium cartridge processor (src/paprium.c)" ON)
+if(GENS64_PAPRIUM)
+  target_sources(Gens PRIVATE src/paprium.c)
+  target_compile_definitions(Gens PRIVATE GENS64_PAPRIUM)
+  set_source_files_properties(src/paprium.c PROPERTIES COMPILE_OPTIONS "-std=gnu99")
+endif()
+

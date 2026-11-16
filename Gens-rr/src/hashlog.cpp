@@ -43,6 +43,7 @@
 #include "SH2.h"
 #include "gfx_cd.h"
 #include <windows.h>
+#include "paprium.h"
 
 extern "C" struct S68000CONTEXT main68k_context;
 extern "C" struct S68000CONTEXT sub68k_context;
@@ -166,6 +167,8 @@ void HashLog_OnFrame(int rendered)
 	// --- hash per section ---
 	// gens64: with the 2 MB RAM (docs/overclock.md) it follows the Genesis block and is part of its hash
 	int glen = GENESIS_STATE_LENGTH + (Ram_68k_2MB ? RAM_EXT_SIZE : 0);
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM && !SegaCD_Started && !_32X_Started)
+		glen += PAPRIUM_STATE_SIZE; // gens64: Paprium's chip (docs/paprium.md)
 	unsigned long long hg = fnv1a64(hashBuf, glen);
 	char cd[24] = "-", x32[24] = "-";
 	const unsigned char *p = hashBuf + glen;

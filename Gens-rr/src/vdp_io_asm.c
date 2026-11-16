@@ -16,6 +16,7 @@
  * in ecx across two calls) preserve ecx/edx, through thin asm wrappers.
  */
 #include "gens64_addr.h"
+#include "paprium.h"
 
 typedef unsigned char u8;
 typedef unsigned short u16;
@@ -331,6 +332,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 	{
 	case 0: src &= 0x003FFFFE; break;
 	case 9: src &= 0x00FFFFFE; break;	/* gens64: ROM through the mapper (ROMs over 6 MB) */
+	case 11: src &= 0x00FFFFFE; break;	/* gens64: Paprium (docs/paprium.md) */
 	case 10: src = (src - 0xE00000) & 0x1FFFFE; break;	/* gens64: 2 MB RAM, E00000-FEFFFF */
 	case 1: src &= 0xFFFE; break;
 	case 2: src = (src & 0x0001FFFE) + (u32)Bank_M68K; break;
@@ -358,6 +360,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 		{
 		case 0: w = *(u16 *)(Rom_Data + src); src += 2; break;
 		case 9: w = *(u16 *)(Rom_Data + Rom_Page[(src >> 19) & 31] + (src & 0x7FFFF)); src += 2; break;
+		case 11: w = (u16)Paprium_DMA_Word(src); src += 2; break;
 		case 10: w = *(u16 *)(Ram_Ext + src); src = (src + 2) % 0x1F0000; break;
 		case 1: w = *(u16 *)(Ram_68k + src); src = (src & 0xFFFF0000) | ((src + 2) & 0xFFFF); break;
 		case 2: w = *(u16 *)(Ram_Prg + src); src += 2; break;
@@ -440,6 +443,8 @@ static void do_dma(u32 t)
 	{
 		/* gens64: ROMs over 6 MB: 000000-9FFFFF is the ROM through the mapper, the rest RAM */
 		sel = (src < 0xA00000) ? 9 : 1;
+		if (sel == 9 && Rom_Mapper == ROM_MAPPER_PAPRIUM)
+			sel = 11;	/* the chip's RAM and the ROM (docs/paprium.md) */
 	}
 	else if (src >= Rom_Size)
 	{
