@@ -16,6 +16,7 @@
 #include "z80.h"
 #include "SH2.h"
 #include "gens64_addr.h"
+#include "yx5200.h"
 
 #ifndef ROM_DATA_MAX
 #define ROM_DATA_MAX (32 * 1024 * 1024)	/* as in Mem_M68k.h */
@@ -458,6 +459,11 @@ static void M68K_Write_Byte_Misc(u32 a, u32 d)
 	}
 	if (Rom_Mapper && a >= 0xA13000 && a <= 0xA130FF && mapper_write(a, d, 0))
 		return;
+	if (YX5200_On && a >= 0xA13000 && a <= 0xA130FF && !(a & 1))
+	{
+		YX5200_Write(d & 1);	/* gens64: KAISER WAVE /UWR: D0 is the MP3 player's RX line (docs/yx5200.md) */
+		return;
+	}
 	if (a < 0xA130F1)
 		return;
 	if (a == 0xA130F1)
@@ -521,6 +527,11 @@ static void M68K_Write_Word_Misc(u32 a, u32 d)
 	}
 	if (Rom_Mapper && a >= 0xA13000 && a <= 0xA130FF && mapper_write(a, d, 1))
 		return;
+	if (YX5200_On && a >= 0xA13000 && a <= 0xA130FF)
+	{
+		YX5200_Write(d & 1);
+		return;
+	}
 	if (a < 0xA130F0)
 		return;
 	if (a == 0xA130F0)

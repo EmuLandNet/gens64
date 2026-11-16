@@ -33,6 +33,7 @@
 #include "scrshot.h"
 #include "ram_search.h"
 #include "luascript.h"
+#include "yx5200.h"
 
 
 // uncomment this to run a simple test every frame for potential desyncs
@@ -846,6 +847,7 @@ void Init_Genesis_Bios(void)
 	Game_Mode = 0;
 	CPU_Mode = 0;
 	VDP_Num_Vis_Lines = 224;
+	YX5200_Close();
 	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	Gens64_M68K_Settings(0);
 	M68K_Reset(0,1);
@@ -954,6 +956,7 @@ int Init_Genesis(struct Rom *MD_Rom)
 
 	M68K_Init(); // Modif N. -- added for symmetry, maybe it helps something
 	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
+	YX5200_Init();	// gens64: MP3 player of the KAISER WAVE board (docs/yx5200.md)
 	Gens64_M68K_Settings(1);	// gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
 	M68K_Reset(0,1);
 	Z80_Reset();
@@ -1276,6 +1279,11 @@ int Do_Genesis_Frame(bool fast)
 		PSG_Special_Update();
 		YM2612_Special_Update();
 	}
+	if (YX5200_On) // gens64: MP3 music of the KAISER WAVE board (docs/yx5200.md); advances with sound off too
+	{
+		int *yxbuf[2] = {LeftAudioBuffer(), RightAudioBuffer()};
+		YX5200_Update(disableSound ? NULL : yxbuf, Seg_Length);
+	}
 	if(!disableSound && !disableSound2)
 	{
 		if (WAV_Dumping) Update_WAV_Dump();
@@ -1531,6 +1539,7 @@ int Init_32X(struct Rom *MD_Rom)
 
 	MSH2_Reset();
 	SSH2_Reset();
+	YX5200_Close();
 	Mapper_Init(1);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	Gens64_M68K_Settings(0);
 	M68K_Reset(1,1);
@@ -2093,6 +2102,7 @@ int Init_SegaCD(char *iso_name)
 	Byte_Swap(Rom_Data, Rom_Size);
 
 	M68K_Init(); // Modif N. -- added for symmetry, maybe it helps something
+	YX5200_Close();
 	Mapper_Init(2);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	Gens64_M68K_Settings(0);
 	M68K_Reset(2,1);

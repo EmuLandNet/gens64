@@ -23,6 +23,7 @@
 #include "luascript.h"
 #include "OpenArchive.h"
 #include <assert.h>
+#include "yx5200.h"
 
 
 int File_Type_Index;
@@ -752,6 +753,7 @@ void Free_Rom(Rom *Rom_MD)
 	if (WAV_Dumping) Stop_WAV_Dump();
 	if (GYM_Dumping) Stop_GYM_Dump();
 	if (SegaCD_Started) Stop_CD();
+	YX5200_Close(); // gens64: closes the MP3 track (docs/yx5200.md)
 	Net_Play = 0;
 	Genesis_Started = 0;
 	_32X_Started = 0;

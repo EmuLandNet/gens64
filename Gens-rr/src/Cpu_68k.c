@@ -12,6 +12,7 @@
 #include "io.h"
 #include "cd_sys.h"
 #include "gens64_addr.h"
+#include "yx5200.h"
 
 
 #define GENESIS 0
@@ -320,7 +321,11 @@ void M68K_Reset(int System_ID, char Hard)
 		}
  	}
 	if (System_ID == GENESIS)
+	{
 		Mapper_Reset();	/* gens64: ROMs over 6 MB (nothing otherwise) */
+		if (YX5200_On)
+			YX5200_Reset();	/* gens64: MP3 player (docs/yx5200.md) */
+	}
  	main68k_reset();
  
  	Init_Memory_M68K(System_ID);

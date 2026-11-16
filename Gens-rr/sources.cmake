@@ -98,6 +98,7 @@ set(GENS_C_CXX_SOURCES
   src/unzip.c
   src/wave.c
   src/ym2612.c
+  src/yx5200.c
   src/z80dis.c
   dependencies/mp3_dec/common.c
   dependencies/mp3_dec/dct64_i386.c

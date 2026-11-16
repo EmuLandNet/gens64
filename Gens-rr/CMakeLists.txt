@@ -110,6 +110,9 @@ file(GLOB GENS_SRC_CXX RELATIVE ${R} ${R}/src/*.cpp)
 set_source_files_properties(${GENS_SRC_CXX} src/CCnet.c src/cd_file.c src/cd_sys.c
   PROPERTIES COMPILE_OPTIONS "-include;${R}/src/gens64_msgbox.h")
 
+# yx5200.c includes minimp3 (C99)
+set_source_files_properties(src/yx5200.c PROPERTIES COMPILE_OPTIONS "-std=gnu99")
+
 # --- the exe -----------------------------------------------------------------------------------------
 add_executable(Gens WIN32 ${GENS_C_CXX_SOURCES} ${GENS_7Z_SOURCES} ${GENS_STAR_SOURCES} ${GENS_ASM_OBJS} ${res_obj})
 add_dependencies(Gens gens64_version)

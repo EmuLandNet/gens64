@@ -28,6 +28,7 @@
 #include "pwm.h"
 #include "lc89510.h"
 #include "scrshot.h"
+#include "yx5200.h"
 #include "ggenie.h"
 #include "io.h"
 #include "misc.h"
@@ -1281,6 +1282,8 @@ int Import_Genesis(unsigned char * Data)
 				memcpy(Mapper_Bank, Data + offset + 1, 8);
 				Mapper_Ctrl = Data[offset + 9];
 			}
+			// gens64: the MP3 player's state takes the same padding ('Y', docs/yx5200.md)
+			YX5200_Load(Data[offset] == 'Y' ? Data + offset : NULL);
 			offset += 11; // alignment for performance
 		}
 	}
@@ -1548,6 +1551,8 @@ void Export_Genesis(unsigned char * Data)
 				memcpy(Data + offset + 1, Mapper_Bank, 8);
 				Data[offset + 9] = Mapper_Ctrl;
 			}
+			else if (YX5200_On) // gens64: MP3 player (4 MB ROMs, never with the mapper; docs/yx5200.md)
+				YX5200_Save(Data + offset);
 			offset += 11; // alignment for performance
 		}
 	}
