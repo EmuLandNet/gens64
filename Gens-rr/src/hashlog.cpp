@@ -175,7 +175,7 @@ void HashLog_OnFrame(int rendered)
 	if (Rom_Mapper == ROM_MAPPER_T5740 && !SegaCD_Started && !_32X_Started)
 		glen += EEPROM_SPI_STATE_SIZE; // gens64: Pier Solar's EEPROM (docs/large-roms.md)
 	if (Flash_CFI_On && !SegaCD_Started && !_32X_Started)
-		glen += FLASH_CFI_STATE_SIZE; // gens64: Four Winds' flash save (docs/yx5200.md)
+		glen += Flash_CFI_State_Size(); // gens64: flash save (docs/flash-save.md)
 	if (SVP_On && !SegaCD_Started && !_32X_Started)
 		glen += SVP_STATE_SIZE; // gens64: Virtua Racing's DSP (docs/svp.md)
 	unsigned long long hg = fnv1a64(hashBuf, glen);

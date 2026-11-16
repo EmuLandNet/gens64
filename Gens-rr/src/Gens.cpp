@@ -962,7 +962,7 @@ int Init_Genesis(struct Rom *MD_Rom)
 	M68K_Init(); // Modif N. -- added for symmetry, maybe it helps something
 	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
 	YX5200_Init();	// gens64: MP3 player of the KAISER WAVE board (docs/yx5200.md)
-	Flash_CFI_Init(YX5200_On == 2);	// gens64: Four Winds' flash save (docs/yx5200.md); before M68K_Reset installs the handlers
+	Flash_CFI_Init(1);	// gens64: flash save (Four Winds, Life on Mars, ColocoDX...; docs/flash-save.md); before M68K_Reset installs the handlers
 	SVP_Init();	// gens64: Virtua Racing's DSP, "SV" in the header (docs/svp.md); before M68K_Reset
 	Gens64_M68K_Settings(1);	// gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
 	M68K_Reset(0,1);

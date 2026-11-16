@@ -59,6 +59,7 @@
 #include "hexeditor.h"	// gens64: tools from Gens r57shell mod
 #include "m68k_debugwindow.h"
 #include "z80_debugwindow.h"
+extern "C" void Gens64_Clear_SRAM(void); // gens64: Mem_M68k_asm.c
 
 extern "C" void Read_To_68K_Space(int adr);
 #define MAPHACK
@@ -2620,7 +2621,7 @@ void BeginMoviePlayback()
 		{
 			Pre_Load_Rom(HWnd,Recent_Rom[0]);
 			MESSAGE_L("Genesis reseted", "Genesis reset")
-            if(MainMovie.ClearSRAM) memset(SRAM, 0, sizeof(SRAM));
+            if(MainMovie.ClearSRAM) Gens64_Clear_SRAM(); // gens64: FF for flash/EEPROM saves (docs/flash-save.md)
 		}
 		else if (_32X_Started)
 		{
@@ -3635,7 +3636,7 @@ dialogAgain: //Nitsuja added this
 						{
 							Pre_Load_Rom(HWnd,Recent_Rom[0]);
 							MESSAGE_L("Genesis reseted", "Genesis reset")
-			                memset(SRAM, 0, sizeof(SRAM));
+			                Gens64_Clear_SRAM();
 						}
 						else if (_32X_Started)
 						{
@@ -8292,7 +8293,7 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				"after Genesis Plus GX" "\r\n" "\r\n"
 				"Pier Solar (T-5740 board): mapper and SPI EEPROM" "\r\n"
 				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
-				"CFI flash save (The Secret Of The Four Winds)" "\r\n"
+				"CFI flash save (Four Winds, Life on Mars, ColocoDX," "\r\n" "SGDK flash-save homebrew)" "\r\n"
 				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
 				"SVP (Virtua Racing): SSP1601 DSP interpreter" "\r\n"
 				"(c) 2008 Grazvydas \"notaz\" Ignotas," "\r\n"

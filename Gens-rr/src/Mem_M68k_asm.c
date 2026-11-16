@@ -1819,39 +1819,45 @@ static void mapper_install(void)
 		Paprium_Install(D.RB, D.RW, D.WB, D.WW);	/* gens64: docs/paprium.md */
 }
 
-/* gens64: flash save of The Secret Of The Four Winds (flash_cfi.c, docs/yx5200.md): the chip
-   answers in 64 KB banks 0 (000000-00FFFF) and 3F (3F0000-3FFFFF, the save sector = SRAM);
-   everything else goes to the usual Genesis handlers */
-static int flash_bank(u32 a)
+/* gens64: flash save (flash_cfi.c, docs/flash-save.md): the chip answers in 64 KB bank 0 and in
+   the save sectors; the rest of their 512 KB / 1 MB handler slots goes to the handlers that were
+   there before (Genesis or the mapper of big ROMs) */
+static void *flash_prev_rb[32], *flash_prev_rw[32], *flash_prev_wb[16], *flash_prev_ww[16];
+static int flash_here(u32 a)
 {
-	return a < 0x10000 || (a >= 0x3F0000 && a <= 0x3FFFFF);
+	return Flash_CFI_Bank((a >> 16) & 0xFF);
+}
+static int flash_read_chip(u32 a)
+{
+	/* bank 0 is the ROM in read mode; the save sectors are always the chip's */
+	return flash_here(a) && ((a >> 16) || Flash_CFI_Busy());
 }
 static u32 flash_rw(u32 a)
 {
-	if (flash_bank(a) && (Flash_CFI_Busy() || a >= 0x3F0000))
+	if (flash_read_chip(a))
 		return Flash_CFI_Read(a >> 1) & 0xFFFF;
-	return ((rd_t)D.Genesis_RW[(a >> 19) & 0x1F])(a);
+	return ((rd_t)flash_prev_rw[(a >> 19) & 0x1F])(a);
 }
 static u32 flash_rb(u32 a)
 {
-	if (flash_bank(a) && (Flash_CFI_Busy() || a >= 0x3F0000))
+	if (flash_read_chip(a))
 	{
 		u32 d = Flash_CFI_Read(a >> 1);
 		return (a & 1) ? (d & 0xFF) : ((d >> 8) & 0xFF);
 	}
-	return ((rd_t)D.Genesis_RB[(a >> 19) & 0x1F])(a);
+	return ((rd_t)flash_prev_rb[(a >> 19) & 0x1F])(a);
 }
 static void flash_wb(u32 a, u32 d)
 {
-	if (!flash_bank(a))
-		((wr_t)D.Genesis_WB[(a >> 20) & 0xF])(a, d);
+	if (!flash_here(a))
+		((wr_t)flash_prev_wb[(a >> 20) & 0xF])(a, d);
 	else if (a & 1)	/* only /LWR is connected (GPGX, verified on the board) */
 		Flash_CFI_Write(a >> 1, (d & 0xFF) << 8 | (d & 0xFF));
 }
 static void flash_ww(u32 a, u32 d)
 {
-	if (!flash_bank(a))
-		((wr_t)D.Genesis_WW[(a >> 20) & 0xF])(a, d);
+	if (!flash_here(a))
+		((wr_t)flash_prev_ww[(a >> 20) & 0xF])(a, d);
 	else
 		Flash_CFI_Write(a >> 1, d & 0xFFFF);
 }
@@ -1891,13 +1897,55 @@ static void svp_install(void)
 
 static void flash_install(void)
 {
-	D.RB[0] = (void *)flash_rb; D.RW[0] = (void *)flash_rw;
-	D.RB[7] = (void *)flash_rb; D.RW[7] = (void *)flash_rw;
-	D.WB[0] = (void *)flash_wb; D.WW[0] = (void *)flash_ww;
-	D.WB[3] = (void *)flash_wb; D.WW[3] = (void *)flash_ww;
+	unsigned char list[8];
+	int i, n = Flash_CFI_Banks(list);
+	for (i = 0; i < n; i++)
+	{
+		u32 r = list[i] >> 3, w = list[i] >> 4;
+		if (D.RB[r] != (void *)flash_rb)
+		{
+			flash_prev_rb[r] = D.RB[r]; flash_prev_rw[r] = D.RW[r];
+			D.RB[r] = (void *)flash_rb; D.RW[r] = (void *)flash_rw;
+		}
+		if (D.WB[w] != (void *)flash_wb)
+		{
+			flash_prev_wb[w] = D.WB[w]; flash_prev_ww[w] = D.WW[w];
+			D.WB[w] = (void *)flash_wb; D.WW[w] = (void *)flash_ww;
+		}
+	}
 }
 
+#ifdef ROMW_TRACE
+#include <stdio.h>
+extern unsigned main68k_readPC(void);
+static void *romw_wb[4], *romw_ww[4];
+static FILE *romw_f;
+static void romw_log(char k, u32 a, u32 d)
+{
+	if (!romw_f) romw_f = fopen("romw_trace.txt", "w");
+	if (romw_f) { fprintf(romw_f, "%c %06X %04X pc %06X\n", k, a, d, main68k_readPC() & 0xFFFFFF); fflush(romw_f); }
+}
+static void romw_b(u32 a, u32 d) { romw_log('b', a, d); ((wr_t)romw_wb[(a >> 20) & 3])(a, d); }
+static void romw_w(u32 a, u32 d) { romw_log('w', a, d); ((wr_t)romw_ww[(a >> 20) & 3])(a, d); }
+static void romw_install(void)
+{
+	int i;
+	for (i = 0; i < 4; i++)
+	{
+		romw_wb[i] = D.WB[i]; romw_ww[i] = D.WW[i];
+		D.WB[i] = (void *)romw_b; D.WW[i] = (void *)romw_w;
+	}
+}
+#endif
+
 /* ======================= entry points ======================= */
+
+/* gens64: SRAM cleared for a movie that starts from power on: blank flash/EEPROM reads FF
+   (flash save, Pier Solar's SPI EEPROM), as with no .srm at load; other games: zeros, as r341 */
+void Gens64_Clear_SRAM(void)
+{
+	memset(B.SRAM, (Flash_CFI_On || Rom_Mapper == ROM_MAPPER_T5740) ? 0xFF : 0x00, 0x10000);
+}
 
 void Init_Memory_M68K(int System_ID)
 {
@@ -1949,10 +1997,13 @@ void Init_Memory_M68K(int System_ID)
 	}
 	if (Rom_Mapper)
 		mapper_install();
-	else if (Flash_CFI_On)
-		flash_install();
 	else if (SVP_On)
 		svp_install();
+	if (Flash_CFI_On)
+		flash_install();	/* after the mapper: ColocoDX (8 MB) */
+#ifdef ROMW_TRACE
+	romw_install();
+#endif
 }
 
 u32 M68K_RB(u32 adr)
