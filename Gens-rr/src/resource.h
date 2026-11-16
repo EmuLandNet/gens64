@@ -655,8 +655,8 @@
 #define ID_M68K_SPEED_150               40541
 #define ID_M68K_SPEED_200               40542
 #define ID_M68K_SPEED_300               40543
-#define ID_M68K_SPEED_400               40544
-#define ID_M68K_SPEED_800               40545
+#define ID_M68K_SPEED_500               40544
+#define ID_M68K_SPEED_700               40545
 #define ID_M68K_SPEED_1300              40546
 #define ID_M68K_SPEED_CUSTOM            40547
 #define ID_M68K_RAM_2MB                 40548

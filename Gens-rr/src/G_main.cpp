@@ -557,7 +557,7 @@ static int Change_32X_Layer(int command)
 }
 
 // gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
-static const int M68K_Speed_Presets[] = {100, 150, 200, 300, 400, 800, 1300};
+static const int M68K_Speed_Presets[] = {100, 150, 200, 300, 500, 700, 1300};
 #define M68K_SPEED_MIN 100
 #define M68K_SPEED_MAX 1300
 
@@ -4332,7 +4332,7 @@ dialogAgain: //Nitsuja added this
 					return 0;
 
 				case ID_M68K_SPEED_100: case ID_M68K_SPEED_150: case ID_M68K_SPEED_200: case ID_M68K_SPEED_300:
-				case ID_M68K_SPEED_400: case ID_M68K_SPEED_800: case ID_M68K_SPEED_1300:
+				case ID_M68K_SPEED_500: case ID_M68K_SPEED_700: case ID_M68K_SPEED_1300:
 					if (!M68K_Settings_Locked())
 						Gens64_Set_M68K_Settings(M68K_Speed_Presets[command - ID_M68K_SPEED_100], Ram_2MB_Setting, false);
 					return 0;
