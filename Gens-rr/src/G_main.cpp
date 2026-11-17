@@ -4609,7 +4609,7 @@ dialogAgain: //Nitsuja added this
 				case ID_HELP_ABOUT:
 					Clear_Sound_Buffer();
 					DialogsOpen++;
-					DialogBox(ghInstance, MAKEINTRESOURCE(ABOUTDIAL), hWnd, (DLGPROC) AboutProc);
+					DialogBoxW(ghInstance, MAKEINTRESOURCEW(ABOUTDIAL), hWnd, (DLGPROC) AboutProc);	// gens64: Unicode controls, see AboutProc
 					return 0;
 
 				case ID_HELP_HELP:
@@ -8247,6 +8247,17 @@ LRESULT CALLBACK VolumeProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 	return false;
 }
+// gens64: sets a control's text from a Windows-1252 string as Unicode
+static void SetDlgItemText1252(HWND hDlg, int id, const char *s)
+{
+	int n = MultiByteToWideChar(1252, 0, s, -1, NULL, 0);
+	wchar_t *w = (wchar_t *) malloc(n * sizeof(wchar_t));
+	if (!w) { SetDlgItemTextA(hDlg, id, s); return; }
+	MultiByteToWideChar(1252, 0, s, -1, w, n);
+	SetDlgItemTextW(hDlg, id, w);
+	free(w);
+}
+
 LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 {
 	RECT r;
@@ -8272,7 +8283,9 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 			SetWindowPos(hDlg, NULL, max(0, r.left + (dx1 - dx2)), max(0, r.top + (dy1 - dy2)), NULL, NULL, SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
 
-			SetDlgItemText(hDlg, IDC_EDIT1,
+			// gens64: the text is Windows-1252 (é in Stéphane); shown through Unicode, so
+			// it stays right whatever the system code page is
+			SetDlgItemText1252(hDlg, IDC_EDIT1,
 				"Original version (c) 1999/2002 by Stéphane Dallongeville" "\r\n" "\r\n"
 				// gens64: base version instead of the Gens RR links
 				"Based on Gens Re-Recording v11c (svn341)" "\r\n" "\r\n"
