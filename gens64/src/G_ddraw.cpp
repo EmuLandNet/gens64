@@ -502,17 +502,18 @@ int Clear_Primary_Screen(HWND hWnd)
 	}
 	else
 	{
-		p.x = p.y = 0;
-		GetClientRect(hWnd, &RD);
-		ClientToScreen(hWnd, &p);
-
-		RD.left = p.x;
-		RD.top = p.y;
-		RD.right += p.x;
-		RD.bottom += p.y;
-
-		if (RD.top < RD.bottom)
-			lpDDS_Primary->Blt(&RD, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx);
+		// gens64: cleared with GDI: a DirectDraw colour fill of the primary surface does not always
+		// reach the window (Windows 8/10/11 compose the desktop; Wine too at times), and the part of
+		// the window around the game picture kept old pictures and pieces of the menu
+		HDC dc = GetDC(hWnd);
+		if (dc)
+		{
+			GetClientRect(hWnd, &RD);
+			FillRect(dc, &RD, (HBRUSH) GetStockObject(BLACK_BRUSH));
+			ReleaseDC(hWnd, dc);
+			GdiFlush();
+		}
+		(void) p;
 	}
 
 	return 1;

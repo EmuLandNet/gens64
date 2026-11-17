@@ -1949,7 +1949,7 @@ BOOL Init(HINSTANCE hInst, int nCmdShow)
 	WndClass.hInstance = hInst;
 	WndClass.hIcon = LoadIcon(hInst, MAKEINTRESOURCE(IDI_SONIC));
 	WndClass.hCursor = LoadCursor(NULL, IDC_ARROW);
-	WndClass.hbrBackground = NULL;
+	WndClass.hbrBackground = (HBRUSH) GetStockObject(BLACK_BRUSH);	// gens64: black, not whatever was there (Windows 10/11, Wine)
 	WndClass.lpszMenuName = NULL;
 	WndClass.lpszClassName = "Gens";
 
