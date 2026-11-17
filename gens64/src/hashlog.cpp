@@ -169,18 +169,18 @@ void HashLog_OnFrame(int rendered)
 	M_Z80.BasePC = z80base;
 
 	// --- hash per section ---
-	// gens64: with the 2 MB RAM (docs/overclock.md) it follows the Genesis block and is part of its hash
+	// gens64: with the 2 MB RAM it follows the Genesis block and is part of its hash
 	int glen = GENESIS_STATE_LENGTH + (Ram_68k_2MB ? RAM_EXT_SIZE : 0);
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM && !SegaCD_Started && !_32X_Started)
-		glen += PAPRIUM_STATE_SIZE; // gens64: Paprium's chip (docs/paprium.md)
+		glen += PAPRIUM_STATE_SIZE; // gens64: Paprium's chip
 	if (Rom_Mapper == ROM_MAPPER_T5740 && !SegaCD_Started && !_32X_Started)
-		glen += EEPROM_SPI_STATE_SIZE; // gens64: Pier Solar's EEPROM (docs/large-roms.md)
+		glen += EEPROM_SPI_STATE_SIZE; // gens64: Pier Solar's EEPROM
 	if (Flash_CFI_On && !SegaCD_Started && !_32X_Started)
-		glen += Flash_CFI_State_Size(); // gens64: flash save (docs/flash-save.md)
+		glen += Flash_CFI_State_Size(); // gens64: flash save
 	if (SVP_On && !SegaCD_Started && !_32X_Started)
-		glen += SVP_STATE_SIZE; // gens64: Virtua Racing's DSP (docs/svp.md)
+		glen += SVP_STATE_SIZE; // gens64: Virtua Racing's DSP
 	if (SF_Type && !SegaCD_Started && !_32X_Started)
-		glen += SF_STATE_SIZE; // gens64: Super Fighter Team boards (docs/sfteam.md)
+		glen += SF_STATE_SIZE; // gens64: Super Fighter Team boards
 	unsigned long long hg = fnv1a64(hashBuf, glen);
 	char cd[24] = "-", x32[24] = "-";
 	const unsigned char *p = hashBuf + glen;

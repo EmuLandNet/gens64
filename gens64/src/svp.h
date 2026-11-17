@@ -1,4 +1,4 @@
-/* gens64: SVP (Sega Virtua Processor, SSP1601 DSP) of Virtua Racing, docs/svp.md.
+/* gens64: SVP (Sega Virtua Processor, SSP1601 DSP) of Virtua Racing.
    The DSP interpreter is ssp16.c by Grazvydas "notaz" Ignotas, as modified for Genesis Plus GX
    (Eke-Eke); the glue (memory, registers, DMA, savestate) follows GPGX svp.c, mem68k.c, vdp_ctrl.c. */
 #ifndef GENS64_SVP_H

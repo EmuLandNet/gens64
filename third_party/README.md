@@ -9,7 +9,7 @@ headers in `gens64/src` (identical files), taken from the upstream git tags:
   MMX assembler readers `pnggccrd.c`/`pngvcrd.c` are not used, `PNG_NO_ASSEMBLER_CODE`).
 - `minimp3/` — https://github.com/lieff/minimp3 (`minimp3.h`, `minimp3_ex.h`; public domain, CC0),
   the copy shipped with Genesis Plus GX (`core/sound/minimp3`). MP3 music of the YX5200 player
-  (`docs/yx5200.md`).
+  (Death & Lead, The Secret Of The Four Winds).
 - `libchdr/` — https://github.com/rtissera/libchdr (BSD 3-clause, Romain Tisserand), the copy shipped
   with Genesis Plus GX (`libretro/deps/libchdr`), with its dependencies from the same place:
   `deps/zstd` (Zstandard, BSD, Meta), `deps/lzma-19.00` (LZMA SDK, public domain, Igor Pavlov),
@@ -17,4 +17,4 @@ headers in `gens64/src` (identical files), taken from the upstream git tags:
   (public domain / MIT-0, David Reid). Built as `gens_chd` (gens64/CMakeLists.txt): zlib with
   `Z_PREFIX` and the LZMA symbols renamed (`compat/lzma_rename.h`) so they do not clash with the zlib
   and 7-Zip sources of Gens; `compat/retro_inline.h` replaces the libretro-common header. CHD images
-  for Sega CD (`docs/segacd-formats.md`).
+  for Sega CD.

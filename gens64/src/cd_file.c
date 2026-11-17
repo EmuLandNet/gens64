@@ -21,7 +21,7 @@ char g_cuefile_TOC_filenames [100] [1024] = {{0}};
 int g_cuefile_TOC_filetype [100] = {0};
 int g_cuefile_TOC_pregap [100] = {0};	// gens64: PREGAP of the track in sectors, -1 if none (WAV tracks)
 
-/* gens64: WAV audio tracks (docs/segacd-formats.md), as Genesis Plus GX: 16-bit stereo 44.1 kHz PCM,
+/* gens64: WAV audio tracks, as Genesis Plus GX: 16-bit stereo 44.1 kHz PCM,
    played sector by sector like BINARY audio (2352 bytes = 588 samples per sector), exact length in
    the TOC. Returns the length in sectors and the offset of the data chunk, or 0 if not usable. */
 static int Wav_Open(FILE *f, int *data_offset)
@@ -865,7 +865,7 @@ int Load_CUE(char *buf, char *cue_name)
 	return -1;
 }
 
-/* gens64: CHD image: TOC from its metadata (cd_chd.c, docs/segacd-formats.md) */
+/* gens64: CHD image: TOC from its metadata (cd_chd.c) */
 int Load_CHD(char *buf, char *chd_name)
 {
 	int i, n;
@@ -975,7 +975,7 @@ int FILE_Read_One_LBA_CDC(void)
 				Write_CD_Audio((short *) cp_buf, rate, channel, 588);
 			}
 		}
-		else if(Tracks[index].Type == TYPE_CHD) // gens64: CHD audio track (docs/segacd-formats.md)
+		else if(Tracks[index].Type == TYPE_CHD) // gens64: CHD audio track
 		{
 			CHD_Read_Audio(index, SCD.Cur_LBA, (unsigned char *)cp_buf);
 #ifdef WAV_TRACE
@@ -983,7 +983,7 @@ int FILE_Read_One_LBA_CDC(void)
 #endif
 			Write_CD_Audio((short *) cp_buf, 44100, 2, 588);
 		}
-		else if(Tracks[index].Type == TYPE_WAV) // gens64: WAV track, read like BINARY audio (docs/segacd-formats.md)
+		else if(Tracks[index].Type == TYPE_WAV) // gens64: WAV track, read like BINARY audio
 		{
 			int pos = SCD.Cur_LBA - Track_to_LBA(SCD.Cur_Track);
 			memset(cp_buf, 0, 2352);

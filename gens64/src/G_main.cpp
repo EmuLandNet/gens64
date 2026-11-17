@@ -557,7 +557,7 @@ static int Change_32X_Layer(int command)
 	return 1;
 }
 
-// gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
+// gens64: 68000 speed and 2 MB RAM
 static const int M68K_Speed_Presets[] = {100, 150, 200, 300, 500, 700, 1300};
 #define M68K_SPEED_MIN 100
 #define M68K_SPEED_MAX 1300
@@ -1465,7 +1465,7 @@ int Change_Country(HWND hWnd, int Num)
 		CD_Access_Timer = 2096;
 		Timer_Step = 135708;
 	}
-	Gens64_Set_CPL_M68K();	// gens64: 68000 speed (docs/overclock.md)
+	Gens64_Set_CPL_M68K();	// gens64: 68000 speed
 
 	if (Sound_Enable)
 	{
@@ -2584,7 +2584,7 @@ void BeginMoviePlayback()
 
 	struct Temp { Temp() {EnableStopAllLuaScripts(false);} ~Temp() {EnableStopAllLuaScripts(true);}} dontStopScriptsHere;
 
-	// gens64: a movie plays with the 68000 speed and RAM it was recorded with (docs/overclock.md)
+	// gens64: a movie plays with the 68000 speed and RAM it was recorded with
 	if (MainMovie.Status == MOVIE_PLAYING &&
 		(MainMovie.M68KSpeed != M68K_Speed_Setting || MainMovie.Ram2MB != Ram_2MB_Setting))
 		Gens64_Set_M68K_Settings(MainMovie.M68KSpeed, MainMovie.Ram2MB, false);
@@ -2621,7 +2621,7 @@ void BeginMoviePlayback()
 		{
 			Pre_Load_Rom(HWnd,Recent_Rom[0]);
 			MESSAGE_L("Genesis reseted", "Genesis reset")
-            if(MainMovie.ClearSRAM) Gens64_Clear_SRAM(); // gens64: FF for flash/EEPROM saves (docs/flash-save.md)
+            if(MainMovie.ClearSRAM) Gens64_Clear_SRAM(); // gens64: FF for flash/EEPROM saves
 		}
 		else if (_32X_Started)
 		{
@@ -3538,7 +3538,7 @@ dialogAgain: //Nitsuja added this
 						DialogsOpen--;
 						if(answer == IDCANCEL) { MainMovie.Status=0; return 0; }
 					}
-					// gens64: non-standard 68000 speed / RAM (docs/overclock.md)
+					// gens64: non-standard 68000 speed / RAM
 					if(Genesis_Started && (M68K_Speed_Setting != 100 || Ram_2MB_Setting))
 					{
 						char text[512];
@@ -5608,7 +5608,7 @@ HMENU Build_Main_Menu(void)
 
 	MENU_L(CPU, i++, Flags | MF_POPUP,
 		(UINT_PTR)CPUCountry, "Country", "", "&Country");
-	// gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
+	// gens64: 68000 speed and 2 MB RAM
 	MENU_L(CPU, i++, Flags | MF_POPUP,
 		(UINT_PTR)CPUM68KSpeed, "68000 Speed", "", "68000 &Speed");
 	MENU_L(CPU, i++, Flags | (Ram_2MB_Setting ? MF_CHECKED : MF_UNCHECKED),
@@ -8289,7 +8289,7 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				"Original version (c) 1999/2002 by Stéphane Dallongeville" "\r\n" "\r\n"
 				// gens64: base version instead of the Gens RR links
 				"Based on Gens Re-Recording v11c (svn341)" "\r\n" "\r\n"
-				// gens64: features ported from Gens r57shell mod (docs/r57shell-mod.md)
+				// gens64: features ported from Gens r57shell mod
 				"Includes features of Gens r57shell mod" "\r\n"
 				"(c) 2011-2014 r57shell:" "\r\n"
 				"68000 and Z80 debuggers, RAM Dump," "\r\n"

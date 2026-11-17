@@ -111,7 +111,7 @@ extern int Sprite_Boxing;
 
 #ifdef __cplusplus
 extern bool FakeVDPScreen;
-// gens64: 68000 speed (%, 100-1300) and 2 MB RAM settings (docs/overclock.md)
+// gens64: 68000 speed (%, 100-1300) and 2 MB RAM settings
 extern int M68K_Speed_Setting;
 extern int Ram_2MB_Setting;
 void Gens64_M68K_Settings(int genesis);

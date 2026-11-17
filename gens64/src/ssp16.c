@@ -9,7 +9,7 @@
 
    Modified for Genesis Plus GX (Eke-Eke), added big endian support, fixed mode & addr
 
-   gens64: taken from Genesis Plus GX; only the include and the ROM pointer changed (docs/svp.md)
+   gens64: taken from Genesis Plus GX; only the include and the ROM pointer changed
 */
 
 
@@ -192,7 +192,7 @@
  */
 
 #include <stddef.h>
-#include "svp.h"	/* gens64: instead of GPGX shared.h (docs/svp.md) */
+#include "svp.h"	/* gens64: instead of GPGX shared.h */
 
 
 #define u32 unsigned int

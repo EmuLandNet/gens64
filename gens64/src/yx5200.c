@@ -1,5 +1,5 @@
 /* gens64: YX5200-24SS MP3 player (DFPlayer Mini chip) on the KAISER WAVE cartridge board:
-   Death & Lead, The Secret Of The Four Winds (docs/yx5200.md).
+   Death & Lead, The Secret Of The Four Winds.
 
    Behaviour follows Genesis Plus GX (core/cart_hw/yx5200.c, Eke-Eke 2025): the game bit-bangs
    10-byte DFPlayer commands at 9600 baud into the RX line (bit 0 of /TIME writes to even

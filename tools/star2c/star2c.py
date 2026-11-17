@@ -307,7 +307,7 @@ class Gen:
             return 'CA(%d)' % self.ctx[s]
         if s == 'Ram_68k':
             return 'GA(Ram_68k)'
-        if s == '_Ram_68k_2MB':	# gens64: 2 MB RAM flag (Mem_M68k_asm.c, docs/overclock.md)
+        if s == '_Ram_68k_2MB':	# gens64: 2 MB RAM flag (Mem_M68k_asm.c)
             return 'GA(&Ram_68k_2MB)'
         if s == '_Gens64_Ram_Write_Hook':	# gens64: RAM writes through M68K_WB/WW (Mem_M68k_asm.c)
             return 'GA(&Gens64_Ram_Write_Hook)'

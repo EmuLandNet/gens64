@@ -13,7 +13,6 @@
  *    = opcode, ecx = delay slot PC) lives in struct sh2_st;
  *  - TAS.B writes back v | 0x80 only: the asm passed on the upper bits of edx as the read handler
  *    left them, which no byte write handler looks at.
- * Quirks kept: see docs/asm-quirks.md.
  */
 #include <string.h>
 #include <stddef.h>

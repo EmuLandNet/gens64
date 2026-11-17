@@ -3,7 +3,7 @@
  * palettes, sprite tables and renderer options.
  *
  * Kept bit-exact with the asm (checked with tools/test/vdp_rend_diff.sh against the original object
- * and with the movie suite); see docs/asm-quirks.md for the list of quirks. In short:
+ * and with the movie suite). In short:
  *  - .data and .bss keep the asm layout (screens with guard areas, Sprite_Over and Mode_555 at odd
  *    addresses, VScrollBl a dword in the middle of byte flags; the asm tests some flags with dword
  *    reads that span the neighbours);
@@ -847,8 +847,8 @@ void Render_Line(void)
 
 /* gens64: with the PRI bit of the 32X bitmap mode register the 32X pixels' priority bit (0x8000) is
    inverted before compositing (Render_MD_Screen32X), as in Gens RR 11. r341 flipped 0x1000 here (a
-   blue bit), so PRI had no effect on priority and changed colours (WWF WrestleMania - The Arcade Game:
-   docs/32x.md). Output only. tools/test/vdp_rend_diff sets 0x1000 to compare with the original. */
+   blue bit), so PRI had no effect on priority and changed colours (WWF WrestleMania - The Arcade Game).
+   Output only. tools/test/vdp_rend_diff sets 0x1000 to compare with the original. */
 u32 gens64_32x_pri_xor = 0x8000;
 
 

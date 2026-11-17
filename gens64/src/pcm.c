@@ -80,7 +80,7 @@ void Reset_PCM(void)
 
 /* gens64: the 32-bit builds compute the step on the x87 FPU, where the float product is exact (it
    is not rounded to float before the truncation); SSE (x86-64) would round it. A double product of
-   the two values is exact too (16 x 24 bits): same steps on every target. See docs/asm-quirks.md. */
+   the two values is exact too (16 x 24 bits): same steps on every target. */
 #define PCM_STEP(b) ((int) ((double) (float) (b) * (double) PCM_Chip.Rate))
 
 /* Change sample rate of PCM */

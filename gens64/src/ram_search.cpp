@@ -854,7 +854,7 @@ unsigned int ReadValueAtHardwareAddress(unsigned int address, unsigned int size)
 		return ReadValueAtSoftwareAddress(Ram_68k + address - 0xFF0000, size, true);
 	if(IsInRange(address, 0xA00000, Z80_RAM_SIZE))
 		return ReadValueAtSoftwareAddress(Ram_Z80 + address - 0xA00000, size, true);
-	if(Ram_68k_2MB && IsInRange(address, 0xE00000, RAM_EXT_SIZE)) // gens64: 2 MB RAM (docs/overclock.md)
+	if(Ram_68k_2MB && IsInRange(address, 0xE00000, RAM_EXT_SIZE)) // gens64: 2 MB RAM
 		return ReadValueAtSoftwareAddress(Ram_Ext + address - 0xE00000, size, true);
 	if(SegaCD_Started && IsInRange(address, 0x020000, SEGACD_RAM_PRG_SIZE))
 		return ReadValueAtSoftwareAddress(Ram_Prg + address - 0x020000, size, true);

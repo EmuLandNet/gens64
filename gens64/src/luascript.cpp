@@ -2280,12 +2280,12 @@ DEFINE_LUA_FUNCTION(state_create, "[location]")
 	if (_32X_Started) len += G32X_LENGTH_EX;
 	if (!Game)
 		len += max(SEGACD_LENGTH_EX, G32X_LENGTH_EX);
-	if (Ram_68k_2MB || Ram_2MB_Setting) len += RAM_EXT_SIZE; // gens64: 2 MB RAM (docs/overclock.md)
-	if (Rom_Mapper == ROM_MAPPER_PAPRIUM) len += PAPRIUM_STATE_SIZE; // gens64: docs/paprium.md
-	if (Rom_Mapper == ROM_MAPPER_T5740) len += EEPROM_SPI_STATE_SIZE; // gens64: docs/large-roms.md
-	if (Flash_CFI_On) len += Flash_CFI_State_Size(); // gens64: docs/flash-save.md
-	if (SVP_On) len += SVP_STATE_SIZE; // gens64: docs/svp.md
-	if (SF_Type) len += SF_STATE_SIZE; // gens64: docs/sfteam.md
+	if (Ram_68k_2MB || Ram_2MB_Setting) len += RAM_EXT_SIZE; // gens64: 2 MB RAM
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM) len += PAPRIUM_STATE_SIZE; // gens64: Paprium
+	if (Rom_Mapper == ROM_MAPPER_T5740) len += EEPROM_SPI_STATE_SIZE; // gens64: Pier Solar EEPROM
+	if (Flash_CFI_On) len += Flash_CFI_State_Size(); // gens64: flash save
+	if (SVP_On) len += SVP_STATE_SIZE; // gens64: SVP
+	if (SF_Type) len += SF_STATE_SIZE; // gens64: Super Fighter Team boards
 
 	// allocate the in-memory/anonymous savestate
 	unsigned char* stateBuffer = (unsigned char*)lua_newuserdata(L, len + 16); // 16 is for performance alignment reasons

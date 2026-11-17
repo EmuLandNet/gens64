@@ -9,7 +9,7 @@ extern unsigned char Ram_68k[64 * 1024];
 #define ROM_DATA_MAX (32 * 1024 * 1024)	/* gens64: largest ROM (r341: 6 MB) */
 extern unsigned char Rom_Data[ROM_DATA_MAX];
 
-/* gens64: mapper for ROMs over 6 MB (Mem_M68k_asm.c, docs/large-roms.md) */
+/* gens64: mapper for ROMs over 6 MB (Mem_M68k_asm.c) */
 extern unsigned int Rom_Mapper, Rom_Mask;
 extern unsigned int Rom_Page[32];
 extern unsigned char Mapper_Bank[8], Mapper_Ctrl;
@@ -17,7 +17,7 @@ void Mapper_Init(int system);
 void Mapper_Reset(void);
 void Mapper_Restore(void);
 
-/* gens64: 68000 speed (% of the normal clock) and 2 MB RAM, effective values (docs/overclock.md) */
+/* gens64: 68000 speed (% of the normal clock) and 2 MB RAM, effective values */
 #define RAM_EXT_SIZE 0x1F0000	/* E00000-FEFFFF */
 extern unsigned int M68K_Speed;
 extern unsigned char Ram_68k_2MB;

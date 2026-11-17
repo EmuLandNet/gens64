@@ -1,5 +1,5 @@
 /* gens64: Paprium (WaterMelon, T-574120-00): high-level emulation of the cartridge's processor
-   (docs/paprium.md).
+  .
 
    Ported from "Project Little Man" (core/cart_hw/paprium.h of a Genesis Plus GX fork, 2025): the
    commands the game sends to the chip (word written to 1FEA, arguments at 1E10...) are carried out

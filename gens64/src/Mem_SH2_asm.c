@@ -9,7 +9,6 @@
  *  - the caller only uses the low byte / word of a byte / word read; eax is what the core had there,
  *    the address >> 24 (SH2a.asm, non-GCC variant): the PWM pulse word registers set only ah and
  *    return that al.
- * Quirks kept: see docs/asm-quirks.md.
  */
 #include "SH2.h"
 #include "gens64_addr.h"

@@ -1,4 +1,4 @@
-/* gens64: Sega CD images in MAME's CHD format (docs/segacd-formats.md), after Genesis Plus GX
+/* gens64: Sega CD images in MAME's CHD format, after Genesis Plus GX
    (core/cd_hw/cdd.c, Eke-Eke), with libchdr (third_party/libchdr).
    The TOC comes from the CHD track metadata; sectors are read hunk by hunk (one hunk cached).
    A CHD frame is 2352 bytes of sector + 96 of subcode; audio is stored big-endian. */

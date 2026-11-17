@@ -629,7 +629,7 @@ int GetMovieInfo(char *FileName,typeMovie *aMovie)
 			aMovie->Vfreq=((t&128)>>7);
 			aMovie->StateRequired=((t&64)>>6);
 			aMovie->TriplePlayerHack=((t&32)>>5);
-			// gens64 (docs/overclock.md): byte 23 = 1: 68000 speed in % (16 bits) and flags (bit 0:
+			// gens64: byte 23 = 1: 68000 speed in % (16 bits) and flags (bit 0:
 			// 2 MB RAM) in the last 3 bytes of the comment (61-63). Byte 23 is 0 in other Gens versions'
 			// movies (the low bits of byte 22 are not free: many movies have 0x1F there).
 			aMovie->M68KSpeed=100;

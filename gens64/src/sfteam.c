@@ -1,6 +1,6 @@
 /* gens64: Super Fighter Team boards SF-001 (Beggar Prince), SF-002 (Legend of Wukong),
-   SF-004 (Star Odyssey), after Genesis Plus GX (md_cart.c mapper_sf00x, sram.c; Eke-Eke),
-   docs/sfteam.md. The cartridge area 000000-40FFFF is a table of 64 KB banks (ROM page, SRAM or
+   SF-004 (Star Odyssey), after Genesis Plus GX (md_cart.c mapper_sf00x, sram.c; Eke-Eke).
+   The cartridge area 000000-40FFFF is a table of 64 KB banks (ROM page, SRAM or
    open bus); Mem_M68k_asm.c sends 000000-47FFFF here only when SF_Type. SRAM is the 64 KB SRAM of
    Gens, indexed by address & FFFF (as GPGX; .srm files are interchangeable). */
 

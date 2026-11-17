@@ -8,10 +8,9 @@
  *    the two S68K_RW calls of a long read and the low word in ecx across the two S68K_WW calls of a
  *    long write: its C translation (star2c) keeps its emulated registers. Exception, as in the
  *    official build: a word read of FF8006 returns with ecx as MSVC's CDC_Read_Reg leaves it, given
- *    to Starscream through gens64_s68k_ecx_set / gens64_s68k_ecx (see docs/asm-quirks.md);
+ *    to Starscream through gens64_s68k_ecx_set / gens64_s68k_ecx;
  *  - the CDD control register write ORs into CDD.Control the al left by CDD_Processing, i.e. the
  *    result of its sub68k_interrupt(4, -1) call: CDD_Processing is inlined here to get that value.
- * Quirks kept: see docs/asm-quirks.md.
  */
 #include "pcm.h"
 #include "gens64_addr.h"

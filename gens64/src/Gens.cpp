@@ -269,7 +269,7 @@ char _32X_Plane_High_On = 1;
 char _32X_Plane_Low_On = 1;
 char Swap_32X_Plane_Priority = 0;
 
-// gens64: 68000 speed and 2 MB RAM (docs/overclock.md). The settings (menu, config, movie, state)
+// gens64: 68000 speed and 2 MB RAM. The settings (menu, config, movie, state)
 // take effect only for the Genesis; with Sega CD / 32X the effective values are 100% and 64 KB.
 #define M68K_LINE_CYC(c) ((M68K_Speed == 100) ? (c) : (int)((c) * M68K_Speed / 100))	// a point of the line at the 68000's speed
 int M68K_Speed_Setting = 100;
@@ -965,11 +965,11 @@ int Init_Genesis(struct Rom *MD_Rom)
 
 	M68K_Init(); // Modif N. -- added for symmetry, maybe it helps something
 	Mapper_Init(0);	// gens64: mapper for ROMs over 6 MB (needs the byteswapped ROM)
-	YX5200_Init();	// gens64: MP3 player of the KAISER WAVE board (docs/yx5200.md)
-	Flash_CFI_Init(1);	// gens64: flash save (Four Winds, Life on Mars, ColocoDX...; docs/flash-save.md); before M68K_Reset installs the handlers
-	SVP_Init();	// gens64: Virtua Racing's DSP, "SV" in the header (docs/svp.md); before M68K_Reset
-	SF_Init();	// gens64: Super Fighter Team boards SF-001/002/004 (docs/sfteam.md); before M68K_Reset
-	Gens64_M68K_Settings(1);	// gens64: 68000 speed and 2 MB RAM (docs/overclock.md)
+	YX5200_Init();	// gens64: MP3 player of the KAISER WAVE board
+	Flash_CFI_Init(1);	// gens64: flash save (Four Winds, Life on Mars, ColocoDX...); before M68K_Reset installs the handlers
+	SVP_Init();	// gens64: Virtua Racing's DSP, "SV" in the header; before M68K_Reset
+	SF_Init();	// gens64: Super Fighter Team boards SF-001/002/004; before M68K_Reset
+	Gens64_M68K_Settings(1);	// gens64: 68000 speed and 2 MB RAM
 	M68K_Reset(0,1);
 	Z80_Reset();
 	Reset_VDP();
@@ -1001,7 +1001,7 @@ int Init_Genesis(struct Rom *MD_Rom)
 		YM2612_Init(CLOCK_NTSC / 7, Sound_Rate, YM2612_Improv);
 		PSG_Init(CLOCK_NTSC / 15, Sound_Rate);
 	}
-	Gens64_Set_CPL_M68K();	// gens64: 68000 speed (docs/overclock.md)
+	Gens64_Set_CPL_M68K();	// gens64: 68000 speed
 
 	if (Auto_Fix_CS) Fix_Checksum();
 
@@ -1218,7 +1218,7 @@ int Do_Genesis_Frame(bool fast)
 		main68k_exec(Cycles_M68K);
 		if (Z80_State == 3) z80_Exec(&M_Z80, Cycles_Z80);
 		else z80_Set_Odo(&M_Z80, Cycles_Z80);
-		if (SVP_On) SVP_Run();	// gens64: the DSP runs once per line (docs/svp.md)
+		if (SVP_On) SVP_Run();	// gens64: the DSP runs once per line
 	}
 
 	if (!fast)
@@ -1286,7 +1286,7 @@ int Do_Genesis_Frame(bool fast)
 		main68k_exec(Cycles_M68K);
 		if (Z80_State == 3) z80_Exec(&M_Z80, Cycles_Z80);
 		else z80_Set_Odo(&M_Z80, Cycles_Z80);
-		if (SVP_On) SVP_Run();	// gens64: the DSP runs once per line (docs/svp.md)
+		if (SVP_On) SVP_Run();	// gens64: the DSP runs once per line
 	}
 
 	if(!disableSound)
@@ -1294,8 +1294,8 @@ int Do_Genesis_Frame(bool fast)
 		PSG_Special_Update();
 		YM2612_Special_Update();
 	}
-	if (Gens64_Prefetch_Hack) Gens64_Prefetch_Flush(); // gens64: Escape 2042 (docs/flash-save.md)
-	if (Rom_Mapper == ROM_MAPPER_PAPRIUM) // gens64: the cartridge's processor, every frame (docs/paprium.md)
+	if (Gens64_Prefetch_Hack) Gens64_Prefetch_Flush(); // gens64: Escape 2042
+	if (Rom_Mapper == ROM_MAPPER_PAPRIUM) // gens64: the cartridge's processor, every frame
 	{
 		Paprium_Frame(CPU_Mode, !disableSound);
 		if (!disableSound)
@@ -1304,7 +1304,7 @@ int Do_Genesis_Frame(bool fast)
 			Paprium_Mix(pbuf, Seg_Length);
 		}
 	}
-	if (YX5200_On) // gens64: MP3 music of the KAISER WAVE board (docs/yx5200.md); advances with sound off too
+	if (YX5200_On) // gens64: MP3 music of the KAISER WAVE board; advances with sound off too
 	{
 		int *yxbuf[2] = {LeftAudioBuffer(), RightAudioBuffer()};
 		YX5200_Update(disableSound ? NULL : yxbuf, Seg_Length);
@@ -1534,11 +1534,11 @@ int Init_32X(struct Rom *MD_Rom)
 			SH2_CONTEXT* context = (contextNum == 0) ? &M_SH2 : &S_SH2;
 			memset(&context->IO_Reg, 0, sizeof(context->IO_Reg));
 			memset(&context->DVCR, 0, sizeof(context->BCR1) + ((char*)&context->BCR1 - (char*)&context->DVCR));
-			// gens64 (WWF WrestleMania - The Arcade Game, docs/32x.md): the memset above also cleared
+			// gens64 (WWF WrestleMania - The Arcade Game): the memset above also cleared
 			// what SH2_Init sets once and nothing sets again: the clock divider tables of the watchdog
 			// and free running timers (with zeros the timers ran at the wrong rate: WWF desynced from
 			// Gens RR 11, which had no memset, at frame 118) and BCR1 (0x03F0, bit 15 = slave).
-			// Restore them as SH2_Init sets them. Other 32X movies: same emulation, see docs/32x.md.
+			// Restore them as SH2_Init sets them. Other 32X movies: same emulation.
 			context->BCR1 = 0x03F0 | (contextNum ? 0x8000 : 0);
 			static const unsigned char wdt[8] = {16 - 1, 16 - 6, 16 - 7, 16 - 8, 16 - 9, 16 - 10, 16 - 12, 16 - 13};
 			static const unsigned char frt[4] = {8 - 3, 8 - 5, 8 - 7, 0};

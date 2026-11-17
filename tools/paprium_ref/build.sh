@@ -1,10 +1,10 @@
 #!/bin/sh
 # Builds the Genesis Plus GX fork with Paprium ("Full Source/core" of roms/paprium) as a plain program
-# for comparing with Gens64 (docs/paprium.md). Usage: build.sh <path to "Full Source"> <out dir>
+# for comparing with Gens64. Usage: build.sh <path to "Full Source"> <out dir>
 # Run: gref <rom> <frames> [screenshot prefix]; env PRESS_AT=720,820 (Start, 12 frames each) or
 # PRESS_START=N (every 120 frames from N). Writes ref_trace.txt in the current folder.
 # The chip commands appear in ref_trace.txt only with the fprintf added at "paprium_cmd(data);" in
-# paprium_w16 (see docs/paprium.md).
+# paprium_w16.
 set -e
 SRC_ROOT="$1"; OUT="$2"; HERE=$(cd "$(dirname "$0")" && pwd)
 mkdir -p "$OUT/stub/streams"

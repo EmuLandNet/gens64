@@ -1,6 +1,6 @@
 # Legacy Gens RR (r341) built as the 32-bit Windows reference exe, or as the same classic Win32 program
 # for 64-bit Windows (cmake/toolchain-x86_64-mingw-clang.cmake).
-# Must be compiled exactly like the official MSVC build behaves: see GENS64.md, "Ловушки".
+# Must be compiled exactly like the official MSVC build behaves (flags below).
 if(NOT WIN32 OR NOT (CMAKE_SIZEOF_VOID_P EQUAL 4 OR CMAKE_SIZEOF_VOID_P EQUAL 8))
   message(FATAL_ERROR "gens64 is the Windows build: use cmake/toolchain-i686-mingw-clang.cmake (32-bit) or cmake/toolchain-x86_64-mingw-clang.cmake (64-bit)")
 endif()
@@ -120,9 +120,9 @@ set_target_properties(Gens PROPERTIES OUTPUT_NAME Gens RUNTIME_OUTPUT_DIRECTORY 
 target_include_directories(Gens PRIVATE ${GEN}/ci ${R}/src ${R}/dependencies ${R}/dependencies/DirectX ${R}/7z/CPP ${R})
 target_compile_definitions(Gens PRIVATE _WIN32_WINNT=0x0501 WIN32 NDEBUG _WINDOWS _CRT_SECURE_NO_DEPRECATE EXTRACT_ONLY _NO_CRYPTO)
 if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64|amd64|i.86|x86)$")
-  set(GENS_MARCH)                # not x86 (e.g. aarch64): no -march; see docs/asm-quirks.md, "ARM"
+  set(GENS_MARCH)                # not x86 (e.g. aarch64): no -march
 elseif(GENS_WIN64)
-  set(GENS_MARCH -march=x86-64)  # SSE floating point: see docs/asm-quirks.md (PCM step) for the one place it mattered
+  set(GENS_MARCH -march=x86-64)  # SSE floating point (it mattered for the Sega CD PCM step: pcm.c)
 else()
   set(GENS_MARCH -march=i686)    # i686 => x87 floating point, like MSVC 2008/2010 by default
 endif()
@@ -161,8 +161,8 @@ target_link_libraries(Gens PRIVATE
   ${GENS_IMAGE_LIBS}
   htmlhelp vfw32 dsound ddraw dinput dxguid winmm wsock32 comdlg32 comctl32 shell32 ole32 oleaut32 uuid gdi32 user32 advapi32)
 
-# Paprium (T-574120-00): high-level emulation of the cartridge's processor, all in src/paprium.c
-# (docs/paprium.md). OFF leaves it out: the hooks become empty and the ROM does not boot.
+# Paprium (T-574120-00): high-level emulation of the cartridge's processor, all in src/paprium.c.
+# OFF leaves it out: the hooks become empty and the ROM does not boot.
 option(GENS64_PAPRIUM "Paprium cartridge processor (src/paprium.c)" ON)
 if(GENS64_PAPRIUM)
   target_sources(Gens PRIVATE src/paprium.c)
@@ -171,7 +171,7 @@ if(GENS64_PAPRIUM)
 endif()
 
 
-# gens64: CHD images for Sega CD (docs/segacd-formats.md): libchdr with zlib 1.2.11 (Z_PREFIX: z_*),
+# gens64: CHD images for Sega CD: libchdr with zlib 1.2.11 (Z_PREFIX: z_*),
 # LZMA SDK 19.00 (renamed chdlzma_*, third_party/libchdr/compat/lzma_rename.h: Gens has its own 7-Zip
 # LZMA), zstd and dr_flac, as in Genesis Plus GX (libretro/deps). Only chd_*/cdrom_* are used by Gens.
 set(CHD ${PROJECT_SOURCE_DIR}/third_party/libchdr)

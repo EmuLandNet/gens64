@@ -122,7 +122,7 @@ extern u8 Rom_Data[];
 #include "sfteam.h"
 extern u32 Rom_Size;
 extern u32 Rom_Mapper, Rom_Page[32];	/* gens64: mapper for ROMs over 6 MB (Mem_M68k_asm.c) */
-extern u32 M68K_Speed;	/* gens64: 68000 speed in % and 2 MB RAM (Mem_M68k_asm.c, docs/overclock.md) */
+extern u32 M68K_Speed;	/* gens64: 68000 speed in % and 2 MB RAM (Mem_M68k_asm.c) */
 extern u8 Ram_68k_2MB, Ram_Ext[];
 extern u16 Cell_Conv_Tab[];
 extern u8 MD_Palette[], MD_Palette32[], MD_Screen[], MD_Screen32[];
@@ -310,7 +310,7 @@ u32 Update_DMA(void)
 
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
 	{
-		/* gens64: as the Genesis Plus GX fork's fast_dma_hack for Paprium (docs/paprium.md): a DMA
+		/* gens64: as the Genesis Plus GX fork's fast_dma_hack for Paprium: a DMA
 		   takes no bus time, so the game's DMA list fits in the vertical blank */
 		V.DMAT_Length = 0;
 		W0(V.VDP_Status) &= 0xFFFD;
@@ -343,9 +343,9 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 	{
 	case 0: src &= 0x003FFFFE; break;
 	case 9: src &= 0x00FFFFFE; break;	/* gens64: ROM through the mapper (ROMs over 6 MB) */
-	case 11: src &= 0x00FFFFFE; break;	/* gens64: Paprium (docs/paprium.md) */
-	case 12: src &= 0x00FFFFFE; break;	/* gens64: SVP (docs/svp.md) */
-	case 13: src &= 0x00FFFFFE; break;	/* gens64: SF boards (docs/sfteam.md) */
+	case 11: src &= 0x00FFFFFE; break;	/* gens64: Paprium */
+	case 12: src &= 0x00FFFFFE; break;	/* gens64: SVP */
+	case 13: src &= 0x00FFFFFE; break;	/* gens64: SF boards */
 	case 10: src = (src - 0xE00000) & 0x1FFFFE; break;	/* gens64: 2 MB RAM, E00000-FEFFFF */
 	case 1: src &= 0xFFFE; break;
 	case 2: src = (src & 0x0001FFFE) + (u32)Bank_M68K; break;
@@ -468,7 +468,7 @@ static void do_dma(u32 t)
 		/* gens64: ROMs over 6 MB: 000000-9FFFFF is the ROM through the mapper, the rest RAM */
 		sel = (src < 0xA00000) ? 9 : 1;
 		if (sel == 9 && Rom_Mapper == ROM_MAPPER_PAPRIUM)
-			sel = 11;	/* the chip's RAM and the ROM (docs/paprium.md) */
+			sel = 11;	/* the chip's RAM and the ROM */
 	}
 	else if (src >= Rom_Size)
 	{

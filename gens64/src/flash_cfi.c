@@ -1,5 +1,5 @@
 /* gens64: CFI flash memory of cartridges that save in their flash chip, from Genesis Plus GX
-   (core/cart_hw/flash_cfi.c, sram.c and md_cart.c, Eke-Eke), docs/flash-save.md.
+   (core/cart_hw/flash_cfi.c, sram.c and md_cart.c, Eke-Eke).
    Games (as GPGX):
    - The Secret Of The Four Winds, Life on Mars, Life on Earth Reimagined (flash version):
      S29GL064N, save sector = 64 KB bank 3F;

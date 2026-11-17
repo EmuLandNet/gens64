@@ -11,7 +11,6 @@
  *    emulated registers across these calls.
  *  - Byte reads are used through al and word reads through ax by every caller, so only those bits
  *    are reproduced (upper bits of eax could differ).
- * Quirks kept: see docs/asm-quirks.md.
  */
 #include <string.h>
 #include "z80.h"
@@ -118,14 +117,14 @@ __attribute__((aligned(64), nocommon)) struct gens64_m68k_bss gens64_m68k_bss;
    the block). ROMs up to 6 MB are handled exactly as in r341; larger ones get the mapper below. */
 __attribute__((aligned(64))) u8 Rom_Data[ROM_DATA_MAX];
 
-/* gens64: mapper for ROMs over 6 MB (docs/large-roms.md).
+/* gens64: mapper for ROMs over 6 MB.
    Rom_Mapper: 0 = r341 (ROM <= 6 MB), 1 = Sega (SSF2: A130F3-A130FF select the 512 KB page of the
    windows 080000-3FFFFF, A130F1 SRAM; 400000-9FFFFF linear), 2 = Mega Everdrive extended SSF
    ("SEGA SSF" header: window 0 too, A130F0 word with bit 15, bit 13 = ROM writable).
    Rom_Page: byte offset in Rom_Data of each 512 KB window of 000000-9FFFFF (entries 20-31 unused). */
 u32 Rom_Mapper, Rom_Mask;
 
-/* gens64: 68000 speed and 2 MB RAM (docs/overclock.md). Effective values, set by Gens.cpp only for
+/* gens64: 68000 speed and 2 MB RAM. Effective values, set by Gens.cpp only for
    the Genesis (100 and 0 with Sega CD / 32X): M68K_Speed in % of the normal clock (100 = r341),
    Ram_68k_2MB: E00000-FEFFFF is 1984 KB of own RAM (Ram_Ext) instead of mirrors of FF0000-FFFFFF.
    With Ram_68k_2MB the Starscream RAM fast path is skipped and every RAM access comes here. */
@@ -170,8 +169,7 @@ typedef u32 (*rd_t)(u32);
 typedef void (*wr_t)(u32, u32);
 
 /* bus request / Z80 reset / Z80 window, shared by the three systems */
-/* the byte; a word read gives it with ah = 0 (the asm kept what the Z80 byte handler left in ah:
-   see docs/asm-quirks.md) */
+/* the byte; a word read gives it with ah = 0 (the asm kept what the Z80 byte handler left in ah) */
 static u32 z80_window_read(u32 a)
 {
 	return ((z80_rb_t)Z80_ReadB_Table[(a & 0x7000) >> 12])(a & 0x7FFF) & 0xFF;
@@ -301,15 +299,15 @@ static u32 M68K_Read_Byte_Misc(u32 a)
 	if (a == 0xA11100)
 		return busreq_read_byte(CYCLE_FOR_TAKE_Z80_BUS_GENESIS);
 	if (Rom_Mapper == ROM_MAPPER_T5740 && a >= 0xA13000 && a <= 0xA130FF)
-		return EEPROM_SPI_Read();	/* gens64: SPI EEPROM output (docs/large-roms.md) */
+		return EEPROM_SPI_Read();	/* gens64: SPI EEPROM output */
 	if (SF_Type && a >= 0xA13000 && a <= 0xA130FF)
 	{
-		u32 d;	/* gens64: SF-004 page register (docs/sfteam.md) */
+		u32 d;	/* gens64: SF-004 page register */
 		return SF_Time_Read(&d) ? d : 0;
 	}
 	if (SVP_On && (a & 0xFFFF00) == 0xA15000)
 	{
-		u32 d;	/* gens64: SVP registers (docs/svp.md) */
+		u32 d;	/* gens64: SVP registers */
 		if (SVP_Reg_Read(a, 0, &d))
 			return d;
 	}
@@ -442,7 +440,7 @@ static void M68K_Write_Byte_ROM2(u32 a, u32 d)
 	else
 		M68K_Write_Byte_SRAM(a, d);
 }
-/* gens64: 68000 prefetch of the next instruction word, for Escape 2042 only (docs/flash-save.md).
+/* gens64: 68000 prefetch of the next instruction word, for Escape 2042 only.
    Its flash check routine in RAM rewrites the word right after the writing instruction; a real
    68000 (and GPGX, M68K_EMULATE_PREFETCH) has already fetched it and runs the old word. Gens'
    core reads code straight from memory, so the write to that word is held back (pending) until a
@@ -547,10 +545,10 @@ static void M68K_Write_Byte_Misc(u32 a, u32 d)
 	if (Rom_Mapper && a >= 0xA13000 && a <= 0xA130FF && mapper_write(a, d, 0))
 		return;
 	if (SF_Type && a >= 0xA13000 && a <= 0xA130FF)
-		return;	/* gens64: no /TIME handler on the SF boards (docs/sfteam.md) */
+		return;	/* gens64: no /TIME handler on the SF boards */
 	if (YX5200_On && a >= 0xA13000 && a <= 0xA130FF && !(a & 1))
 	{
-		YX5200_Write(d & 1);	/* gens64: KAISER WAVE /UWR: D0 is the MP3 player's RX line (docs/yx5200.md) */
+		YX5200_Write(d & 1);	/* gens64: KAISER WAVE /UWR: D0 is the MP3 player's RX line */
 		return;
 	}
 	if (a < 0xA130F1)
@@ -619,7 +617,7 @@ static void M68K_Write_Word_Misc(u32 a, u32 d)
 	if (Rom_Mapper && a >= 0xA13000 && a <= 0xA130FF && mapper_write(a, d, 1))
 		return;
 	if (SVP_On && (a & 0xFFFF00) == 0xA15000 && SVP_Reg_Write_Word(a, d))
-		return;	/* gens64: SVP XST (docs/svp.md) */
+		return;	/* gens64: SVP XST */
 	if (SF_Type && a >= 0xA13000 && a <= 0xA130FF)
 		return;
 	if (YX5200_On && a >= 0xA13000 && a <= 0xA130FF)
@@ -1721,7 +1719,7 @@ static void mapper_update(void)
 	u32 i;
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
 	{
-		/* gens64: Paprium has no bank registers (docs/paprium.md) */
+		/* gens64: Paprium has no bank registers */
 		for (i = 0; i < 20; i++)
 			Rom_Page[i] = (i << 19) & Rom_Mask;
 		for (i = 20; i < 32; i++)
@@ -1750,7 +1748,7 @@ void Mapper_Reset(void)
 	Mapper_Ctrl = 0;
 	mapper_update();
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
-		Paprium_Reset();	/* gens64: the cartridge's processor (docs/paprium.md) */
+		Paprium_Reset();	/* gens64: the cartridge's processor */
 }
 
 /* after loading a savestate (Mapper_Bank/Mapper_Ctrl restored) */
@@ -1785,10 +1783,10 @@ void Mapper_Init(int system)
 		memset(Rom_Data + B.Rom_Size, 0xFF, size - B.Rom_Size);
 	/* "SEGA SSF" (the header is byteswapped in Rom_Data) */
 	if (Paprium_Detect())
-		Rom_Mapper = ROM_MAPPER_PAPRIUM;	/* gens64: docs/paprium.md */
+		Rom_Mapper = ROM_MAPPER_PAPRIUM;	/* gens64: Paprium */
 	else if (t5740_detect())
 	{
-		/* gens64: Pier Solar's board: 3 bank registers and an SPI EEPROM (docs/large-roms.md) */
+		/* gens64: Pier Solar's board: 3 bank registers and an SPI EEPROM */
 		u32 i;
 		Rom_Mapper = ROM_MAPPER_T5740;
 		EEPROM_SPI_Init();
@@ -1834,7 +1832,7 @@ static int mapper_write(u32 a, u32 d, int word)
 		return 1;
 	}
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
-		return 1;	/* no bank registers, no SRAM window (docs/paprium.md) */
+		return 1;	/* no bank registers, no SRAM window */
 	if (Rom_Mapper == 2)
 	{
 		if ((a & 0xF0) != 0xF0)
@@ -1889,10 +1887,10 @@ static void mapper_install(void)
 		D.WW[i] = (void *)M68K_Write_Word_Mapped;
 	}
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
-		Paprium_Install(D.RB, D.RW, D.WB, D.WW);	/* gens64: docs/paprium.md */
+		Paprium_Install(D.RB, D.RW, D.WB, D.WW);	/* gens64: Paprium */
 }
 
-/* gens64: flash save (flash_cfi.c, docs/flash-save.md): the chip answers in 64 KB bank 0 and in
+/* gens64: flash save (flash_cfi.c): the chip answers in 64 KB bank 0 and in
    the save sectors; the rest of their 512 KB / 1 MB handler slots goes to the handlers that were
    there before (Genesis or the mapper of big ROMs) */
 static void *flash_prev_rb[32], *flash_prev_rw[32], *flash_prev_wb[16], *flash_prev_ww[16];
@@ -1934,7 +1932,7 @@ static void flash_ww(u32 a, u32 d)
 	else
 		Flash_CFI_Write(a >> 1, d & 0xFFFF);
 }
-/* gens64: SVP (svp.c, docs/svp.md): DRAM at 300000-31FFFF, its cell views at 390000-3AFFFF */
+/* gens64: SVP (svp.c): DRAM at 300000-31FFFF, its cell views at 390000-3AFFFF */
 static int svp_area(u32 a)
 {
 	return (a >= 0x300000 && a < 0x320000) || (a >= 0x390000 && a < 0x3B0000);
@@ -1968,7 +1966,7 @@ static void svp_install(void)
 	D.WB[3] = (void *)svp_wb; D.WW[3] = (void *)svp_ww;
 }
 
-/* gens64: Super Fighter Team boards (sfteam.c, docs/sfteam.md): 000000-47FFFF in 64 KB banks */
+/* gens64: Super Fighter Team boards (sfteam.c): 000000-47FFFF in 64 KB banks */
 extern void M68K_Update_Fetch(void);
 static u32 sf_rb(u32 a) { return SF_Read_Byte(a); }
 static u32 sf_rw(u32 a) { return SF_Read_Word(a); }

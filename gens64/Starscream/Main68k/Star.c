@@ -1545,7 +1545,7 @@ static void gen_readbw(int size)
 
 		emit("\tcmp edx, 0xE00000\n");
 		emit("\tjb short .Not_In_Ram\n");
-		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB (docs/overclock.md) */
+		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB */
 		emit("\tjnz near .Not_In_Ram\n");
 		emit("\tand edx, 0xFFFF\n");
 		emit("\txor edx, byte 1\n");
@@ -1592,7 +1592,7 @@ static void gen_readbw(int size)
 
 		emit("\tcmp edx, 0xE00000\n");
 		emit("\tjb short .Not_In_Ram\n");
-		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB (docs/overclock.md) */
+		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB */
 		emit("\tjnz near .Not_In_Ram\n");
 		emit("\tand edx, 0xFFFF\n");
 		emit("\tmov cx, [Ram_68k + edx]\n");
@@ -1632,7 +1632,7 @@ static void gen_readl(void)
 
 	emit("\tcmp edx, 0xE00000\n");
 	emit("\tjb short .Not_In_Ram\n");
-		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB (docs/overclock.md) */
+		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB */
 		emit("\tjnz near .Not_In_Ram\n");
 	emit("\tand edx, 0xFFFF\n");
 	emit("\tmov ecx, [Ram_68k + edx]\n");
@@ -1676,7 +1676,7 @@ static void gen_readdecl(void)
 
 	emit("\tcmp edx, 0xE00000\n");
 	emit("\tjb short .Not_In_Ram\n");
-		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB (docs/overclock.md) */
+		emit("\ttest byte [_Ram_68k_2MB], 1\n");	/* gens64: 2 MB RAM: through M68K_RB/WB */
 		emit("\tjnz near .Not_In_Ram\n");
 	emit("\tand edx, 0xFFFF\n");
 	emit("\tmov ecx, [Ram_68k + edx]\n");

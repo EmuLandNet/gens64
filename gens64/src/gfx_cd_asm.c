@@ -1,7 +1,7 @@
 /* gens64: C port of gfx_cd.asm (r341): Sega CD graphics ASIC (stamp rotation/scaling into Word RAM).
  *
  * Kept bit-exact with the asm (checked with tools/test/gfx_cd_diff.sh against the original object and
- * with the movie suite); see docs/asm-quirks.md. Notes:
+ * with the movie suite). Notes:
  *  - the .bss keeps the asm layout (Rot_Comp registers, then the work variables) and the asm names,
  *    including the dotted ones Mem_S68k.asm uses (Rot_Comp.Reg_58 ...);
  *  - Stamp_Map_Adr, Buffer_Adr and Vector_Adr hold host pointers into Word RAM, as in the asm;

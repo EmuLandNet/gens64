@@ -1,4 +1,4 @@
-/* gens64: Paprium (T-574120-00): the cartridge's own processor, high-level (docs/paprium.md).
+/* gens64: Paprium (T-574120-00): the cartridge's own processor, high-level.
    Everything is in paprium.c; the rest of the emulator calls these only when Rom_Mapper == 3,
    a mapper type that only this ROM gets. Without GENS64_PAPRIUM (cmake -DGENS64_PAPRIUM=OFF) the
    calls are empty and the ROM runs as an ordinary large ROM (it does not boot). */

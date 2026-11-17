@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-#define ROM_MAPPER_T5740 4	/* Pier Solar (Mem_M68k_asm.c, docs/large-roms.md) */
+#define ROM_MAPPER_T5740 4	/* Pier Solar (Mem_M68k_asm.c) */
 
 /* savestate block after the Genesis block when Rom_Mapper == ROM_MAPPER_T5740 */
 #define EEPROM_SPI_STATE_SIZE 16

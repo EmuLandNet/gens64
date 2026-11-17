@@ -174,7 +174,7 @@ int main(int argc, char **argv)
 {
 	long runs = argc > 1 ? atol(argv[1]) : 200, r;
 	unsigned long lines = 0, l32 = 0, coll = 0, over = 0;
-	extern u32 gens64_32x_pri_xor;	/* gens64 fix (docs/32x.md); the original flips 0x1000 */
+	extern u32 gens64_32x_pri_xor;	/* gens64 fix; the original flips 0x1000 */
 
 	gens64_32x_pri_xor = 0x1000;
 

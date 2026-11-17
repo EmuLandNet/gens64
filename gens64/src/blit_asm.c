@@ -2,8 +2,8 @@
  * (x1, x2, interpolated x2, scanlines, 2xSaI). Chosen in G_main.cpp (Set_Render) for 16-bit modes.
  *
  * Kept bit-exact with the asm (checked with tools/test/blit_diff.sh against the original object); the
- * MMX code is transcribed instruction by instruction with the small MMX helpers below. Quirks kept (see
- * docs/asm-quirks.md): the interpolating filters write a 0 into MD_Screen after the 320th pixel of each
+ * MMX code is transcribed instruction by instruction with the small MMX helpers below. Quirks kept:
+ * the interpolating filters write a 0 into MD_Screen after the 320th pixel of each
  * line; the non-MMX interpolation uses mask 0x7BCF and a half-pixel shift compared to the MMX ones;
  * MASK_DIV4_15 has one wrong lane (0x1CEF); 2xSaI keeps the 555 masks once it ran in 555 mode, and its
  * "guess" step ORs the vote sum (not the negative votes) into Mask2. Not kept: Line2IntP was a byte in

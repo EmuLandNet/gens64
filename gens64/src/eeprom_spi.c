@@ -1,5 +1,5 @@
 /* gens64: serial (SPI) EEPROM of the T-5740 board (Pier Solar), from Genesis Plus GX
-   (core/cart_hw/eeprom_spi.c, Eke-Eke), docs/large-roms.md.
+   (core/cart_hw/eeprom_spi.c, Eke-Eke).
    The memory is the 64 KB SRAM of Gens (.srm, savestates); the serial state is saved by
    EEPROM_SPI_Save/Load. Lines of the board (data written to A13009): bit 0 SI, bit 1 SCK,
    bit 2 !HOLD, bit 3 !CS; read: bit 0 SO. */

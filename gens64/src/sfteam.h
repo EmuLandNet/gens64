@@ -1,4 +1,4 @@
-/* gens64: Super Fighter Team boards SF-001/002/004, from Genesis Plus GX (docs/sfteam.md) */
+/* gens64: Super Fighter Team boards SF-001/002/004, from Genesis Plus GX */
 #ifndef GENS64_SFTEAM_H
 #define GENS64_SFTEAM_H
 

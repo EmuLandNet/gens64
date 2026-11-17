@@ -1,4 +1,4 @@
-/* gens64: YX5200-24SS MP3 player on the KAISER WAVE cartridge board (docs/yx5200.md) */
+/* gens64: YX5200-24SS MP3 player on the KAISER WAVE cartridge board */
 #ifndef GENS64_YX5200_H
 #define GENS64_YX5200_H
 

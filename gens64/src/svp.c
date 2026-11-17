@@ -1,4 +1,4 @@
-/* gens64: SVP glue for Gens (docs/svp.md), after Genesis Plus GX svp.c (notaz, Eke-Eke).
+/* gens64: SVP glue for Gens, after Genesis Plus GX svp.c (notaz, Eke-Eke).
    The DSP itself is ssp16.c. Everything here is reached only when SVP_On (Virtua Racing). */
 
 #include <string.h>

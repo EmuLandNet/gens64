@@ -3,7 +3,7 @@
  * Bit-exact with the asm (checked with tools/test/z80_diff.sh against the original object): every
  * instruction is transcribed from its asm macro, including what the asm kept in x86 registers when
  * it matters (data/address registers handed to the memory handlers, x86 flags read with lahf,
- * the X/Y flag byte, cycle counter). See docs/asm-quirks.md for the oddities kept. In short:
+ * the X/Y flag byte, cycle counter). In short:
  *  - The asm keeps A/F in ax, HL in ebx, PC as a host pointer in esi, the cycle counter in edi;
  *    here A/F/HL live in the context (the asm wrote them back at every exit; nothing reads them in
  *    between), PC is a host address and edx/ecx are tracked because their full 32 bits reach the

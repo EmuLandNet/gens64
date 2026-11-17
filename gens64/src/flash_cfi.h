@@ -1,5 +1,5 @@
 /* gens64: CFI flash save of some cartridges (Four Winds, Life on Mars, ColocoDX, SGDK "FL" header,
-   Escape 2042), from Genesis Plus GX (flash_cfi.c), docs/flash-save.md */
+   Escape 2042), from Genesis Plus GX (flash_cfi.c) */
 #ifndef GENS64_FLASH_CFI_H
 #define GENS64_FLASH_CFI_H
 

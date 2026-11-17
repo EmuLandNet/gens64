@@ -1,4 +1,4 @@
-/* gens64: Sega CD CHD images (cd_chd.c, docs/segacd-formats.md) */
+/* gens64: Sega CD CHD images (cd_chd.c) */
 #ifndef GENS64_CD_CHD_H
 #define GENS64_CD_CHD_H
 

@@ -41,7 +41,7 @@ struct STARSCREAM_PROGRAMREGION M68K_Fetch[32] =	/* gens64: 32 entries (r341: 7)
    512 KB windows of 000000-9FFFFF whose pages follow each other, then the Genesis RAM regions.
    Starscream looks the regions up on jumps, so a bank switch takes effect at the next jump. */
 /* gens64: Genesis RAM fetch regions from entry n on, then the end marker: r341's FF0000, F00000 and
-   EF0000 (mirrors), or with the 2 MB RAM (docs/overclock.md) FF0000 and E00000-FEFFFF (Ram_Ext) */
+   EF0000 (mirrors), or with the 2 MB RAM FF0000 and E00000-FEFFFF (Ram_Ext) */
 static void ram_fetch(int n)
 {
 	M68K_Fetch[n].lowaddr = 0xFF0000;
@@ -84,7 +84,7 @@ void M68K_Update_Fetch(void)
 	M68K_Fetch[0].offset = GA(&Rom_Data[0]) - 0x000000;
 	if (SF_Type)
 	{
-		/* gens64: Super Fighter Team boards: the ROM banks (docs/sfteam.md) */
+		/* gens64: Super Fighter Team boards: the ROM banks */
 		SF_Region r[24];
 		int i, n = SF_Fetch(r, 24);
 		for (i = 0; i < n; i++)
@@ -98,7 +98,7 @@ void M68K_Update_Fetch(void)
 	}
 	if (SVP_On)
 	{
-		/* gens64: code in the SVP DRAM (docs/svp.md) */
+		/* gens64: code in the SVP DRAM */
 		M68K_Fetch[1].lowaddr = 0x300000;
 		M68K_Fetch[1].highaddr = 0x31FFFF;
 		M68K_Fetch[1].offset = GA(&svp->dram[0]) - 0x300000;
@@ -114,7 +114,7 @@ void M68K_Set_Rom_Fetch(void)
 	unsigned i = 0;
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
 	{
-		ram_fetch(Paprium_Fetch(M68K_Fetch));	/* the chip's RAM at 000000-00FFFF (docs/paprium.md) */
+		ram_fetch(Paprium_Fetch(M68K_Fetch));	/* the chip's RAM at 000000-00FFFF */
 		return;
 	}
 	while (i < 20)
@@ -285,7 +285,7 @@ void M68K_Reset(int System_ID, char Hard)
 	if (Hard)
 	{
 		memset(Ram_68k, 0, 64 * 1024);
-		memset(Ram_Ext, 0, RAM_EXT_SIZE);	// gens64: 2 MB RAM (docs/overclock.md)
+		memset(Ram_Ext, 0, RAM_EXT_SIZE);	// gens64: 2 MB RAM
 
 		M68K_Fetch[0].lowaddr = 0x000000;
 		M68K_Fetch[0].highaddr = Rom_Size - 1;
@@ -310,7 +310,7 @@ void M68K_Reset(int System_ID, char Hard)
 			M68K_Fetch[4].offset = 0;
 
 			if (Ram_68k_2MB)
-				ram_fetch(1);	// gens64: 2 MB RAM (docs/overclock.md)
+				ram_fetch(1);	// gens64: 2 MB RAM
 		}
 		else if (System_ID == _32X)
 		{
@@ -355,15 +355,15 @@ void M68K_Reset(int System_ID, char Hard)
 	{
 		Mapper_Reset();	/* gens64: ROMs over 6 MB (nothing otherwise) */
 		if (YX5200_On)
-			YX5200_Reset();	/* gens64: MP3 player (docs/yx5200.md) */
+			YX5200_Reset();	/* gens64: MP3 player */
 		if (SF_Type)
 		{
-			SF_Reset(Hard);	/* gens64: Super Fighter Team boards (docs/sfteam.md) */
+			SF_Reset(Hard);	/* gens64: Super Fighter Team boards */
 			M68K_Update_Fetch();
 		}
 		if (SVP_On)
 		{
-			SVP_Reset(Hard);	/* gens64: Virtua Racing's DSP (docs/svp.md) */
+			SVP_Reset(Hard);	/* gens64: Virtua Racing's DSP */
 			if (Hard)
 				M68K_Update_Fetch();	/* + the DRAM fetch region */
 		}
