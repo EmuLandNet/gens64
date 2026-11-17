@@ -833,6 +833,8 @@ END
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
+// gens64: the exe icon (Explorer shows the icon with the lowest ID): the Sonic window icon
+1                       ICON                    "resource\\sonic.ico"
 IDI_GENS                ICON                    "resource\\Gens2.ico"
 IDI_SONIC               ICON                    "resource\\sonic.ico"
 IDI_LUA                 ICON                    "resource\\lua.ico"

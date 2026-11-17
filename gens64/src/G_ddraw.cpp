@@ -1276,39 +1276,8 @@ int Update_Crazy_Effect(HWND hWnd)
 	{
 		for(i = 0; i < 336; i++, offset--)
 		{
-			prev_l = MD_Screen32[offset - 336];
-			prev_p = MD_Screen32[offset - 1];
-
-			RB = ((prev_l & 0xFF00FF) + (prev_p & 0xFF00FF)) >> 1;
-			G = ((prev_l & 0x00FF00) + (prev_p & 0x00FF00)) >> 1;
-
-			if (Effect_Color & 0x4)
-			{
-				r = RB & 0xFF0000;
-				if (rand() > 0x1600) r += 0x010000;
-				else r -= 0x010000;
-				if (r > 0xFF0000) r = 0xFF0000;
-				else if (r < 0x00FFFF) r = 0;
-			}
-
-			if (Effect_Color & 0x2)
-			{
-				v = G & 0x00FF00;
-				if (rand() > 0x1600) v += 0x000100;
-				else v -= 0x000100;
-				if (v > 0xFF00) v = 0xFF00;
-				else if (v < 0x00FF) v = 0;
-			}
-
-			if (Effect_Color & 0x1)
-			{
-				b = RB & 0xFF;
-				if (rand() > 0x1600) b++;
-				else b--;
-				if (b > 0xFF) b = 0xFF;
-				else if (b < 0) b = 0;
-			}
-			MD_Screen32[offset] = r + v + b;
+			// gens64: the effect runs in 16 bits only, as Gens drew it on a 16-bit desktop, and the 32-bit
+			// screen gets that picture: the old 32-bit variant took 1/256 steps and faded to plain white
 			prev_l = MD_Screen[offset - 336];
 			prev_p = MD_Screen[offset - 1];
 
@@ -1378,6 +1347,13 @@ int Update_Crazy_Effect(HWND hWnd)
 			}
 
 			MD_Screen[offset] = r + v + b;
+			{
+				unsigned int c = MD_Screen[offset], R5, G6, B5;
+				if (Mode_555 & 1) { R5 = (c >> 10) & 0x1F; G6 = ((c >> 5) & 0x1F) << 1; }
+				else { R5 = (c >> 11) & 0x1F; G6 = (c >> 5) & 0x3F; }
+				B5 = c & 0x1F;
+				MD_Screen32[offset] = ((R5 << 3 | R5 >> 2) << 16) | ((G6 << 2 | G6 >> 4) << 8) | (B5 << 3 | B5 >> 2);
+			}
 		}
 	}
 

@@ -107,9 +107,11 @@ if (Full_Screen)								\
 /*strcat(Str_Tmp, (suffixe));*/ AddHotkeySuffix(Str_Tmp, id, suffixe);							\
 InsertMenu((smenu), (pos), (flags), (id), Str_Tmp);} } while(0)
 
+// gens64: dialog labels get no hotkey suffix: it always started with a tab (the menu column
+// separator), drawn as a box by Wine, and a control ID equal to a hotkey command would get its keys
 #define WORD_L(id, str, suffixe, def)															\
 {GetPrivateProfileString(language_name[Language], (str), (def), Str_Tmp, 1024, Language_Path);	\
-/*strcat(Str_Tmp, (suffixe));*/ AddHotkeySuffix(Str_Tmp, id, suffixe);							\
+strcat(Str_Tmp, (suffixe));																	\
 SetDlgItemText(hDlg, id, Str_Tmp);}
 
 #define MESSAGE_LT(str, def, time)																	\
