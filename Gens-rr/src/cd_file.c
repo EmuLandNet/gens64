@@ -18,6 +18,40 @@ char Track_Played;
 _scd_toc g_cuefile_TOC;
 char g_cuefile_TOC_filenames [100] [1024] = {{0}};
 int g_cuefile_TOC_filetype [100] = {0};
+int g_cuefile_TOC_pregap [100] = {0};	// gens64: PREGAP of the track in sectors, -1 if none (WAV tracks)
+
+/* gens64: WAV audio tracks (docs/segacd-formats.md), as Genesis Plus GX: 16-bit stereo 44.1 kHz PCM,
+   played sector by sector like BINARY audio (2352 bytes = 588 samples per sector), exact length in
+   the TOC. Returns the length in sectors and the offset of the data chunk, or 0 if not usable. */
+static int Wav_Open(FILE *f, int *data_offset)
+{
+	unsigned char h[12], c[8], fmt[16];
+	int pos = 12, fmt_ok = 0;
+	if (!f || fseek(f, 0, SEEK_SET) || fread(h, 1, 12, f) != 12 || memcmp(h, "RIFF", 4) || memcmp(h + 8, "WAVE", 4))
+		return 0;
+	for (;;)
+	{
+		unsigned int len;
+		if (fseek(f, pos, SEEK_SET) || fread(c, 1, 8, f) != 8)
+			return 0;
+		len = c[4] | c[5] << 8 | c[6] << 16 | (unsigned int)c[7] << 24;
+		if (!memcmp(c, "fmt ", 4) && len >= 16 && fread(fmt, 1, 16, f) == 16)
+		{
+			/* PCM, 2 channels, 44100 Hz, 16 bits */
+			fmt_ok = fmt[0] == 1 && fmt[1] == 0 && fmt[2] == 2 && fmt[3] == 0 &&
+				(fmt[4] | fmt[5] << 8 | fmt[6] << 16 | fmt[7] << 24) == 44100 && fmt[14] == 16;
+		}
+		else if (!memcmp(c, "data", 4))
+		{
+			if (!fmt_ok)
+				return 0;
+			*data_offset = pos + 8;
+			return (int)((len + 2351) / 2352);
+		}
+		pos += 8 + len + (len & 1);
+	}
+}
+
 int g_dontResetAudioCache = 0;
 extern char preloaded_tracks [100], played_tracks_linear [105]; // added for synchronous MP3 code
 void Delete_Preloaded_MP3s(void);
@@ -223,7 +257,17 @@ int Load_ISO(char *buf, char *iso_name)
 							float fs;
 
 							tmp_file = fopen(g_cuefile_TOC_filenames[i], "rb");
-							if(tmp_file && g_cuefile_TOC_filetype[i] != TYPE_WAV) // wav is not supported yet
+							int wav_len = 0, wav_offset = 0;
+							if(tmp_file && g_cuefile_TOC_filetype[i] == TYPE_WAV) // gens64: WAV tracks
+							{
+								wav_len = Wav_Open(tmp_file, &wav_offset);
+								if(!wav_len)
+								{
+									fclose(tmp_file);
+									tmp_file = NULL;
+								}
+							}
+							if(tmp_file)
 							{
 								File_Size = CreateFile(g_cuefile_TOC_filenames[i], GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
 								fs = (float) GetFileSize(File_Size, NULL);				// used to calculate length
@@ -233,6 +277,10 @@ int Load_ISO(char *buf, char *iso_name)
 
 								strncpy(Tracks[i].filename, g_cuefile_TOC_filenames[i], 512);
 								Tracks[i].filename[511] = 0;
+
+								// gens64: PREGAP of a WAV track after an audio track
+								if(wav_len && i && g_cuefile_TOC_pregap[i] > 0 && !(g_cuefile_TOC_filetype[i-1] == TYPE_ISO || g_cuefile_TOC_filetype[i-1] == TYPE_BIN))
+									Cur_LBA += g_cuefile_TOC_pregap[i];
 
 								LBA_to_MSF(Cur_LBA, &(SCD.TOC.Tracks[i].MSF));
 
@@ -245,6 +293,12 @@ int Load_ISO(char *buf, char *iso_name)
 									{
 										SCD.TOC.Tracks[i].MSF = SCD.TOC.Tracks[j].MSF;
 									}
+									else if(wav_len && g_cuefile_TOC_pregap[i] >= 0)
+									{
+										// gens64: WAV track after the data track: its PREGAP (usually 2 s)
+										LBA_to_MSF(Max_LBA, &SCD.TOC.Tracks[i].MSF);
+										AddToMSF(&SCD.TOC.Tracks[i].MSF, LBA_Deficit + g_cuefile_TOC_pregap[i], 0,0,0);
+									}
 									else
 									{
 										LBA_to_MSF(Max_LBA, &SCD.TOC.Tracks[i].MSF);
@@ -253,7 +307,15 @@ int Load_ISO(char *buf, char *iso_name)
 									Cur_LBA = MSF_to_LBA(&SCD.TOC.Tracks[i].MSF);
 								}
 
-	//							if(g_cuefile_TOC_filetype[i] == TYPE_MP3)
+								if(wav_len)
+								{
+									// gens64: WAV File, exact length
+									Tracks[i].Type = TYPE_WAV;
+									Tracks[i].Wav_Offset = wav_offset;
+									Tracks[i].Length = wav_len;
+									Cur_LBA += Tracks[i].Length;
+								}
+								else
 								{
 									// MP3 File
 									Tracks[i].Type = TYPE_MP3;
@@ -281,11 +343,11 @@ int Load_ISO(char *buf, char *iso_name)
 								{
 									if(tmp_file)
 									{
-										sprintf(errmsg, "Couldn't use audio file \"%s\" for track %02d because WAV files are not supported. Please use either BINARY audio tracks or MP3 files.", g_cuefile_TOC_filenames[i], SCD.TOC.Tracks[i].Num);
+										sprintf(errmsg, "Couldn't use audio file \"%s\" for track %02d: only 16-bit stereo 44.1 kHz PCM WAV files are supported.", g_cuefile_TOC_filenames[i], SCD.TOC.Tracks[i].Num);
 										fclose(tmp_file);
 									}
 									else
-										sprintf(errmsg, "Couldn't find audio file \"%s\" for track %02d, and WAV files are not supported anyway. Please use either BINARY audio tracks or MP3 files.", g_cuefile_TOC_filenames[i], SCD.TOC.Tracks[i].Num);
+										sprintf(errmsg, "Couldn't use audio file \"%s\" for track %02d (missing, or not a 16-bit stereo 44.1 kHz PCM WAV file).", g_cuefile_TOC_filenames[i], SCD.TOC.Tracks[i].Num);
 								}
 								else
 									sprintf(errmsg, "Couldn't find audio file \"%s\" for track %02d.", g_cuefile_TOC_filenames[i], SCD.TOC.Tracks[i].Num);
@@ -346,6 +408,9 @@ int Load_ISO(char *buf, char *iso_name)
 						SCD.TOC.Tracks[num_track - SCD.TOC.First_Track].Num = num_track;
 						SCD.TOC.Tracks[num_track - SCD.TOC.First_Track].Type = 0;			// AUDIO
 
+						if (j >= 10)
+							Cur_LBA += 150;	// gens64: WAV: the 2 s pause before each track, as Genesis Plus GX
+
 						LBA_to_MSF(Cur_LBA, &(SCD.TOC.Tracks[num_track - SCD.TOC.First_Track].MSF));
 
 		#ifdef DEBUG_CD
@@ -365,9 +430,28 @@ int Load_ISO(char *buf, char *iso_name)
 						}
 						else
 						{
-							// WAV File
+							// WAV File (gens64: exact length; unusable WAV: silence of 1000 sectors as r341)
+							int wav_offset = 0, wav_len = Wav_Open(tmp_file, &wav_offset);
+							if (wav_len > 150)
+							{
+								/* as GPGX: silence at sector 100 of the file = the 2 s pause is in the file */
+								unsigned char z[4] = {1, 1, 1, 1};
+								fseek(tmp_file, wav_offset + 100 * 2352, SEEK_SET);
+								fread(z, 1, 4, tmp_file);
+								if (!(z[0] | z[1] | z[2] | z[3]))
+								{
+									wav_offset += 150 * 2352;
+									wav_len -= 150;
+								}
+							}
 							Tracks[num_track - SCD.TOC.First_Track].Type = TYPE_WAV;
-							Tracks[num_track - SCD.TOC.First_Track].Length = 1000;
+							Tracks[num_track - SCD.TOC.First_Track].Wav_Offset = wav_offset;
+							Tracks[num_track - SCD.TOC.First_Track].Length = wav_len ? wav_len : 1000;
+							if(!wav_len)
+							{
+								fclose(tmp_file);
+								Tracks[num_track - SCD.TOC.First_Track].F = NULL;
+							}
 							Cur_LBA += Tracks[num_track - SCD.TOC.First_Track].Length;
 						}
 
@@ -656,6 +740,7 @@ int Load_CUE(char *buf, char *cue_name)
 	int trackIndex = -1, filetype = TYPE_ISO;
 
 	memset(&g_cuefile_TOC, 0, sizeof(g_cuefile_TOC));
+	memset(g_cuefile_TOC_pregap, 0xFF, sizeof(g_cuefile_TOC_pregap));	// gens64: -1 = no PREGAP
 	filename[0] = 0;
 	g_cuefile_TOC.First_Track = 255;
 	g_cuefile_TOC.Last_Track = 0;
@@ -729,6 +814,15 @@ int Load_CUE(char *buf, char *cue_name)
 				if(g_cuefile_TOC.Last_Track < trackNum) g_cuefile_TOC.Last_Track = trackNum;
 				MakeFilename(g_cuefile_TOC_filenames[trackIndex], 1024, cue_name, filename);
 				g_cuefile_TOC_filetype[trackIndex] = filetype;
+				continue;
+			}
+		}
+
+		{
+			int m,s,f;	// gens64: PREGAP mm:ss:ff (used for WAV tracks)
+			if(3 == sscanf(line, " PREGAP %d:%d:%d", &m,&s,&f) && trackIndex >= 0)
+			{
+				g_cuefile_TOC_pregap[trackIndex] = (m * 60 + s) * 75 + f;
 				continue;
 			}
 		}
@@ -843,6 +937,20 @@ int FILE_Read_One_LBA_CDC(void)
 					MP3_Update(cp_buf, &rate, &channel, 0);
 				Write_CD_Audio((short *) cp_buf, rate, channel, 588);
 			}
+		}
+		else if(Tracks[index].Type == TYPE_WAV) // gens64: WAV track, read like BINARY audio (docs/segacd-formats.md)
+		{
+			int pos = SCD.Cur_LBA - Track_to_LBA(SCD.Cur_Track);
+			memset(cp_buf, 0, 2352);
+			if(Tracks[index].F && pos >= 0 && pos < Tracks[index].Length)
+			{
+				fseek(Tracks[index].F, Tracks[index].Wav_Offset + pos * 2352, SEEK_SET);
+				fread(cp_buf, 1, 2352, Tracks[index].F);
+#ifdef WAV_TRACE
+				{ static FILE *wt; if (!wt) wt = fopen("wav_trace.txt", "w"); if (wt) { int k, nz = 0; for (k = 0; k < 2352; k++) nz |= cp_buf[k]; fprintf(wt, "%d %d %d %d\n", SCD.Cur_Track, pos, SCD.Cur_LBA, nz != 0); fflush(wt); } }
+#endif
+			}
+			Write_CD_Audio((short *) cp_buf, 44100, 2, 588);
 		}
 		else if(Tracks[index].Type == TYPE_ISO) // Modif N. -- added case to allow using music from the ISO file (cue file support)
 		{

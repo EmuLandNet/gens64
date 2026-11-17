@@ -17,6 +17,7 @@ struct _file_track {
 	int Length;
 	int Type;
 	char filename [512];
+	int Wav_Offset;	/* gens64: TYPE_WAV: file offset of the PCM data (docs/segacd-formats.md) */
 };
 
 extern struct _file_track Tracks[100];
