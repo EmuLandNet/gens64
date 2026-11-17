@@ -8598,8 +8598,7 @@ LRESULT CALLBACK OptionProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					Effect_Color = SendDlgItemMessage(hDlg, IDC_COLOR_EFFECT, TBM_GETPOS, 0, 0);
 					Intro_Style = (SendDlgItemMessage(hDlg, IDC_DISABLE_INTRO_EFFECT, BM_GETCHECK, 0, 0) == BST_CHECKED)?0:(Intro_Style?Intro_Style:2); //Modif N.
 
-					if(Effect_Color == 0) //Modif N. - black color disables intro
-						Intro_Style = 0;
+					// gens64: colour 0 no longer disables the effect (it is the original colours)
 
 					Auto_Fix_CS = (SendDlgItemMessage(hDlg, IDC_AUTOFIXCHECKSUM, BM_GETCHECK, 0, 0) == BST_CHECKED)?1:0;
 					Auto_Pause = (SendDlgItemMessage(hDlg, IDC_AUTOPAUSE, BM_GETCHECK, 0, 0) == BST_CHECKED)?1:0;

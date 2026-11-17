@@ -46,7 +46,7 @@ int Res_Y = 240 << (int) (Render_FS > 0); //Upth-Add - fullscreen resolution (de
 bool FS_No_Res_Change = false; //Upth-Add - For the new fullscreen at same resolution
 int Stretch; 
 int Blit_Soft;
-int Effect_Color = 7;
+int Effect_Color = 0;	// gens64: 0 = the original coloured intro effect
 int FPS_Style = EMU_MODE | WHITE;
 int Message_Style = EMU_MODE | WHITE | SIZE_X2;
 int Kaillera_Error = 0;
@@ -1272,13 +1272,51 @@ int Update_Crazy_Effect(HWND hWnd)
 	int i, j, offset;
 	int r = 0, v = 0, b = 0, prev_l, prev_p;
 	int RB, G;
+	// gens64: colour 0 (the crossed square) is the original coloured noise: the 16-bit variant,
+	// as Gens drew it on a 16-bit desktop, shown on the 32-bit screen; 1-7 tint it as before
+	// (the 32-bit variant: fine steps, 7 = white). Off is only "Disable Intro Effect".
+	int m = Effect_Color ? Effect_Color : 7, coloured = (Effect_Color == 0);
 
  	for(offset = 336 * 240, j = 0; j < 240; j++)
 	{
 		for(i = 0; i < 336; i++, offset--)
 		{
-			// gens64: the effect runs in 16 bits only, as Gens drew it on a 16-bit desktop, and the 32-bit
-			// screen gets that picture: the old 32-bit variant took 1/256 steps and faded to plain white
+			if (!coloured)
+			{
+			prev_l = MD_Screen32[offset - 336];
+			prev_p = MD_Screen32[offset - 1];
+
+			RB = ((prev_l & 0xFF00FF) + (prev_p & 0xFF00FF)) >> 1;
+			G = ((prev_l & 0x00FF00) + (prev_p & 0x00FF00)) >> 1;
+
+			if (m & 0x4)
+			{
+				r = RB & 0xFF0000;
+				if (rand() > 0x1600) r += 0x010000;
+				else r -= 0x010000;
+				if (r > 0xFF0000) r = 0xFF0000;
+				else if (r < 0x00FFFF) r = 0;
+			}
+
+			if (m & 0x2)
+			{
+				v = G & 0x00FF00;
+				if (rand() > 0x1600) v += 0x000100;
+				else v -= 0x000100;
+				if (v > 0xFF00) v = 0xFF00;
+				else if (v < 0x00FF) v = 0;
+			}
+
+			if (m & 0x1)
+			{
+				b = RB & 0xFF;
+				if (rand() > 0x1600) b++;
+				else b--;
+				if (b > 0xFF) b = 0xFF;
+				else if (b < 0) b = 0;
+			}
+			MD_Screen32[offset] = r + v + b;
+			}
 			prev_l = MD_Screen[offset - 336];
 			prev_p = MD_Screen[offset - 1];
 
@@ -1287,7 +1325,7 @@ int Update_Crazy_Effect(HWND hWnd)
 				RB = ((prev_l & 0x7C1F) + (prev_p & 0x7C1F)) >> 1;
 				G = ((prev_l & 0x03E0) + (prev_p & 0x03E0)) >> 1;
 
-				if (Effect_Color & 0x4)
+				if (m & 0x4)
 				{
 					r = RB & 0x7C00;
 					if (rand() > 0x2C00) r += 0x0400;
@@ -1296,7 +1334,7 @@ int Update_Crazy_Effect(HWND hWnd)
 					else if (r < 0x0400) r = 0;
 				}
 
-				if (Effect_Color & 0x2)
+				if (m & 0x2)
 				{
 					v = G & 0x03E0;
 					if (rand() > 0x2C00) v += 0x0020;
@@ -1305,7 +1343,7 @@ int Update_Crazy_Effect(HWND hWnd)
 					else if (v < 0x0020) v = 0;
 				}
 
-				if (Effect_Color & 0x1)
+				if (m & 0x1)
 				{
 					b = RB & 0x001F;
 					if (rand() > 0x2C00) b++;
@@ -1319,7 +1357,7 @@ int Update_Crazy_Effect(HWND hWnd)
 				RB = ((prev_l & 0xF81F) + (prev_p & 0xF81F)) >> 1;
 				G = ((prev_l & 0x07C0) + (prev_p & 0x07C0)) >> 1;
 
-				if (Effect_Color & 0x4)
+				if (m & 0x4)
 				{
 					r = RB & 0xF800;
 					if (rand() > 0x2C00) r += 0x0800;
@@ -1328,7 +1366,7 @@ int Update_Crazy_Effect(HWND hWnd)
 					else if (r < 0x0800) r = 0;
 				}
 
-				if (Effect_Color & 0x2)
+				if (m & 0x2)
 				{
 					v = G & 0x07C0;
 					if (rand() > 0x2C00) v += 0x0040;
@@ -1337,7 +1375,7 @@ int Update_Crazy_Effect(HWND hWnd)
 					else if (v < 0x0040) v = 0;
 				}
 
-				if (Effect_Color & 0x1)
+				if (m & 0x1)
 				{
 					b = RB & 0x001F;
 					if (rand() > 0x2C00) b++;
@@ -1348,6 +1386,7 @@ int Update_Crazy_Effect(HWND hWnd)
 			}
 
 			MD_Screen[offset] = r + v + b;
+			if (coloured)
 			{
 				unsigned int c = MD_Screen[offset], R5, G6, B5;
 				if (Mode_555 & 1) { R5 = (c >> 10) & 0x1F; G6 = ((c >> 5) & 0x1F) << 1; }

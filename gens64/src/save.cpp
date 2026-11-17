@@ -3091,10 +3091,10 @@ int Load_Config(char *File_Name, void *Game_Active)
 	Window_Pos.x = GetPrivateProfileInt("General", "Window X", 0, Conf_File);
 	Window_Pos.y = GetPrivateProfileInt("General", "Window Y", 0, Conf_File);
 	Intro_Style = GetPrivateProfileInt("General", "Intro Style", 0, Conf_File); //Modif N. - default to not using the "crazy" intro effect, which used to guzzle more CPU than the actual emulation
-	// gens64: the colour is kept even with the effect off (it was 0 then), so that unchecking
-	// "Disable Intro Effect" shows the effect; 0 (black, = off) becomes the default white
-	Effect_Color = GetPrivateProfileInt("General", "Free Mode Color", 7, Conf_File);
-	if (Effect_Color <= 0 || Effect_Color > 7) Effect_Color = 7;
+	// gens64: 0 (the crossed square) is the original coloured effect, not "off" (that is "Disable
+	// Intro Effect" alone); the default
+	Effect_Color = GetPrivateProfileInt("General", "Free Mode Color", 0, Conf_File);
+	if (Effect_Color < 0 || Effect_Color > 7) Effect_Color = 0;
 	Sleep_Time = GetPrivateProfileInt("General", "Allow Idle", 5, Conf_File); //Modif N. - CPU hogging now off by default
 	Gens_Priority = GetPrivateProfileInt("General", "Priority", 1, Conf_File);
 	Def_Read_Only = (bool) (GetPrivateProfileInt("General", "Movie Default Read Only", 1, Conf_File) > 0); //Upth-Add - Load the flag from config
