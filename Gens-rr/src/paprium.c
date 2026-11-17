@@ -21,6 +21,7 @@
 #include "gens64_addr.h"
 #include "Star_68k.h"
 #include "paprium.h"
+#include "psg.h"
 
 /* -DPAPRIUM_TRACE: commands to paprium_trace.txt (debugging) */
 #ifdef PAPRIUM_TRACE
@@ -1763,6 +1764,12 @@ void Paprium_Reset(void)
 	int ptr;
 
 	mus_close();
+	/* gens64: the minigame plays PSG notes straight from the 68000.  A reset
+	   between a note and its release left that PSG channel sounding (the
+	   reset button doesn't reset the PSG), and the full game never writes
+	   the PSG, so the note went on forever.  Silence the four PSG channels
+	   on every boot, as the cartridge's own start-up would. */
+	PSG_Write(0x9F); PSG_Write(0xBF); PSG_Write(0xDF); PSG_Write(0xFF);
 	memset(&paprium_box, 0, sizeof(paprium_box));
 	memset(&pap, 0, sizeof(pap));
 	memcpy(paprium_s.ram, Rom_Data, 0x10000);

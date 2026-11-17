@@ -1110,7 +1110,7 @@ static void toCStringConverter(lua_State* L, int i, char*& ptr, int& remaining)
 		case LUA_TNIL: APPENDPRINT "nil" END break;
 		case LUA_TBOOLEAN: APPENDPRINT lua_toboolean(L,i) ? "true" : "false" END break;
 		case LUA_TSTRING: APPENDPRINT "%s",lua_tostring(L,i) END break;
-		case LUA_TNUMBER: APPENDPRINT "%.12Lg",lua_tonumber(L,i) END break;
+		case LUA_TNUMBER: APPENDPRINT "%.12g",(double)lua_tonumber(L,i) END /* gens64: %Lg read an 80-bit long double from a double on x64 and crashed */ break;
 		case LUA_TFUNCTION: 
 			if((L->base + i-1)->value.gc->cl.c.isC)
 			{
