@@ -3,7 +3,7 @@
 # SH2MEM_FULL=1 compares all memory after every access (slow; to locate a difference).
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
-src="$here/../../Gens-rr/src"
+src="$here/../../gens64/src"
 out=${SH2MEM_DIFF_OUT:-$(mktemp -d)}; mkdir -p "$out"
 i686-w64-mingw32-objcopy --prefix-symbols=orig_ "$1" "$out/orig.obj"
 cc="clang --target=i686-w64-mingw32 -march=i686 -O2 -fno-strict-aliasing -fwrapv -std=gnu89 -fcommon"

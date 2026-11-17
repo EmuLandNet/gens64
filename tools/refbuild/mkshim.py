@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Generate the include shim for building the Windows-era sources on Linux:
 case-insensitive aliases for quoted #includes, svnrev.h, StdAfx.h and MyAES.h for 7z, BaseTsd.h.
-Usage: mkshim.py <Gens-rr dir> <out dir> <svn rev> <mingw include dir>"""
+Usage: mkshim.py <gens64 dir> <out dir> <svn rev> <mingw include dir>"""
 import os, re, glob, sys, shutil
 root, ci, rev, mingw_inc = sys.argv[1:5]
 os.makedirs(ci, exist_ok=True)

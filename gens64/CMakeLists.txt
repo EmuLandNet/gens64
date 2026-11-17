@@ -2,7 +2,7 @@
 # for 64-bit Windows (cmake/toolchain-x86_64-mingw-clang.cmake).
 # Must be compiled exactly like the official MSVC build behaves: see GENS64.md, "Ловушки".
 if(NOT WIN32 OR NOT (CMAKE_SIZEOF_VOID_P EQUAL 4 OR CMAKE_SIZEOF_VOID_P EQUAL 8))
-  message(FATAL_ERROR "Gens-rr is the Windows build: use cmake/toolchain-i686-mingw-clang.cmake (32-bit) or cmake/toolchain-x86_64-mingw-clang.cmake (64-bit)")
+  message(FATAL_ERROR "gens64 is the Windows build: use cmake/toolchain-i686-mingw-clang.cmake (32-bit) or cmake/toolchain-x86_64-mingw-clang.cmake (64-bit)")
 endif()
 if(CMAKE_SIZEOF_VOID_P EQUAL 8)
   set(GENS_WIN64 ON)

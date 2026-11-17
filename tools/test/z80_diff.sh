@@ -4,7 +4,7 @@
 # built with GENS64_Z80_TEST, reads past the table end at the same place as the original.
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
-src="$here/../../Gens-rr/src"
+src="$here/../../gens64/src"
 out=${Z80_DIFF_OUT:-$(mktemp -d)}; mkdir -p "$out"
 i686-w64-mingw32-objcopy --globalize-symbol=DAA_Table "$1" "$out/g.obj"
 i686-w64-mingw32-objcopy --prefix-symbols=orig_ "$out/g.obj" "$out/orig.obj"

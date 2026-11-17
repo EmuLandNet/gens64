@@ -5,7 +5,7 @@
 # every symbol in it, externs included, gets the prefix "orig_" so both versions link side by side.
 set -e
 here=$(cd "$(dirname "$0")" && pwd)
-src="$here/../../Gens-rr/src"
+src="$here/../../gens64/src"
 obj="$1"; port="$2"; test="$3"; shift 3
 out=$(mktemp -d)
 i686-w64-mingw32-objcopy --prefix-symbols=orig_ "$obj" "$out/orig.obj"
