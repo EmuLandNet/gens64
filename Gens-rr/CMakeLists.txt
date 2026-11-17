@@ -170,3 +170,30 @@ if(GENS64_PAPRIUM)
   set_source_files_properties(src/paprium.c PROPERTIES COMPILE_OPTIONS "-std=gnu99")
 endif()
 
+
+# gens64: CHD images for Sega CD (docs/segacd-formats.md): libchdr with zlib 1.2.11 (Z_PREFIX: z_*),
+# LZMA SDK 19.00 (renamed chdlzma_*, third_party/libchdr/compat/lzma_rename.h: Gens has its own 7-Zip
+# LZMA), zstd and dr_flac, as in Genesis Plus GX (libretro/deps). Only chd_*/cdrom_* are used by Gens.
+set(CHD ${PROJECT_SOURCE_DIR}/third_party/libchdr)
+set(CHD_LZMA Alloc Bra86 BraIA64 CpuArch Delta LzFind Lzma86Dec LzmaDec LzmaEnc Sort)
+list(TRANSFORM CHD_LZMA PREPEND ${CHD}/deps/lzma-19.00/src/)
+list(TRANSFORM CHD_LZMA APPEND .c)
+add_library(gens_chd STATIC
+  ${CHD}/src/libchdr_bitstream.c ${CHD}/src/libchdr_cdrom.c ${CHD}/src/libchdr_chd.c
+  ${CHD}/src/libchdr_flac.c ${CHD}/src/libchdr_huffman.c
+  ${CHD_LZMA}
+  ${CHD}/deps/zstd/lib/common/entropy_common.c ${CHD}/deps/zstd/lib/common/error_private.c
+  ${CHD}/deps/zstd/lib/common/fse_decompress.c ${CHD}/deps/zstd/lib/common/zstd_common.c
+  ${CHD}/deps/zstd/lib/common/xxhash.c ${CHD}/deps/zstd/lib/decompress/huf_decompress.c
+  ${CHD}/deps/zstd/lib/decompress/zstd_ddict.c ${CHD}/deps/zstd/lib/decompress/zstd_decompress.c
+  ${CHD}/deps/zstd/lib/decompress/zstd_decompress_block.c
+  ${CHD}/deps/zlib-1.2.11/adler32.c ${CHD}/deps/zlib-1.2.11/crc32.c ${CHD}/deps/zlib-1.2.11/inffast.c
+  ${CHD}/deps/zlib-1.2.11/inflate.c ${CHD}/deps/zlib-1.2.11/inftrees.c ${CHD}/deps/zlib-1.2.11/zutil.c)
+target_include_directories(gens_chd PRIVATE ${CHD}/compat ${CHD}/include ${CHD}/deps/lzma-19.00/include
+  ${CHD}/deps/zlib-1.2.11 ${CHD}/deps/zstd/lib)
+target_compile_definitions(gens_chd PRIVATE _7ZIP_ST ZSTD_DISABLE_ASM Z_PREFIX
+  z_errmsg=chdz_errmsg inflate_fast=chdz_inflate_fast inflate_table=chdz_inflate_table zcalloc=chdz_zcalloc zcfree=chdz_zcfree)
+target_compile_options(gens_chd PRIVATE -O2 -w -std=gnu99 -include ${CHD}/compat/lzma_rename.h)
+target_include_directories(Gens PRIVATE ${CHD}/include ${CHD}/compat)
+set_source_files_properties(src/cd_chd.c PROPERTIES COMPILE_OPTIONS "-std=gnu99")
+target_link_libraries(Gens PRIVATE gens_chd)

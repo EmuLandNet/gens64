@@ -8300,6 +8300,11 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				"as modified for Genesis Plus GX by Eke-Eke" "\r\n" "\r\n"
 				"Super Fighter Team boards SF-001/002/004" "\r\n"
 				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
+				"Sega CD WAV and CHD images after Genesis Plus GX, Eke-Eke;" "\r\n"
+				"libchdr (c) Romain Tisserand (BSD), zstd (c) Meta (BSD)," "\r\n"
+				"LZMA SDK by Igor Pavlov (public domain)," "\r\n"
+				"zlib (c) Jean-loup Gailly and Mark Adler," "\r\n"
+				"dr_flac by David Reid (public domain)" "\r\n" "\r\n"
 				"MP3 decoding: minimp3 by lieff (public domain)"
 			);
 

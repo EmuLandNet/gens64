@@ -2,6 +2,7 @@
 #include <windows.h>
 #include "cd_aspi.h"		// this include cd_sys.h
 #include "cd_file.h"
+#include "cd_chd.h"
 #include "gens.h"
 #include "G_dsound.h"
 #include "cdda_mp3.h"
@@ -293,6 +294,16 @@ int Reset_CD(char *buf, char *iso_name)
 	else
 	{
 		char* dot = strrchr(iso_name, '.');
+		if(dot && !stricmp(dot, ".chd"))
+		{
+			// gens64: CHD image (cd_chd.c, docs/segacd-formats.md); CD_Load_System (in savestates)
+			// as for what the CHD is made of: an ISO (data only) or a CUE (with audio tracks)
+			if (Load_CHD(buf, iso_name))
+				return -1;
+			CD_Load_System = CHD_Tracks() > 1 ? FILE_CUE : FILE_ISO;
+			CD_Present = 1;
+			return 0;
+		}
 		if(dot && !stricmp(dot, ".cue"))
 		{
 			CD_Load_System = FILE_CUE;

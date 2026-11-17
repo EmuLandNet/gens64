@@ -9,6 +9,7 @@ extern "C" {
 #define TYPE_BIN 2
 #define TYPE_MP3 3
 #define TYPE_WAV 4
+#define TYPE_CHD 5	/* gens64: track of a CHD image (cd_chd.c) */
 
 
 struct _file_track {
@@ -31,6 +32,7 @@ void FILE_End(void);
 int Load_ISO(char *buf, char *iso_name);
 void Unload_ISO(void);
 int Load_CUE(char *buf, char *cue_name);
+int Load_CHD(char *buf, char *chd_name);	/* gens64 */
 void Get_CUE_ISO_Filename(char *fnamebuf, int fnamebuf_size, char *cue_name);
 //int FILE_Read_One_CD_LBA(int lba);
 int FILE_Read_One_LBA_CDC(void);

@@ -34,6 +34,7 @@
 #include "flash_cfi.h"
 #include "svp.h"
 #include "sfteam.h"
+#include "cd_chd.h"
 extern "C" int Gens64_Prefetch_Hack; extern "C" void Gens64_Prefetch_Flush(void);
 #include "ggenie.h"
 #include "io.h"
@@ -1839,7 +1840,11 @@ int Import_SegaCD(unsigned char * Data)
 		ImportDataAuto(&CD_Audio_Buffer_Write_Pos, Data, offset, 4);
 		ImportDataAuto(&CD_Audio_Starting, Data, offset, 4);
 		ImportDataAuto(&CD_Present, Data, offset, 4);
-		ImportDataAuto(&CD_Load_System, Data, offset, 4);
+		{
+			int loaded = CD_Load_System; // gens64: the image type is that of the loaded disc, not of the state (CHD)
+			ImportDataAuto(&CD_Load_System, Data, offset, 4);
+			if (CHD_On) CD_Load_System = loaded;
+		}
 		ImportDataAuto(&CD_Timer_Counter, Data, offset, 4);
 		ImportDataAuto(&CDD_Complete, Data, offset, 4);
 		ImportDataAuto(&track_number, Data, offset, 4);

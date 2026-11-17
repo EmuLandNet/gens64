@@ -227,6 +227,7 @@ int Detect_Format(char *FileName)
 		fclose(f);
 	}
 
+	if (!memcmp("MComprHD", &buf[0x00], 8)) return SEGACD_IMAGE;		// gens64: CHD image (Sega CD; cd_chd.c)
 	if (!strnicmp("SEGADISCSYSTEM", &buf[0x00], 14)) return SEGACD_IMAGE;		// Sega CD (ISO)
 	if (!strnicmp("SEGADISCSYSTEM", &buf[0x10], 14)) return SEGACD_IMAGE + 1;	// Sega CD (BIN)
 
@@ -396,7 +397,7 @@ int Get_Rom(HWND hWnd)
 	#define EXTEND_FILTER(x) filterPtr--; APPEND_FILTER(x)
 
 	APPEND_FILTER("Sega CD / 32X / Genesis files");
-	APPEND_FILTER("*.bin;*.smd;*.gen;*.32x;*.cue;*.iso;*.raw");
+	APPEND_FILTER("*.bin;*.smd;*.gen;*.32x;*.cue;*.iso;*.raw;*.chd");
 	EXTEND_FILTER(supportedArchives);
 	APPEND_FILTER("Genesis roms (*.smd *.bin *.gen)");
 	APPEND_FILTER("*.smd;*.bin;*.gen");
@@ -405,15 +406,15 @@ int Get_Rom(HWND hWnd)
 	APPEND_FILTER("*.32x;*32x*.bin;*32x*.gen;*32x*.smd");
 	//EXTEND_FILTER(supportedArchives); // same as this but replace "*" with "*32x*" :
 	filterPtr--; const char* arcptr = supportedArchives; while(*arcptr) { if(*arcptr == '*') { *filterPtr++ = '*'; *filterPtr++ = '3'; *filterPtr++ = '2'; *filterPtr++ = 'x'; } *filterPtr++ = *arcptr++; } *filterPtr++ = 0;
-	APPEND_FILTER("Sega CD images (*.cue *.iso *.bin *.raw)");
-	APPEND_FILTER("*.cue;*.iso;*.bin;*.raw");
+	APPEND_FILTER("Sega CD images (*.cue *.iso *.bin *.raw *.chd)");
+	APPEND_FILTER("*.cue;*.iso;*.bin;*.raw;*.chd");
 	EXTEND_FILTER(supportedArchives); // not recommended for SegaCD but it should work to some degree...
 	APPEND_FILTER("Compressed only");
 	APPEND_FILTER(supportedArchives + 1);
 	APPEND_FILTER("Uncompressed only");
-	APPEND_FILTER("*.bin;*.smd;*.gen;*.32x;*.cue;*.iso;*.raw");
+	APPEND_FILTER("*.bin;*.smd;*.gen;*.32x;*.cue;*.iso;*.raw;*.chd");
 	APPEND_FILTER("Tagged with [!]");
-	APPEND_FILTER("*[!]*.bin;*[!]*.smd;*[!]*.gen;*[!]*.32x;*[!]*.cue;*[!]*.iso;*[!]*.raw;*[!]*.zip;*[!]*.rar;*[!]*.7z");
+	APPEND_FILTER("*[!]*.bin;*[!]*.smd;*[!]*.gen;*[!]*.32x;*[!]*.cue;*[!]*.iso;*[!]*.raw;*[!]*.chd;*[!]*.zip;*[!]*.rar;*[!]*.7z");
 	APPEND_FILTER("All Files");
 	APPEND_FILTER("*.*");
 	APPEND_FILTER("");

@@ -2,6 +2,7 @@
 #include <windows.h>
 #include "cd_sys.h"
 #include "cd_file.h"
+#include "cd_chd.h"
 #include "lc89510.h"
 #include "cdda_mp3.h"
 #include "star_68k.h"
@@ -569,6 +570,7 @@ void Unload_ISO(void)
 	int i;
 
 	MP3_CancelAllPreloading();
+	CHD_Close();	// gens64
 
 	Track_Played = 99;
 
@@ -863,13 +865,49 @@ int Load_CUE(char *buf, char *cue_name)
 	return -1;
 }
 
+/* gens64: CHD image: TOC from its metadata (cd_chd.c, docs/segacd-formats.md) */
+int Load_CHD(char *buf, char *chd_name)
+{
+	int i, n;
+	Unload_ISO();
+	if (CHD_Open(chd_name))
+		return -1;
+	memset(buf, 0, 0x200);
+	CHD_Header((unsigned char *)buf, 0x200);
+	n = CHD_Tracks();
+	SCD.TOC.First_Track = 1;
+	SCD.TOC.Last_Track = n;
+	for (i = 0; i < n; i++)
+	{
+		SCD.TOC.Tracks[i].Num = i + 1;
+		SCD.TOC.Tracks[i].Type = CHD_Track_Audio(i) ? 0 : 1;
+		LBA_to_MSF(CHD_Track_Start(i), &SCD.TOC.Tracks[i].MSF);
+		Tracks[i].Type = TYPE_CHD;
+		Tracks[i].F = NULL;
+		Tracks[i].F_decoded = NULL;
+		Tracks[i].Length = CHD_Track_End(i) - CHD_Track_Start(i);
+		strncpy(Tracks[i].filename, chd_name, 511);
+		Tracks[i].filename[511] = 0;
+	}
+	SCD.TOC.Tracks[n].Num = n + 1;	/* lead-out */
+	SCD.TOC.Tracks[n].Type = 0;
+	LBA_to_MSF(CHD_TOC_End(), &SCD.TOC.Tracks[n].MSF);
+	if (n == 1)
+		AddToMSF(&SCD.TOC.Tracks[n].MSF, 0, 0, 2, 0);	/* data only: lead-out 2 s after the data, as Load_ISO (movies of the ISO sync) */
+	return 0;
+}
+
 int FILE_Read_One_LBA_CDC(void)
 {
 	int where_read;
 	
 	//struct cdcstruct cdc = CDC; // enable this for stupid debuggers that don't realize CDC is a variable
 
-	if (CDD.Control & 0x0100)					// DATA
+	if ((CDD.Control & 0x0100) && CHD_On)	// gens64: DATA from a CHD image
+	{
+		CHD_Read_Data(SCD.Cur_LBA, (unsigned char *)cp_buf);
+	}
+	else if (CDD.Control & 0x0100)					// DATA
 	{
 		if (Tracks[0].F == NULL) return -1;
 
@@ -937,6 +975,14 @@ int FILE_Read_One_LBA_CDC(void)
 					MP3_Update(cp_buf, &rate, &channel, 0);
 				Write_CD_Audio((short *) cp_buf, rate, channel, 588);
 			}
+		}
+		else if(Tracks[index].Type == TYPE_CHD) // gens64: CHD audio track (docs/segacd-formats.md)
+		{
+			CHD_Read_Audio(index, SCD.Cur_LBA, (unsigned char *)cp_buf);
+#ifdef WAV_TRACE
+			{ static FILE *wt; if (!wt) wt = fopen("chd_trace.txt", "w"); if (wt) { int k, nz = 0; for (k = 0; k < 2352; k++) nz |= cp_buf[k]; fprintf(wt, "%d %d %d\n", SCD.Cur_Track, SCD.Cur_LBA, nz != 0); fflush(wt); } }
+#endif
+			Write_CD_Audio((short *) cp_buf, 44100, 2, 588);
 		}
 		else if(Tracks[index].Type == TYPE_WAV) // gens64: WAV track, read like BINARY audio (docs/segacd-formats.md)
 		{
