@@ -2957,6 +2957,15 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			Build_Main_Menu();
 			break;
 
+		case WM_SIZE:	// gens64: maximize/restore and resizing: clear the whole client area on the next
+						// frame, or the margins kept the picture of the previous size (seen under Wine)
+			if (!Full_Screen)
+			{
+				Flag_Clr_Scr = 0;
+				InvalidateRect(hWnd, NULL, TRUE);
+			}
+			break;
+
 		case WM_CLOSE:
 			if (AskSave())
 			{
