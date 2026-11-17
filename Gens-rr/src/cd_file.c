@@ -892,8 +892,7 @@ int Load_CHD(char *buf, char *chd_name)
 	SCD.TOC.Tracks[n].Num = n + 1;	/* lead-out */
 	SCD.TOC.Tracks[n].Type = 0;
 	LBA_to_MSF(CHD_TOC_End(), &SCD.TOC.Tracks[n].MSF);
-	if (n == 1)
-		AddToMSF(&SCD.TOC.Tracks[n].MSF, 0, 0, 2, 0);	/* data only: lead-out 2 s after the data, as Load_ISO (movies of the ISO sync) */
+	AddToMSF(&SCD.TOC.Tracks[n].MSF, 0, 0, 2, 0);	/* lead-out 2 s after the last track, as Load_ISO/Load_CUE (movies of the ISO or CUE sync) */
 	return 0;
 }
 
