@@ -2546,6 +2546,10 @@ int PASCAL WinMain(HINSTANCE hInst,	HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 			static int clearCounter = 0;
 			if(++clearCounter % 10 == 0)
 			{
+				// gens64: the picture is redrawn from MD_Screen (with a render filter): clear it, or the
+				// last frame of the game and the last message stay on the screen
+				memset(MD_Screen, 0, sizeof(MD_Screen));
+				memset(MD_Screen32, 0, sizeof(MD_Screen32));
 				Clear_Back_Screen(HWnd);
 				Flip(HWnd);
 			}

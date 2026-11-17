@@ -14,7 +14,6 @@
 #include "mem_M68K.h"
 #include "mem_SH2.h"
 #include "vdp_io.h"
-#include "vdp_rend.h"
 #include "save.h"
 #include "ccnet.h"
 #include "misc.h"
@@ -777,11 +776,6 @@ void Free_Rom(Rom *Rom_MD)
 	}
 
 	if (Intro_Style == 3) Init_Genesis_Bios();
-	else if (Intro_Style == 0)	// gens64: blank idle screen: drop the last frame of the game (the effects draw over it)
-	{
-		memset(MD_Screen, 0, sizeof(MD_Screen));
-		memset(MD_Screen32, 0, sizeof(MD_Screen32));
-	}
 	
 	SetWindowText(HWnd, GENS_NAME " - Idle");
 }
