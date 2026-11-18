@@ -3148,7 +3148,7 @@ int Load_Config(char *File_Name, void *Game_Active)
 	Frame_Skip = GetPrivateProfileInt("Graphics", "Frame skip", -1, Conf_File);
 	CleanAvi = GetPrivateProfileInt("Graphics", "Clean Avi", 1, Conf_File);
 
-	Correct_256_Aspect_Ratio = GetPrivateProfileInt("Graphics", "Proper Aspect Ratio", 1, Conf_File); //Modif N.
+	Correct_256_Aspect_Ratio = GetPrivateProfileInt("Graphics", "Proper Aspect Ratio", 0, Conf_File); //Modif N. gens64: off by default (it stretches screenshots and AVIs of 256-wide modes)
 	ShotPNGFormat = GetPrivateProfileInt("Graphics", "Screenshot Use PNG", 1, Conf_File); //Modif N.
 
 	Sound_Rate = GetPrivateProfileInt("Sound", "Rate", 44100, Conf_File);

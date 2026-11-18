@@ -65,7 +65,7 @@ void (*Blit_W)(unsigned char *Dest, int pitch, int x, int y, int offset);
 int (*Update_Frame)();
 int (*Update_Frame_Fast)();
 
-int Correct_256_Aspect_Ratio = 1;
+int Correct_256_Aspect_Ratio = 0;	// gens64: off by default
 #define ALT_X_RATIO_RES (Correct_256_Aspect_Ratio ? 320 : 256)
 
 // gens64: IS_FULL_X/Y_RESOLUTION are in gens.h (frame-start Set2/Set4, from Gens r57shell mod)
