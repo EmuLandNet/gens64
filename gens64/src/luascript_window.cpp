@@ -134,7 +134,7 @@ void KillWatcherThread (HWND hDlg)
 
 
 // some extensions that might commonly be near lua files that almost certainly aren't lua files.
-static const char* s_nonLuaExtensions [] = {"txt", "nfo", "htm", "html", "jpg", "jpeg", "png", "bmp", "gif", "mp3", "wav", "lnk", "exe", "bat", "gmv", "gm2", "luasav", "sav", "srm", "brm", "cfg", "wch", "gs*",  "bin","smd","gen","32x","cue","iso","raw"};
+static const char* s_nonLuaExtensions [] = {"txt", "nfo", "htm", "html", "jpg", "jpeg", "png", "bmp", "gif", "mp3", "wav", "lnk", "exe", "bat", "gmv", "gm2", "luasav", "sav", "srm", "brm", "cfg", "wch", "gs*",  "bin","smd","gen","md","32x","cue","iso","raw"};
 
 
 void Update_Recent_Script(const char* Path, bool dontPutAtTop)

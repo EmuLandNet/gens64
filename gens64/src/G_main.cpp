@@ -186,6 +186,16 @@ int Country = -1;
 int Country_Order[3];
 int Kaillera_Client_Running = 0;
 int Intro_Style = 0;
+
+// gens64: is one of our windows (main window or a dialog) the foreground one?
+static bool App_In_Foreground(void)
+{
+	DWORD pid = 0;
+	HWND fg = GetForegroundWindow();
+	if (!fg) return false;
+	GetWindowThreadProcessId(fg, &pid);
+	return pid == GetCurrentProcessId();
+}
 int SegaCD_Accurate = 1;
 int Gens_Running = 0;
 int WinNT_Flag = 0;
@@ -2410,6 +2420,11 @@ int PASCAL WinMain(HINSTANCE hInst,	HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 			Play_GYM();
 			Update_Gens_Logo(HWnd);
 		}
+		else if (Intro_Style && !App_In_Foreground())	// gens64: the intro effect stops in the background
+		{
+			Flip(HWnd);
+			Sleep(100);
+		}
 		else if (Intro_Style == 1)		// GENS LOGO EFFECT
 		{
 			Update_Gens_Logo(HWnd);
@@ -2751,7 +2766,7 @@ GensFileType GuessFileType(const char* filename, const char* extension)
 			rv = FILETYPE_MOVIE;
 		else if(tolower(extension[0]) == 'g' && tolower(extension[1]) == 's' && (extension[2] == 't' || extension[2] == '-' || isdigit(extension[2])))
 			rv = FILETYPE_SAVESTATE;
-		else if(!stricmp(extension, "cue") || !stricmp(extension, "iso") || !stricmp(extension, "raw") || !stricmp(extension, "smd") || !stricmp(extension, "gen") || !stricmp(extension, "32x") || !stricmp(extension, "bin"))
+		else if(!stricmp(extension, "cue") || !stricmp(extension, "iso") || !stricmp(extension, "raw") || !stricmp(extension, "smd") || !stricmp(extension, "gen") || !stricmp(extension, "md") || !stricmp(extension, "32x") || !stricmp(extension, "bin"))
 			rv = FILETYPE_ROM;
 		else if(filesize >= 1024) // we don't have a reliable way to tell the difference between a ROM/image and other junk, do we?
 			rv = FILETYPE_ROM;
@@ -2803,13 +2818,26 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 					FS_Minimised = 1;
 				}
 
-				if (Auto_Pause && Active)
-				{
-					Active = 0;
+				// gens64: Auto Pause moved to WM_ACTIVATEAPP (another program in front, not one of
+				// our own tool windows such as RAM Watch or the Lua console)
+			}
+			break;
 
-					if (!Paused) Pause_Screen();
+		case WM_ACTIVATEAPP:
+			if (Gens_Running == 0) break;
+			if (wParam)
+			{
+				if (Auto_Pause && !Active)
+				{
+					Active = 1;
 					Clear_Sound_Buffer();
 				}
+			}
+			else if (Auto_Pause && Active && !Net_Play)	// never in a netplay game: the others would wait
+			{
+				Active = 0;
+				if (!Paused) Pause_Screen();
+				Clear_Sound_Buffer();
 			}
 			break;
 

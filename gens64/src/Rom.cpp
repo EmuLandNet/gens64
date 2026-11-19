@@ -208,7 +208,7 @@ int Detect_Format(char *FileName)
 			if(strrchr(fname, '|')) fname = strrchr(fname, '|') + 1;
 			if(dot && (!stricmp(dot, ".cue") || !stricmp(dot, ".iso") || !stricmp(dot, ".raw")))
 				return SEGACD_IMAGE;
-			if(dot && (!stricmp(dot, ".smd") || !stricmp(dot, ".gen")))
+			if(dot && (!stricmp(dot, ".smd") || !stricmp(dot, ".gen") || !stricmp(dot, ".md")))
 				return GENESIS_ROM;
 			if((dot && !stricmp(dot, ".32x")) || strstr(fname, "32x") || strstr(fname, "32X"))
 				return _32X_ROM;
@@ -397,13 +397,13 @@ int Get_Rom(HWND hWnd)
 	#define EXTEND_FILTER(x) filterPtr--; APPEND_FILTER(x)
 
 	APPEND_FILTER("Sega CD / 32X / Genesis files");
-	APPEND_FILTER("*.bin;*.smd;*.gen;*.32x;*.cue;*.iso;*.raw;*.chd");
+	APPEND_FILTER("*.bin;*.smd;*.gen;*.md;*.32x;*.cue;*.iso;*.raw;*.chd");
 	EXTEND_FILTER(supportedArchives);
-	APPEND_FILTER("Genesis roms (*.smd *.bin *.gen)");
-	APPEND_FILTER("*.smd;*.bin;*.gen");
+	APPEND_FILTER("Genesis roms (*.smd *.bin *.gen *.md)");
+	APPEND_FILTER("*.smd;*.bin;*.gen;*.md");
 	EXTEND_FILTER(supportedArchives);
 	APPEND_FILTER("32X roms (*.32x)");
-	APPEND_FILTER("*.32x;*32x*.bin;*32x*.gen;*32x*.smd");
+	APPEND_FILTER("*.32x;*32x*.bin;*32x*.gen;*32x*.md;*32x*.smd");
 	//EXTEND_FILTER(supportedArchives); // same as this but replace "*" with "*32x*" :
 	filterPtr--; const char* arcptr = supportedArchives; while(*arcptr) { if(*arcptr == '*') { *filterPtr++ = '*'; *filterPtr++ = '3'; *filterPtr++ = '2'; *filterPtr++ = 'x'; } *filterPtr++ = *arcptr++; } *filterPtr++ = 0;
 	APPEND_FILTER("Sega CD images (*.cue *.iso *.bin *.raw *.chd)");
@@ -412,9 +412,9 @@ int Get_Rom(HWND hWnd)
 	APPEND_FILTER("Compressed only");
 	APPEND_FILTER(supportedArchives + 1);
 	APPEND_FILTER("Uncompressed only");
-	APPEND_FILTER("*.bin;*.smd;*.gen;*.32x;*.cue;*.iso;*.raw;*.chd");
+	APPEND_FILTER("*.bin;*.smd;*.gen;*.md;*.32x;*.cue;*.iso;*.raw;*.chd");
 	APPEND_FILTER("Tagged with [!]");
-	APPEND_FILTER("*[!]*.bin;*[!]*.smd;*[!]*.gen;*[!]*.32x;*[!]*.cue;*[!]*.iso;*[!]*.raw;*[!]*.chd;*[!]*.zip;*[!]*.rar;*[!]*.7z");
+	APPEND_FILTER("*[!]*.bin;*[!]*.smd;*[!]*.gen;*[!]*.md;*[!]*.32x;*[!]*.cue;*[!]*.iso;*[!]*.raw;*[!]*.chd;*[!]*.zip;*[!]*.rar;*[!]*.7z");
 	APPEND_FILTER("All Files");
 	APPEND_FILTER("*.*");
 	APPEND_FILTER("");

@@ -541,7 +541,7 @@ void CopyMovie(typeMovie * MovieSrc, typeMovie * MovieDest)
 }
 
 // some extensions that might commonly be near movie files that almost certainly aren't movie files.
-static const char* s_nonMovieExtensions [] = {"txt", "nfo", "htm", "html", "jpg", "jpeg", "png", "bmp", "gif", "mp3", "wav", "lnk", "exe", "bat", "lua", "luasav", "sav", "srm", "brm", "cfg", "wch", "gs*",  "bin","smd","gen","32x","cue","iso","raw"};
+static const char* s_nonMovieExtensions [] = {"txt", "nfo", "htm", "html", "jpg", "jpeg", "png", "bmp", "gif", "mp3", "wav", "lnk", "exe", "bat", "lua", "luasav", "sav", "srm", "brm", "cfg", "wch", "gs*",  "bin","smd","gen","md","32x","cue","iso","raw"};
 // question: why use exclusion instead of inclusion?
 // answer: because filename extensions aren't that reliable.
 // if it's one of these extensions then it's probably safe to assume it's not a movie (and doing so makes things simpler and more convenient for the user),
