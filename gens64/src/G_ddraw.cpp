@@ -32,6 +32,7 @@ LPDIRECTDRAWSURFACE4 lpDDS_Primary;
 LPDIRECTDRAWSURFACE4 lpDDS_Flip;
 // gens64: the picture scaled to the window by us (nearest pixel), then copied 1:1: a scaled
 // DirectDraw blit is smoothed (bilinear) by Windows 8/10/11, not by Wine
+static void Half_Blur32(void);
 static LPDIRECTDRAWSURFACE4 lpDDS_Scaled;
 static int Scaled_W, Scaled_H;
 LPDIRECTDRAWSURFACE4 lpDDS_Back;
@@ -1095,7 +1096,7 @@ int Flip(HWND hWnd)
 
 	DrawInformationOnTheScreen(); // Modif N. -- moved all this stuff out to its own function
 
-	if (Fast_Blur) Half_Blur();
+	if (Fast_Blur) { Half_Blur(); Half_Blur32(); }
 	
 	CalculateDrawArea(hWnd, RectDest, RectSrc);
 
@@ -1170,19 +1171,56 @@ cleanup_flip:
 }
 
 
+// gens64: Fast Blur and the logo for the 32-bit picture (Half_Blur only does MD_Screen, the
+// 16-bit one; Windows desktops are 32-bit, so they did nothing): each pixel averaged with the
+// next one, as Half_Blur's MMX path
+static void Half_Blur32(void)
+{
+	unsigned int *p = MD_Screen32;
+	for (int i = 0; i < 336 * 240 - 1; i++)
+		p[i] = ((p[i] & 0xFEFEFE) >> 1) + ((p[i + 1] & 0xFEFEFE) >> 1);
+}
+
 int Update_Gens_Logo(HWND hWnd)
 {
 	int i, j, m, n;
-	static short tab[64000], Init = 0;
+	static unsigned short tab[64000];
+	static unsigned int tab32[64000];
+	static short Init = 0;
 	static float renv = 0, ang = 0, zoom_x = 0, zoom_y = 0, pas;
 	unsigned short c;
 
 	if (!Init)
 	{
-		HBITMAP Logo;
-
-		Logo = LoadBitmap(ghInstance,  MAKEINTRESOURCE(IDB_LOGO_BIG));
-		GetBitmapBits(Logo, 64000 * 2, tab);
+		// gens64: read as 32-bit pixels whatever the display (GetBitmapBits gave the display's
+		// format: 32-bit data on today's desktops, read as 16-bit - the logo was garbage)
+		HBITMAP Logo = (HBITMAP) LoadImage(ghInstance, MAKEINTRESOURCE(IDB_LOGO_BIG), IMAGE_BITMAP, 0, 0, LR_CREATEDIBSECTION);
+		BITMAP bm;
+		if (Logo && GetObject(Logo, sizeof(bm), &bm))
+		{
+			BITMAPINFO bi;
+			int w = bm.bmWidth, h = bm.bmHeight, k;
+			static unsigned int buf[64000];
+			if (w * h > 64000) h = 64000 / w;
+			memset(&bi, 0, sizeof(bi));
+			bi.bmiHeader.biSize = sizeof(bi.bmiHeader);
+			bi.bmiHeader.biWidth = w;
+			bi.bmiHeader.biHeight = -h;	// top-down
+			bi.bmiHeader.biPlanes = 1;
+			bi.bmiHeader.biBitCount = 32;
+			bi.bmiHeader.biCompression = BI_RGB;
+			HDC dc = GetDC(NULL);
+			GetDIBits(dc, Logo, 0, h, buf, &bi, DIB_RGB_COLORS);
+			ReleaseDC(NULL, dc);
+			for (k = 0; k < w * h; k++)
+			{
+				unsigned int px = buf[k] & 0xFFFFFF;
+				tab32[k] = px;
+				tab[k] = (Mode_555 & 1) ? (unsigned short) (((px >> 9) & 0x7C00) | ((px >> 6) & 0x03E0) | ((px >> 3) & 0x001F))
+					: DrawUtil::Pix32To16(px);
+			}
+			DeleteObject(Logo);
+		}
 		pas = 0.05f;
 		Init = 1;
 	}
@@ -1205,7 +1243,7 @@ int Update_Gens_Logo(HWND hWnd)
 				if ((m < 130) && (m >= -130) && (n < 90) && (n >= -90))
 				{
 					c = tab[m + 130 + (n + 90) * 260];
-					if ((c > 31) || (c < 5)) MD_Screen[TAB336[j] + i + 8] = c;
+					if ((c > 31) || (c < 5)) { MD_Screen[TAB336[j] + i + 8] = c; MD_Screen32[TAB336[j] + i + 8] = tab32[m + 130 + (n + 90) * 260]; }
 				}
 			}
 		}
@@ -1222,13 +1260,14 @@ int Update_Gens_Logo(HWND hWnd)
 				if ((m < 130) && (m >= -130) && (n < 90) && (n >= -90))
 				{
 					c = tab[m + 130 + (n + 90) * 260];
-					if ((c > 31) || (c < 5)) MD_Screen[TAB336[j] + i + 8] = c;
+					if ((c > 31) || (c < 5)) { MD_Screen[TAB336[j] + i + 8] = c; MD_Screen32[TAB336[j] + i + 8] = tab32[m + 130 + (n + 90) * 260]; }
 				}
 			}
 		}
 	}
 
 	Half_Blur();
+	Half_Blur32();
 	Flip(hWnd);
 
 	return 1;

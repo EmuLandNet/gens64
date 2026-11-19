@@ -803,13 +803,9 @@ void Set_Rend_Int(int Num, int* Rend, BlitFunc* Blit)
 			else *Blit = CBlit_Scanline_25_Int;
 			break;
 
-		case 10:
-			if (Have_MMX) *Blit = Blit_2xSAI_MMX;
-			else
-			{
-				*Rend = 7;
-				*Blit = Blit_Scanline_Int;
-			}
+		case 10:	// gens64: the C version for 32 bits (and without MMX)
+			if (!Bits32 && Have_MMX) *Blit = Blit_2xSAI_MMX;
+			else *Blit = CBlit_2xSaI;
 			break;
 
 		case 11:
@@ -882,8 +878,7 @@ tryAgain:
 	bool reinit = false;
 	if(Full != Full_Screen || (Num != -1 && (Num<2 || Old_Rend<2)) || Force)
 		reinit = true;
-	else if(Bits32 && (Num>=0?Num:*Rend) == 10) // note: this is in the else statement because Bits32 is only valid to check here if reinit is false
-		Num = 11; // we don't support 2xSaI in 32-bit mode
+	// gens64: 2xSaI works in 32-bit colour too (CBlit_2xSaI)
 
 	Set_Rend_Int(Num, Rend, Blit);
 
@@ -3992,7 +3987,7 @@ dialogAgain: //Nitsuja added this
 				case ID_GRAPHICS_NEXT_RENDER:
 					{
 						int& Rend = Render_W;
-						int RendOrder [] = {-1, 0,1,2,11,Bits32?-2:10,3,4,5,6,7,8,9, -1,-1};
+						int RendOrder [] = {-1, 0,1,2,11,10,3,4,5,6,7,8,9, -1,-1};
 						int index = 1; for(; RendOrder[index] != Rend && index<sizeof(RendOrder)/sizeof(*RendOrder)-1; index++);
 						do {index += (command == ID_GRAPHICS_PREVIOUS_RENDER) ? -1 : 1;} while(RendOrder[index] == -2);
 						Set_Render(hWnd, Full_Screen, RendOrder[index], false);
@@ -5472,8 +5467,7 @@ HMENU Build_Main_Menu(void)
 	MENU_L(GraphicsRender, i++, MF_BYPOSITION | ((Rend == 11) ? MF_CHECKED : MF_UNCHECKED),
 		ID_GRAPHICS_RENDER_EPXPLUS, "EPX+", "", "EP&X+"); //Modif N.
 
-	if (Have_MMX && !Bits32)
-		MENU_L(GraphicsRender, i++, MF_BYPOSITION | (Bits32 ? MF_DISABLED | MF_GRAYED | MF_UNCHECKED : ((Rend == 10) ? MF_CHECKED : MF_UNCHECKED)),
+	MENU_L(GraphicsRender, i++, MF_BYPOSITION | ((Rend == 10) ? MF_CHECKED : MF_UNCHECKED),
 			ID_GRAPHICS_RENDER_2XSAI, "2xSAI (Kreed)", "", "2xSAI (&Kreed)");
 
 	MENU_L(GraphicsRender, i++, MF_BYPOSITION | (((Rend == 3) ? MF_CHECKED : MF_UNCHECKED)),

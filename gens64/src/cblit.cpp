@@ -248,6 +248,103 @@ static void TBlit_Scanline_25_Int(pixel* Src, pixel* Dest, int srcWidth, int dst
 }
 
 
+
+// gens64: 2xSaI (Derek Liauw Kie Fa "Kreed", 1999) for both pixel depths; the MMX version
+// (blit_asm.c) only handles 16 bits, so in 32-bit colour this render mode was missing
+static inline int SaI_Result1(unsigned int A, unsigned int B, unsigned int C, unsigned int D)
+{
+	int x = 0, y = 0, r = 0;
+	if (A == C) x++; else if (B == C) y++;
+	if (A == D) x++; else if (B == D) y++;
+	if (x <= 1) r += 1;
+	if (y <= 1) r -= 1;
+	return r;
+}
+
+static inline int SaI_Result2(unsigned int A, unsigned int B, unsigned int C, unsigned int D)
+{
+	int x = 0, y = 0, r = 0;
+	if (A == C) x++; else if (B == C) y++;
+	if (A == D) x++; else if (B == D) y++;
+	if (x <= 1) r -= 1;
+	if (y <= 1) r += 1;
+	return r;
+}
+
+template<typename pixel>
+static void TBlit_2xSaI(pixel* Src, pixel* Dest, int srcWidth, int dstWidth, int x, int y)
+{
+	for(int j = 0; j < y; j++)
+	{
+		// the lines around, kept inside the picture (y - 1 .. y + 2)
+		pixel* L0 = Src + srcWidth * (j > 0 ? j - 1 : 0);
+		pixel* L1 = Src + srcWidth * j;
+		pixel* L2 = Src + srcWidth * (j + 1 < y ? j + 1 : j);
+		pixel* L3 = Src + srcWidth * (j + 2 < y ? j + 2 : (j + 1 < y ? j + 1 : j));
+		pixel* DstLine1 = Dest + dstWidth*(j*2);
+		pixel* DstLine2 = Dest + dstWidth*(j*2+1);
+		for(int i = 0; i < x; i++)
+		{
+			// I E F J / G A B K / H C D L / M N O P
+			pixel I = L0[i-1], E = L0[i], F = L0[i+1], J = L0[i+2];
+			pixel G = L1[i-1], A = L1[i], B = L1[i+1], K = L1[i+2];
+			pixel H = L2[i-1], C = L2[i], D = L2[i+1], L = L2[i+2];
+			pixel M = L3[i-1], Nn = L3[i], O = L3[i+1], P = L3[i+2];
+			pixel p0, p1, p2;
+
+			if (A == D && B != C)
+			{
+				if ((A == E && B == L) || (A == C && A == F && B != E && B == J)) p0 = A;
+				else p0 = DrawUtil::Blend(A, B);
+				if ((A == G && C == O) || (A == B && A == H && G != C && C == M)) p1 = A;
+				else p1 = DrawUtil::Blend(A, C);
+				p2 = A;
+			}
+			else if (B == C && A != D)
+			{
+				if ((B == F && A == H) || (B == E && B == D && A != F && A == I)) p0 = B;
+				else p0 = DrawUtil::Blend(A, B);
+				if ((C == H && A == F) || (C == G && C == D && A != H && A == I)) p1 = C;
+				else p1 = DrawUtil::Blend(A, C);
+				p2 = B;
+			}
+			else if (A == D && B == C)
+			{
+				if (A == B)
+					p0 = p1 = p2 = A;
+				else
+				{
+					int r = 0;
+					p1 = DrawUtil::Blend(A, C);
+					p0 = DrawUtil::Blend(A, B);
+					r += SaI_Result1(A, B, G, E);
+					r += SaI_Result2(B, A, K, F);
+					r += SaI_Result2(B, A, H, Nn);
+					r += SaI_Result1(A, B, L, O);
+					if (r > 0) p2 = A;
+					else if (r < 0) p2 = B;
+					else p2 = DrawUtil::Blend(A, B, C, D);
+				}
+			}
+			else
+			{
+				p2 = DrawUtil::Blend(A, B, C, D);
+				if (A == C && A == F && B != E && B == J) p0 = A;
+				else if (B == E && B == D && A != F && A == I) p0 = B;
+				else p0 = DrawUtil::Blend(A, B);
+				if (A == B && A == H && G != C && C == M) p1 = A;
+				else if (C == G && C == D && A != H && A == I) p1 = C;
+				else p1 = DrawUtil::Blend(A, C);
+			}
+			(void) P;
+			*DstLine1++ = A;
+			*DstLine1++ = p0;
+			*DstLine2++ = p1;
+			*DstLine2++ = p2;
+		}
+	}
+}
+
 #define MAKE_CBLIT_FUNC(name) \
 	void CBlit_##name(unsigned char *Dest, int pitch, int x, int y, int offset) \
 	{ \
@@ -259,6 +356,7 @@ static void TBlit_Scanline_25_Int(pixel* Src, pixel* Dest, int srcWidth, int dst
 
 MAKE_CBLIT_FUNC(EPX)
 MAKE_CBLIT_FUNC(EPXPlus)
+MAKE_CBLIT_FUNC(2xSaI)
 MAKE_CBLIT_FUNC(X2_Int)
 MAKE_CBLIT_FUNC(Scanline)
 MAKE_CBLIT_FUNC(Scanline_Int)
