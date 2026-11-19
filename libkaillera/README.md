@@ -10,11 +10,26 @@ be usable by other emulators too. License: GNU LGPL 2.1 or later (see `LICENSE`)
 - `tools/kc_test.c` — a console client for testing against a real server (two copies play a game
   and write every frame they received; the files must be identical).
 
-Planned: a `kailleraclient.dll`-compatible layer (the API of the original Kaillera client SDK,
-`kailleraModifyPlayValues` and the rest) with Windows dialogs, so that it can replace the
-original 32-bit DLL in any emulator, 32- and 64-bit.
+- `client/` — `kailleraclient.dll`: the interface of the original Kaillera client SDK
+  (`kailleraInit`, `kailleraSetInfos`, `kailleraSelectServerDialog`, `kailleraModifyPlayValues`,
+  `kailleraChatSend`, `kailleraEndGame`, ...) with Windows dialogs like the original client's
+  (server list with All servers / Recent / Favorites / Options, Enter IP, lobby with the
+  partyline and the game list, a game room). Put it next to an emulator instead of the original
+  DLL. The 32-bit build exports both the original's names (`_kailleraInit@0`) and plain ones;
+  the 64-bit build exports plain names (`kailleraInit`) — a 64-bit emulator must look them up
+  that way.
+
+`kailleraclient.dll` keeps its settings in `kailleraclient.ini` next to it: `[Client]` Nick,
+Connection (1 LAN ... 6 Bad), Sound, JoinMessages, Quit, CodePage (the server's text encoding:
+0 = the system's, 1251 = Cyrillic, 65001 = UTF-8), Debug=1 (writes `kailleraclient.log`);
+`[Recent]` and `[Favorites]` as `host:port|name`. The server list comes from
+kaillera.com and kaillerareborn (format: a name line, then `ip:port;users/max;games;version;location`),
+every server is pinged, the list is sorted by ping.
 
 Tested with the EmuLinker-K 1.0.2 server. Protocol notes: `docs/kaillera-protocol.md` in Gens64.
+
+Build the DLL (MinGW, 32 or 64 bits): `cmake -B build -DCMAKE_TOOLCHAIN_FILE=...` in this
+folder, target `kailleraclient`.
 
 Build the test client:
 

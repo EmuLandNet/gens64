@@ -1,0 +1,10 @@
+LIBRARY kailleraclient
+EXPORTS
+	kailleraGetVersion
+	kailleraInit
+	kailleraShutdown
+	kailleraSetInfos
+	kailleraSelectServerDialog
+	kailleraModifyPlayValues
+	kailleraChatSend
+	kailleraEndGame

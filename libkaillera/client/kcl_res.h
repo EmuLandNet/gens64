@@ -1,0 +1,53 @@
+/* libkaillera client - resource ids. LGPL-2.1-or-later. */
+#define IDD_SERVERS		100
+#define IDD_ENTERIP		101
+#define IDD_ABOUT		102
+#define IDD_LOBBY		103
+#define IDD_ROOM		104
+
+#define IDC_STATUS		1000
+#define IDC_TABS		1001
+#define IDC_SERVERLIST	1002
+#define IDC_WAITLIST	1003
+#define IDC_NICK		1004
+#define IDC_CONN		1005
+#define IDC_REFRESH		1006
+#define IDC_ENTERIP		1007
+#define IDC_ABOUT		1008
+#define IDC_OPT_SOUND	1010
+#define IDC_OPT_JOINMSG	1011
+#define IDC_OPT_QUIT	1012
+#define IDC_OPT_QUITLBL	1013
+#define IDC_OPT_CHARSET	1014
+#define IDC_OPT_CSLBL	1015
+#define IDC_NICKLBL		1016
+#define IDC_CONNLBL		1017
+
+#define IDC_IP			1020
+#define IDC_ABOUTTEXT	1021
+
+#define IDC_PARTYGRP	1030
+#define IDC_CHATLOG		1031
+#define IDC_USERS		1032
+#define IDC_CHATLBL		1033
+#define IDC_CHATEDIT	1034
+#define IDC_CHATSEND	1035
+#define IDC_GAMESGRP	1036
+#define IDC_GAMES		1037
+#define IDC_JOIN		1038
+#define IDC_CREATE		1039
+
+#define IDC_PLAYERS		1050
+#define IDC_START		1051
+#define IDC_DROP		1052
+#define IDC_LEAVE		1053
+#define IDC_KICK		1054
+#define IDC_ROOMLOG		1055
+#define IDC_ROOMEDIT	1056
+#define IDC_ROOMSEND	1057
+#define IDC_ROOMINFO	1058
+
+#define IDM_FAV_ADD		2000
+#define IDM_FAV_REMOVE	2001
+#define IDM_MOREINFO	2002
+#define IDM_GAME_BASE	3000

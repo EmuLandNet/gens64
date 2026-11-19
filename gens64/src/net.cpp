@@ -58,24 +58,24 @@ int WINAPI Empty_Kaillera_End_Game()
 
 int Init_Network(void)
 {
-#ifdef _WIN64
-	// gens64: kailleraclient.dll exists only as a 32-bit DLL (stdcall exports such as
-	// _kailleraInit@0): netplay is off in the 64-bit build, the menu entries do nothing.
-	Kaillera_HDLL = NULL;
-#else
+	// gens64: the 32-bit DLL exports MSVC stdcall names (_kailleraInit@0, like the original
+	// client); a 64-bit kailleraclient.dll (libkaillera) exports plain names. Both are tried.
 	Kaillera_HDLL = LoadLibrary("kailleraclient.dll");
-#endif
 
 	if (Kaillera_HDLL != NULL)
 	{
-		Kaillera_Get_Version = (int (WINAPI *)(char *version)) GetProcAddress(Kaillera_HDLL, "_kailleraGetVersion@4");
-		Kaillera_Init = (int (WINAPI *)()) GetProcAddress(Kaillera_HDLL, "_kailleraInit@0");
-		Kaillera_Shutdown = (int (WINAPI *)()) GetProcAddress(Kaillera_HDLL, "_kailleraShutdown@0");
-		Kaillera_Set_Infos = (int (WINAPI *)(kailleraInfos *infos)) GetProcAddress(Kaillera_HDLL, "_kailleraSetInfos@4");
-		Kaillera_Select_Server_Dialog = (int (WINAPI *)(HWND parent)) GetProcAddress(Kaillera_HDLL, "_kailleraSelectServerDialog@4");
-		Kaillera_Modify_Play_Values = (int (WINAPI *)(void *values, int size)) GetProcAddress(Kaillera_HDLL, "_kailleraModifyPlayValues@8");
-		Kaillera_Chat_Send = (int (WINAPI *)(char *text)) GetProcAddress(Kaillera_HDLL, "_kailleraChatSend@4");
-		Kaillera_End_Game = (int (WINAPI *)()) GetProcAddress(Kaillera_HDLL, "_kailleraEndGame@0");
+#define KPROC(type, var, dec, plain) \
+		var = (type) GetProcAddress(Kaillera_HDLL, dec); \
+		if (var == NULL) var = (type) GetProcAddress(Kaillera_HDLL, plain);
+		KPROC(int (WINAPI *)(char *), Kaillera_Get_Version, "_kailleraGetVersion@4", "kailleraGetVersion")
+		KPROC(int (WINAPI *)(), Kaillera_Init, "_kailleraInit@0", "kailleraInit")
+		KPROC(int (WINAPI *)(), Kaillera_Shutdown, "_kailleraShutdown@0", "kailleraShutdown")
+		KPROC(int (WINAPI *)(kailleraInfos *), Kaillera_Set_Infos, "_kailleraSetInfos@4", "kailleraSetInfos")
+		KPROC(int (WINAPI *)(HWND), Kaillera_Select_Server_Dialog, "_kailleraSelectServerDialog@4", "kailleraSelectServerDialog")
+		KPROC(int (WINAPI *)(void *, int), Kaillera_Modify_Play_Values, "_kailleraModifyPlayValues@8", "kailleraModifyPlayValues")
+		KPROC(int (WINAPI *)(char *), Kaillera_Chat_Send, "_kailleraChatSend@4", "kailleraChatSend")
+		KPROC(int (WINAPI *)(), Kaillera_End_Game, "_kailleraEndGame@0", "kailleraEndGame")
+#undef KPROC
 
 		if ((Kaillera_Get_Version != NULL) && (Kaillera_Init != NULL) && (Kaillera_Shutdown != NULL) && (Kaillera_Set_Infos != NULL) && (Kaillera_Select_Server_Dialog != NULL) && (Kaillera_Modify_Play_Values != NULL) && (Kaillera_Chat_Send != NULL) && (Kaillera_End_Game != NULL))
 		{			
