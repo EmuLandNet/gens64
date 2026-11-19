@@ -3122,15 +3122,15 @@ int Load_Config(char *File_Name, void *Game_Active)
 	Recalculate_Palettes();
 
 	FS_VSync = GetPrivateProfileInt("Graphics", "Full Screen VSync", 0, Conf_File);
-	Res_X = GetPrivateProfileInt("Graphics", "Full Screen X Resolution", 0, Conf_File); //Upth-Add - Load the fullscreen
-	Res_Y = GetPrivateProfileInt("Graphics", "Full Screen Y Resolution", 0, Conf_File); //Upth-Add - resolution from config
+	Res_X = GetPrivateProfileInt("Graphics", "Full Screen X Resolution", 1920, Conf_File); //Upth-Add - Load the fullscreen
+	Res_Y = GetPrivateProfileInt("Graphics", "Full Screen Y Resolution", 1080, Conf_File); //Upth-Add - resolution from config
 	char str[11];
 	GetPrivateProfileString("Graphics", "Screen Scale Factor", "1.0", str, 11, Conf_File);
 	ScaleFactor = (float) atof(str);
 	FS_No_Res_Change = (bool) (GetPrivateProfileInt("Graphics", "Full Screen No Res Change", 0, Conf_File) > 0); //Upth-Add - and the no_res_change flag
 	W_VSync = GetPrivateProfileInt("Graphics", "Windows VSync", 0, Conf_File);
 	Full_Screen = GetPrivateProfileInt("Graphics", "Full Screen", 0, Conf_File);
-	Render_W = GetPrivateProfileInt("Graphics", "Render Windowed", 0, Conf_File);
+	Render_W = GetPrivateProfileInt("Graphics", "Render Windowed", 1, Conf_File);	// gens64: Double by default
 	Render_FS = GetPrivateProfileInt("Graphics", "Render Fullscreen", 1, Conf_File);
 	Never_Skip_Frame = (bool) (GetPrivateProfileInt("Graphics", "Never Skip Frame", 1, Conf_File) > 0); //Modif N. -- added never skip frame to preferences
 	VideoLatencyCompensation = GetPrivateProfileInt("Graphics", "Video Latency Compensation", 0, Conf_File);
@@ -3233,12 +3233,12 @@ int Load_Config(char *File_Name, void *Game_Active)
 	GetPrivateProfileString("Options", "GCOffline path", "GCOffline.chm", CGOffline_Path, 1024, Conf_File);
 	GetPrivateProfileString("Options", "Gens manual path", "manual.exe", Manual_Path, 1024, Conf_File);
     Disable_Blue_Screen = GetPrivateProfileInt("Options", "Disable Blue Screen", 1, Conf_File); //Modif
-	FrameCounterEnabled = GetPrivateProfileInt("Options", "FrameCounterEnabled", 1, Conf_File); //Modif N
+	FrameCounterEnabled = GetPrivateProfileInt("Options", "FrameCounterEnabled", 0, Conf_File); //Modif N
 	FrameCounterFrames = GetPrivateProfileInt("Options", "FrameCounterFrames", 1, Conf_File); // Modif N
 	FrameCounterPosition = GetPrivateProfileInt("Options", "FrameCounterPosition", FRAME_COUNTER_TOP_LEFT, Conf_File);
-	LagCounterEnabled = GetPrivateProfileInt("Options", "LagCounterEnabled", 1, Conf_File); //Modif N
+	LagCounterEnabled = GetPrivateProfileInt("Options", "LagCounterEnabled", 0, Conf_File); //Modif N
 	LagCounterFrames = GetPrivateProfileInt("Options", "LagCounterFrames", 1, Conf_File); // Modif N
-    ShowInputEnabled = GetPrivateProfileInt("Options", "ShowInputEnabled", 1, Conf_File); //Modif N
+    ShowInputEnabled = GetPrivateProfileInt("Options", "ShowInputEnabled", 0, Conf_File); //Modif N
 	AutoBackupEnabled = GetPrivateProfileInt("Options", "AutoBackupEnabled", 0, Conf_File);
 	
 	Controller_1_Type = GetPrivateProfileInt("Input", "P1.Type", 1, Conf_File);
