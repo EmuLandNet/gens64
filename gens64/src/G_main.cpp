@@ -2493,7 +2493,10 @@ int PASCAL WinMain(HINSTANCE hInst,	HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	End_All(); //Modif N
 
-	ChangeDisplaySettings(NULL, 0);
+	// gens64: no ChangeDisplaySettings(NULL, 0) any more: Gens never changes the display mode
+	// now (the full screen is a borderless window), and that call made Wine (and some Windows
+	// drivers) set the display mode again on every exit. Gens+ called it only after switching
+	// the display to 16 bits itself.
 
 	DestroyWindow(HWnd);
 
@@ -3833,6 +3836,12 @@ dialogAgain: //Nitsuja added this
 
 				case ID_GRAPHICS_VSYNC:
 					Change_VSync(hWnd);
+					return 0;
+
+				case ID_FILES_CLEARHISTORY:	// gens64: as in Gens+
+					for (int k = 0; k < MAX_RECENT_ROMS; k++)
+						Recent_Rom[k][0] = 0;
+					Build_Main_Menu();
 					return 0;
 
 				case ID_GRAPHICS_SWITCH_MODE:
@@ -5295,6 +5304,8 @@ HMENU Build_Main_Menu(void)
 	{
 		MENU_L(Files, i++, MF_BYPOSITION | MF_POPUP | MF_STRING,
 			(UINT_PTR)FilesHistory, "Rom History", "", "&ROM History");
+		MENU_L(Files, i++, Flags,
+			ID_FILES_CLEARHISTORY, "Clear History", "", "Clear History");	// gens64: as in Gens+
 
 		InsertMenu(Files, i++, MF_SEPARATOR, NULL, NULL);
 	}
