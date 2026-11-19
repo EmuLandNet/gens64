@@ -1263,8 +1263,8 @@ static void servers_show_tab(HWND dlg)
 		ShowWindow(GetDlgItem(dlg, optids[i]), opt ? SW_SHOW : SW_HIDE);
 	if (wait)
 	{
-		/* the master lists do not report waiting games (kaillera.com ignores wg=1; the
-		   original client says "Not working for now... :)") */
+		/* the master lists do not report waiting games (kaillera.com ignores wg=1; in the
+		   original client the tab stays empty) */
 		HWND wl = GetDlgItem(dlg, IDC_WAITLIST);
 		ListView_DeleteAllItems(wl);
 		lv_set(wl, 0, 0, "The server lists do not report waiting games yet", 0);
