@@ -93,6 +93,8 @@ static int g_tab;				/* 0 all, 1 recent, 2 favorites, 3 waiting, 4 options */
 
 /* ---------------------------------------------------------------- text */
 
+static void set_icon(HWND w);
+
 static UINT cp(void) { return S.codepage > 0 ? (UINT) S.codepage : CP_ACP; }
 
 static void to_w(const char *s, WCHAR *w, int n)
@@ -844,6 +846,7 @@ static INT_PTR CALLBACK lobby_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 		static const int gw[] = { 250, 150, 110, 70, 60 };
 		char t[400];
 		g_lobby = dlg;
+		set_icon(dlg);
 		lv_columns(GetDlgItem(dlg, IDC_USERS), ucols, uw, 4);
 		lv_columns(GetDlgItem(dlg, IDC_GAMES), gcols, gw, 5);
 		edit_enter_sends(GetDlgItem(dlg, IDC_CHATEDIT), IDC_CHATSEND);
@@ -1319,8 +1322,12 @@ static void servers_read_options(HWND dlg)
 	S.sound = IsDlgButtonChecked(dlg, IDC_OPT_SOUND) == BST_CHECKED;
 	S.joinmsg = IsDlgButtonChecked(dlg, IDC_OPT_JOINMSG) == BST_CHECKED;
 	GetDlgItemTextA(dlg, IDC_OPT_QUIT, S.quit, sizeof(S.quit));
-	GetDlgItemTextA(dlg, IDC_OPT_CHARSET, buf, sizeof(buf));
-	S.codepage = atoi(buf);
+	{
+		LRESULT sel = SendDlgItemMessageW(dlg, IDC_OPT_CHARSET, CB_GETCURSEL, 0, 0);
+		if (sel != CB_ERR)
+			S.codepage = (int) SendDlgItemMessageW(dlg, IDC_OPT_CHARSET, CB_GETITEMDATA, sel, 0);
+	}
+	(void) buf;
 	get_text(GetDlgItem(dlg, IDC_NICK), S.nick, sizeof(S.nick));
 	S.conn = (int) SendDlgItemMessageW(dlg, IDC_CONN, CB_GETCURSEL, 0, 0) + 1;
 	if (S.conn < KC_CONN_LAN || S.conn > KC_CONN_BAD)
@@ -1361,6 +1368,14 @@ static void connect_to(HWND dlg, const char *addr, const char *name)
 	SetForegroundWindow(dlg);
 	if (g_tab == 1)
 		servers_show_tab(dlg);
+}
+
+static void set_icon(HWND w)
+{
+	HICON big = (HICON) LoadImageW(g_inst, MAKEINTRESOURCEW(IDI_KAILLERA), IMAGE_ICON, GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), 0);
+	HICON small = (HICON) LoadImageW(g_inst, MAKEINTRESOURCEW(IDI_KAILLERA), IMAGE_ICON, GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), 0);
+	if (big) SendMessageW(w, WM_SETICON, ICON_BIG, (LPARAM) big);
+	if (small) SendMessageW(w, WM_SETICON, ICON_SMALL, (LPARAM) small);
 }
 
 static INT_PTR CALLBACK enterip_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
@@ -1449,6 +1464,7 @@ static INT_PTR CALLBACK servers_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 		int i;
 		char t[64];
 		g_servers = dlg;
+		set_icon(dlg);
 		for (i = 0; i < 5; i++)
 		{
 			TCITEMA ti;
@@ -1469,7 +1485,33 @@ static INT_PTR CALLBACK servers_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 		CheckDlgButton(dlg, IDC_OPT_JOINMSG, S.joinmsg ? BST_CHECKED : BST_UNCHECKED);
 		SetDlgItemTextA(dlg, IDC_OPT_QUIT, S.quit);
 		sprintf(t, "%d", S.codepage);
-		SetDlgItemTextA(dlg, IDC_OPT_CHARSET, t);
+		{
+			/* the server's bytes are text in one code page; the original clients send the
+			   Windows code page of their system, so players with different ones see garbage */
+			static const struct { int cp; const char *name; } cps[] = {
+				{ 0, "System (Windows code page)" }, { 1251, "Cyrillic (1251)" },
+				{ 1252, "Western European (1252)" }, { 1250, "Central European (1250)" },
+				{ 1253, "Greek (1253)" }, { 1254, "Turkish (1254)" }, { 932, "Japanese (932)" },
+				{ 936, "Chinese Simplified (936)" }, { 950, "Chinese Traditional (950)" },
+				{ 949, "Korean (949)" }, { 65001, "UTF-8" } };
+			int k, sel = 0, n = (int) (sizeof(cps) / sizeof(cps[0]));
+			for (k = 0; k < n; k++)
+			{
+				SendDlgItemMessageA(dlg, IDC_OPT_CHARSET, CB_ADDSTRING, 0, (LPARAM) cps[k].name);
+				SendDlgItemMessageA(dlg, IDC_OPT_CHARSET, CB_SETITEMDATA, k, cps[k].cp);
+				if (cps[k].cp == S.codepage)
+					sel = k;
+			}
+			if (S.codepage && !sel)	/* another one set in the ini */
+			{
+				char other[32];
+				sprintf(other, "Code page %d", S.codepage);
+				SendDlgItemMessageA(dlg, IDC_OPT_CHARSET, CB_ADDSTRING, 0, (LPARAM) other);
+				SendDlgItemMessageA(dlg, IDC_OPT_CHARSET, CB_SETITEMDATA, n, S.codepage);
+				sel = n;
+			}
+			SendDlgItemMessageW(dlg, IDC_OPT_CHARSET, CB_SETCURSEL, sel, 0);
+		}
 		sprintf(t, "Kaillera Client %s (%s)", KCL_VERSION, "libkaillera");
 		SetWindowTextA(dlg, t);
 		g_tab = S.n_recent ? 1 : 2;

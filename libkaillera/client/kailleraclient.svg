@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7b3fd6"/><stop offset="1" stop-color="#2a2a8a"/>
+    </linearGradient>
+    <linearGradient id="pa" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8fd0ff"/><stop offset="1" stop-color="#3b8ee8"/>
+    </linearGradient>
+    <linearGradient id="pb" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffb066"/><stop offset="1" stop-color="#f0622a"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff59a"/><stop offset="1" stop-color="#ffc21a"/>
+    </linearGradient>
+    <!-- the cut between the pads runs along the bolt -->
+    <clipPath id="left"><polygon points="-10,-10 41,-10 27,74 -10,74"/></clipPath>
+    <clipPath id="right"><polygon points="41,-10 74,-10 74,74 27,74"/></clipPath>
+    <clipPath id="box"><rect x="3.2" y="3.2" width="57.6" height="57.6" rx="12"/></clipPath>
+    <path id="pad" d="M9 0 H31 A9 9 0 0 1 40 9 V18 A6.5 6.5 0 0 1 29 22.5 L25.5 19 H14.5 L11 22.5 A6.5 6.5 0 0 1 0 18 V9 A9 9 0 0 1 9 0 Z"/>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="13" fill="url(#bg)" stroke="#4d6fe0" stroke-width="2.5"/>
+  <g clip-path="url(#box)">
+    <g clip-path="url(#left)">
+      <g transform="translate(5,12)">
+        <use href="#pad" fill="url(#pa)" stroke="#123a75" stroke-width="2.2" stroke-linejoin="round"/>
+        <rect x="5" y="7.6" width="10" height="3.4" rx="1.2" fill="#123a75"/>
+        <rect x="8.3" y="4.3" width="3.4" height="10" rx="1.2" fill="#123a75"/>
+      </g>
+    </g>
+    <g clip-path="url(#right)">
+      <g transform="translate(19,30)">
+        <use href="#pad" fill="url(#pb)" stroke="#7a2508" stroke-width="2.2" stroke-linejoin="round"/>
+        <circle cx="29" cy="6.5" r="2.4" fill="#7a2508"/>
+        <circle cx="34" cy="11.5" r="2.4" fill="#7a2508"/>
+      </g>
+    </g>
+  </g>
+  <!-- bolt over the cut -->
+  <path d="M40 6 L25 36 h8.5 l-6 22 L45 27 h-9 l6 -21 z" fill="url(#bolt)" stroke="#5a3a00" stroke-width="2" stroke-linejoin="round"/>
+</svg>

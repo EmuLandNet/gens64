@@ -20,7 +20,7 @@ be usable by other emulators too. License: GNU LGPL 2.1 or later (see `LICENSE`)
   that way.
 
 `kailleraclient.dll` keeps its settings in `kailleraclient.ini` next to it: `[Client]` Nick,
-Connection (1 LAN ... 6 Bad), Sound, JoinMessages, Quit, CodePage (the server's text encoding:
+Connection (1 LAN ... 6 Bad), Sound, JoinMessages, Quit, CodePage (the server's text encoding, also in Options:
 0 = the system's, 1251 = Cyrillic, 65001 = UTF-8), Debug=1 (writes `kailleraclient.log`);
 `[Recent]` and `[Favorites]` as `host:port|name`. The server list comes from
 kaillera.com and kaillerareborn (format: a name line, then `ip:port;users/max;games;version;location`),
