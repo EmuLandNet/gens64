@@ -4868,10 +4868,12 @@ dialogAgain: //Nitsuja added this
 					else if (Paused)
 					{
 						Paused = 0;
+						MESSAGE_L("Emulation resumed", "Emulation resumed")
 					}
 					else
 					{
 						Paused = 1;
+						MESSAGE_L("Emulation paused", "Emulation paused")
 						Pause_Screen();
 						Clear_Sound_Buffer();
 						Flip(HWnd);
