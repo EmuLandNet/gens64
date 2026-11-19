@@ -89,7 +89,7 @@ void Update_Recent_Rom(const char *Path)
 	int i;
 	for(i = 0; i < MAX_RECENT_ROMS; i++)
 	{
-		if (!(strcmp(Recent_Rom[i], Path)))
+		if (!(stricmp(Recent_Rom[i], Path)))	// gens64: Windows names ignore case
 		{
 			// move recent item to the top of the list
 			if(i == 0)

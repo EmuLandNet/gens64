@@ -1614,6 +1614,14 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 			attr = GetFileAttributes(path);
 			if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY))
 			{
+				// the list is in lower case: open the file under its real name (ROM History)
+				WIN32_FIND_DATA fd;
+				HANDLE f = FindFirstFile(path, &fd);
+				if (f != INVALID_HANDLE_VALUE)
+				{
+					sprintf(path, "%s%s", Rom_Dir, fd.cFileName);
+					FindClose(f);
+				}
 				strcpy(name, path);
 				break;
 			}
