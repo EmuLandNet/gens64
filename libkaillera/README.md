@@ -26,7 +26,8 @@ Connection (1 LAN ... 6 Bad), Sound, JoinMessages, Quit, CodePage (the server's 
 kaillera.com and kaillerareborn (format: a name line, then `ip:port;users/max;games;version;location`),
 every server is pinged, the list is sorted by ping.
 
-Tested with the EmuLinker-K 1.0.2 server. Protocol notes: `docs/kaillera-protocol.md` in Gens64.
+Tested with the EmuLinker-K 1.0.2 server. Protocol notes: `docs/kaillera-protocol.md` in Gens64;
+how the client is built (threads, dialogs, emulator integration, testing): `docs/libkaillera.md`.
 
 Build the DLL (MinGW, 32 or 64 bits): `cmake -B build -DCMAKE_TOOLCHAIN_FILE=...` in this
 folder, target `kailleraclient`.
