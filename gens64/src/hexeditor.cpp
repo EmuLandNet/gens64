@@ -267,8 +267,7 @@ LRESULT CALLBACK HexGoToProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			switch(LOWORD(wParam)) {
 			case IDOK: {
 				if (Full_Screen) {
-					while (ShowCursor(true) < 0);
-					while (ShowCursor(false) >= 0);
+					while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 				}
 				GetDlgItemText(hDlg, IDC_PROMPT_EDIT, Str_Tmp, 10);
 				int Address;
@@ -282,8 +281,7 @@ LRESULT CALLBACK HexGoToProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			case ID_CANCEL:
 			case IDCANCEL:
 				if (Full_Screen) {
-					while (ShowCursor(true) < 0);
-					while (ShowCursor(false) >= 0);
+					while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 				}
 				DialogsOpen--;
 				EndDialog(hDlg, false);
@@ -294,8 +292,7 @@ LRESULT CALLBACK HexGoToProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 		case WM_CLOSE:
 			if (Full_Screen) {
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			DialogsOpen--;
 			EndDialog(hDlg, false);
@@ -620,8 +617,7 @@ LRESULT CALLBACK HexEditorProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 	case WM_CLOSE:
 		if (Full_Screen) {
-			while (ShowCursor(true) < 0);
-			while (ShowCursor(false) >= 0); }
+			while (ShowCursor(true) < 0);	}	// gens64: the pointer is hidden by an idle timer in full screen, not here
 		HexDestroyDialog();
 		return 0;
 		break;

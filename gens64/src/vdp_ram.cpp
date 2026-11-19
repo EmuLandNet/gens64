@@ -443,8 +443,7 @@ LRESULT CALLBACK VDPRamProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			SelectObject(VDPRamMemDC, VDPRamLastBMP);
 			DeleteObject(VDPRamMemBMP);

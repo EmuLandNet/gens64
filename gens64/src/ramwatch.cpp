@@ -136,8 +136,7 @@ LRESULT CALLBACK PromptWatchNameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM
 				{
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					GetDlgItemText(hDlg,IDC_PROMPT_EDIT,Str_Tmp,80);
 					InsertWatch(rswatches[WatchCount],Str_Tmp,WatchCount);
@@ -150,8 +149,7 @@ LRESULT CALLBACK PromptWatchNameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM
 				case IDCANCEL:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 
 					DialogsOpen--;
@@ -164,8 +162,7 @@ LRESULT CALLBACK PromptWatchNameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			DialogsOpen--;
 			EndDialog(hDlg, false);
@@ -763,8 +760,7 @@ LRESULT CALLBACK EditWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				{
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					if (s && t)
 					{
@@ -880,8 +876,7 @@ LRESULT CALLBACK EditWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				case IDCANCEL:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					DialogsOpen--;
 					EndDialog(hDlg, false);
@@ -893,8 +888,7 @@ LRESULT CALLBACK EditWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			DialogsOpen--;
 			EndDialog(hDlg, false);
@@ -1230,8 +1224,7 @@ LRESULT CALLBACK RamWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 				case IDCANCEL:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					DialogsOpen--;
 					RamWatchHWnd = NULL;
@@ -1259,8 +1252,7 @@ LRESULT CALLBACK RamWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			DialogsOpen--;
 			RamWatchHWnd = NULL;

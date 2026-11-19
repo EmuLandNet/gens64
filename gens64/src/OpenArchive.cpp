@@ -632,8 +632,7 @@ LRESULT CALLBACK ArchiveFileChooser(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM 
 					s_listToItemsMap.clear();
 					if(Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					DialogsOpen--;
 					EndDialog(hDlg, false);
@@ -645,8 +644,7 @@ LRESULT CALLBACK ArchiveFileChooser(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM 
 					s_listToItemsMap.clear();
 					if(Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					DialogsOpen--;
 					EndDialog(hDlg, false);
@@ -658,8 +656,7 @@ LRESULT CALLBACK ArchiveFileChooser(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM 
 			s_listToItemsMap.clear();
 			if(Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			DialogsOpen--;
 			EndDialog(hDlg, false);

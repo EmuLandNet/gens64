@@ -1962,8 +1962,7 @@ invalid_field:
 				case IDCANCEL:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					DialogsOpen--;
 					RamSearchHWnd = NULL;
@@ -2016,8 +2015,7 @@ invalid_field:
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			DialogsOpen--;
 			RamSearchHWnd = NULL;

@@ -713,8 +713,7 @@ LRESULT CALLBACK LuaPromptProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				{
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 
 					prompt_result = new char[prompt_maxlength];
@@ -728,8 +727,7 @@ LRESULT CALLBACK LuaPromptProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				case IDCANCEL:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					
 					prompt_result = "";
@@ -743,8 +741,7 @@ LRESULT CALLBACK LuaPromptProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			prompt_result = "";
 			EndDialog(hDlg, false);

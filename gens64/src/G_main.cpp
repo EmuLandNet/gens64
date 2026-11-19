@@ -7544,8 +7544,7 @@ LRESULT CALLBACK PlayMovieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				case IDC_OK_PLAY:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					PlaySubMovie();
 					SetArchiveParentHWND(NULL);
@@ -7557,8 +7556,7 @@ LRESULT CALLBACK PlayMovieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				case IDC_BUTTON_RESUME_RECORD:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					if(SubMovie.Ok)
 					{
@@ -7579,8 +7577,7 @@ LRESULT CALLBACK PlayMovieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 				case IDC_CANCEL_PLAY:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					PlayMovieCanceled=1;
 					SetArchiveParentHWND(NULL);
@@ -7595,8 +7592,7 @@ LRESULT CALLBACK PlayMovieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			PlayMovieCanceled=1;
 			SetArchiveParentHWND(NULL);
@@ -7690,8 +7686,7 @@ LRESULT CALLBACK PromptSpliceFrameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPAR
 				{
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					TempName = tempnam(Gens_Path,"GMtmp");
 					FILE *TempSplice = fopen(TempName,"w+b");
@@ -7741,8 +7736,7 @@ LRESULT CALLBACK PromptSpliceFrameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPAR
 				case IDCANCEL:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 
 					DialogsOpen--;
@@ -7755,8 +7749,7 @@ LRESULT CALLBACK PromptSpliceFrameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPAR
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			DialogsOpen--;
 			EndDialog(hDlg, true);
@@ -7805,8 +7798,7 @@ LRESULT CALLBACK PromptSeekFrameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM
 				{
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					SeekFrame = GetDlgItemInt(hDlg,IDC_PROMPT_EDIT,NULL,false);
 					sprintf(Str_Tmp,"Seeking to frame %d",SeekFrame);
@@ -7821,8 +7813,7 @@ LRESULT CALLBACK PromptSeekFrameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM
 				case IDCANCEL:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 
 					DialogsOpen--;
@@ -7835,8 +7826,7 @@ LRESULT CALLBACK PromptSeekFrameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			DialogsOpen--;
 			EndDialog(hDlg, true);
@@ -7888,8 +7878,7 @@ LRESULT CALLBACK PromptAVISplitProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM 
 				{
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 
 					AVISplit = GetDlgItemInt(hDlg,IDC_PROMPT_EDIT,NULL,true);
@@ -7911,8 +7900,7 @@ LRESULT CALLBACK PromptAVISplitProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM 
 				case IDCANCEL:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 
 					DialogsOpen--;
@@ -7925,8 +7913,7 @@ LRESULT CALLBACK PromptAVISplitProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM 
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			DialogsOpen--;
 			EndDialog(hDlg, true);
@@ -8018,8 +8005,7 @@ LRESULT CALLBACK RecordMovieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 				case IDC_OK_RECORD:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
                    
 					if(MainMovie.File != NULL) //Modif N - make sure to close existing movie, if any
@@ -8061,8 +8047,7 @@ LRESULT CALLBACK RecordMovieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 				case IDC_CANCEL_RECORD:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					RecordMovieCanceled=1;
 					DialogsOpen--;
@@ -8075,8 +8060,7 @@ LRESULT CALLBACK RecordMovieProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			RecordMovieCanceled=1;
 			DialogsOpen--;
@@ -8177,8 +8161,7 @@ LRESULT CALLBACK VolumeProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				case IDOK:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					DialogsOpen--;
 					VolControlHWnd = NULL;
@@ -8195,8 +8178,7 @@ LRESULT CALLBACK VolumeProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 					PWMVol = TempPWM;
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					DialogsOpen--;
 					VolControlHWnd = NULL;
@@ -8245,8 +8227,7 @@ LRESULT CALLBACK VolumeProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 			DialogsOpen--;
 			VolControlHWnd = NULL;
@@ -8305,18 +8286,17 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				"VDP RAM and VDP Sprites viewers," "\r\n"
 				"32X layers, Sprites Boxing, Lua additions" "\r\n" "\r\n"
 				// gens64: code taken from other projects
-				"YX5200 MP3 player (Death & Lead, The Secret Of" "\r\n"
-				"The Four Winds) from Genesis Plus GX," "\r\n"
+				"YX5200 MP3 player from Genesis Plus GX," "\r\n"
 				"(c) 2025 Eke-Eke" "\r\n" "\r\n"
 				"Paprium cartridge processor: \"Project Little Man\"" "\r\n"
 				"high-level emulation from a Genesis Plus GX fork" "\r\n" "\r\n"
 				"ROM mappers over 6 MB (Sega, Mega Everdrive)" "\r\n"
 				"after Genesis Plus GX" "\r\n" "\r\n"
-				"Pier Solar (T-5740 board): mapper and SPI EEPROM" "\r\n"
+				"T-5740 board: mapper and SPI EEPROM" "\r\n"
 				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
-				"CFI flash save (Four Winds, Life on Mars, ColocoDX," "\r\n" "SGDK flash-save homebrew)" "\r\n"
+				"CFI flash save" "\r\n"
 				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
-				"SVP (Virtua Racing): SSP1601 DSP interpreter" "\r\n"
+				"SVP: SSP1601 DSP interpreter" "\r\n"
 				"(c) 2008 Grazvydas \"notaz\" Ignotas," "\r\n"
 				"as modified for Genesis Plus GX by Eke-Eke" "\r\n" "\r\n"
 				"Super Fighter Team boards SF-001/002/004" "\r\n"
@@ -8338,8 +8318,7 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				case IDOK:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 
 					DialogsOpen--;
@@ -8351,8 +8330,7 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 
 			DialogsOpen--;
@@ -8417,8 +8395,7 @@ LRESULT CALLBACK ColorProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				case ID_CLOSE:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 
 					Build_Main_Menu();
@@ -8465,8 +8442,7 @@ LRESULT CALLBACK ColorProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 
 			DialogsOpen--;
@@ -8589,8 +8565,7 @@ LRESULT CALLBACK OptionProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 
 					res = SendDlgItemMessage(hDlg, IDC_COLOR_FPS, TBM_GETPOS, 0, 0);
@@ -8655,8 +8630,7 @@ LRESULT CALLBACK OptionProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 				case IDCANCEL:
 					if (Full_Screen)
 					{
-						while (ShowCursor(true) < 0);
-						while (ShowCursor(false) >= 0);
+						while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 					}
 					DialogsOpen--;
 					EndDialog(hDlg, true);
@@ -8681,8 +8655,7 @@ LRESULT CALLBACK OptionProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 		case WM_CLOSE:
 			if (Full_Screen)
 			{
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
+				while (ShowCursor(true) < 0);	// gens64: the pointer is hidden by an idle timer in full screen, not here
 			}
 
 			DialogsOpen--;
