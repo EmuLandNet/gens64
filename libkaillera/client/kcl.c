@@ -79,9 +79,15 @@ typedef struct
 {
 	char name[128], addr[160], location[64], version[32];
 	int users, maxusers, games, ping;
+	int saved;					/* 1: from Recent/Favorites, not from a master list */
 } server;
 
 static server g_list[MAX_SERVERS];
+/* Recent and Favorites with what the master lists and the pings say about them */
+static server g_saved[2 * MAX_SAVED];
+static int g_nsaved;
+static server g_saved_req[2 * MAX_SAVED];	/* snapshot given to the list thread */
+static int g_nsaved_req;
 static int g_nlist;
 static int g_tab;				/* 0 all, 1 recent, 2 favorites, 3 waiting, 4 options */
 
@@ -1110,10 +1116,22 @@ static DWORD WINAPI list_thread(LPVOID hwnd)
 	char *buf = (char *) malloc(256 * 1024);
 	if (!buf)
 		return 0;
+	int nmaster;
 	for (i = 0; g_master_urls[i]; i++)
 		if (fetch_url(g_master_urls[i], buf, 256 * 1024) > 0)
 			parse_list(buf, tmp, &n);
 	free(buf);
+	/* Recent and Favorites are pinged too and matched with the master lists by address */
+	nmaster = n;
+	EnterCriticalSection(&g_lock);
+	for (i = 0; i < g_nsaved_req && n < MAX_SERVERS; i++)
+	{
+		tmp[n] = g_saved_req[i];
+		tmp[n].saved = 1;
+		tmp[n].ping = -1;
+		n++;
+	}
+	LeaveCriticalSection(&g_lock);
 	/* ping them all at once: PING to each, PONGs for 1.5 s */
 	{
 		SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
@@ -1164,6 +1182,22 @@ static DWORD WINAPI list_thread(LPVOID hwnd)
 				}
 			}
 		}
+		for (i = nmaster; i < n && addr; i++)
+		{
+			int k;
+			for (k = 0; k < nmaster; k++)
+				if (addr[i].sin_port && addr[k].sin_addr.s_addr == addr[i].sin_addr.s_addr && addr[k].sin_port == addr[i].sin_port)
+				{
+					strcpy(tmp[i].location, tmp[k].location);
+					strcpy(tmp[i].version, tmp[k].version);
+					tmp[i].users = tmp[k].users;
+					tmp[i].maxusers = tmp[k].maxusers;
+					tmp[i].games = tmp[k].games;
+					if (tmp[i].ping < 0)
+						tmp[i].ping = tmp[k].ping;
+					break;
+				}
+		}
 		if (s != INVALID_SOCKET)
 			closesocket(s);
 		free(addr);
@@ -1172,8 +1206,8 @@ static DWORD WINAPI list_thread(LPVOID hwnd)
 	/* by ping, those that did not answer last */
 	{
 		int a, b;
-		for (a = 0; a < n; a++)
-			for (b = a + 1; b < n; b++)
+		for (a = 0; a < nmaster; a++)
+			for (b = a + 1; b < nmaster; b++)
 			{
 				int pa = tmp[a].ping < 0 ? 1 << 30 : tmp[a].ping, pb = tmp[b].ping < 0 ? 1 << 30 : tmp[b].ping;
 				if (pb < pa)
@@ -1185,11 +1219,37 @@ static DWORD WINAPI list_thread(LPVOID hwnd)
 			}
 	}
 	EnterCriticalSection(&g_lock);
-	memcpy(g_list, tmp, sizeof(server) * n);
-	g_nlist = n;
+	memcpy(g_list, tmp, sizeof(server) * nmaster);
+	g_nlist = nmaster;
+	memcpy(g_saved, tmp + nmaster, sizeof(server) * (n - nmaster));
+	g_nsaved = n - nmaster;
 	LeaveCriticalSection(&g_lock);
 	PostMessageW((HWND) hwnd, WM_KC_LIST, 0, 0);
 	return 0;
+}
+
+/* one row of the server lists; info: what is known about a saved server (or NULL) */
+static void server_row(HWND lv, int row, const server *s, const server *info)
+{
+	char buf[64];
+	const server *d = info ? info : s;
+	lv_set(lv, row, 0, s->name, row);
+	lv_set(lv, row, 1, d->location, 0);
+	if (d->ping >= 0)
+		sprintf(buf, "%d ms", d->ping);
+	else
+		strcpy(buf, (info || !s->saved) && g_nlist + g_nsaved ? "-" : "");
+	lv_set(lv, row, 2, buf, 0);
+	lv_set(lv, row, 3, d->version, 0);
+	buf[0] = 0;
+	if (d->maxusers)
+		sprintf(buf, "%d/%d", d->users, d->maxusers);
+	lv_set(lv, row, 4, buf, 0);
+	buf[0] = 0;
+	if (d->maxusers)
+		sprintf(buf, "%d", d->games);
+	lv_set(lv, row, 5, buf, 0);
+	lv_set(lv, row, 6, s->addr, 0);
 }
 
 static void servers_show_tab(HWND dlg)
@@ -1201,29 +1261,23 @@ static void servers_show_tab(HWND dlg)
 	ShowWindow(GetDlgItem(dlg, IDC_WAITLIST), wait ? SW_SHOW : SW_HIDE);
 	for (i = 0; i < 6; i++)
 		ShowWindow(GetDlgItem(dlg, optids[i]), opt ? SW_SHOW : SW_HIDE);
+	if (wait)
+	{
+		/* the master lists do not report waiting games (kaillera.com ignores wg=1; the
+		   original client says "Not working for now... :)") */
+		HWND wl = GetDlgItem(dlg, IDC_WAITLIST);
+		ListView_DeleteAllItems(wl);
+		lv_set(wl, 0, 0, "The server lists do not report waiting games yet", 0);
+	}
 	if (!list)
 		return;
 	SendMessageW(lv, WM_SETREDRAW, FALSE, 0);
 	ListView_DeleteAllItems(lv);
+	EnterCriticalSection(&g_lock);
 	if (g_tab == 0)
 	{
-		char buf[64];
-		EnterCriticalSection(&g_lock);
 		for (i = 0; i < g_nlist; i++)
-		{
-			server *s = &g_list[i];
-			lv_set(lv, i, 0, s->name, i);
-			lv_set(lv, i, 1, s->location, 0);
-			if (s->ping >= 0) sprintf(buf, "%d ms", s->ping); else strcpy(buf, "-");
-			lv_set(lv, i, 2, buf, 0);
-			lv_set(lv, i, 3, s->version, 0);
-			sprintf(buf, "%d/%d", s->users, s->maxusers);
-			lv_set(lv, i, 4, buf, 0);
-			sprintf(buf, "%d", s->games);
-			lv_set(lv, i, 5, buf, 0);
-			lv_set(lv, i, 6, s->addr, 0);
-		}
-		LeaveCriticalSection(&g_lock);
+			server_row(lv, i, &g_list[i], NULL);
 	}
 	else
 	{
@@ -1231,14 +1285,31 @@ static void servers_show_tab(HWND dlg)
 		int n = g_tab == 1 ? S.n_recent : S.n_fav;
 		for (i = 0; i < n; i++)
 		{
-			char addr[300], *bar;
-			strcpy(addr, l[i]);
-			bar = strchr(addr, '|');
-			if (bar) *bar = 0;
-			lv_set(lv, i, 0, bar && bar[1] ? bar + 1 : addr, i);
-			lv_set(lv, i, 6, addr, 0);
+			server tmp;
+			const server *info = NULL;
+			char *bar;
+			int k;
+			memset(&tmp, 0, sizeof(tmp));
+			tmp.ping = -1;
+			strncpy(tmp.addr, l[i], sizeof(tmp.addr) - 1);
+			bar = strchr(tmp.addr, '|');
+			if (bar)
+			{
+				*bar = 0;
+				strncpy(tmp.name, bar + 1, sizeof(tmp.name) - 1);
+			}
+			if (!tmp.name[0])
+				strcpy(tmp.name, tmp.addr);
+			for (k = 0; k < g_nsaved; k++)
+				if (!strcmp(g_saved[k].addr, tmp.addr))
+				{
+					info = &g_saved[k];
+					break;
+				}
+			server_row(lv, i, &tmp, info);
 		}
 	}
+	LeaveCriticalSection(&g_lock);
 	SendMessageW(lv, WM_SETREDRAW, TRUE, 0);
 }
 
@@ -1335,6 +1406,29 @@ static INT_PTR CALLBACK about_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 static void refresh_list(HWND dlg)
 {
 	HANDLE t;
+	int i, k;
+	EnterCriticalSection(&g_lock);
+	g_nsaved_req = 0;
+	for (k = 0; k < 2; k++)
+	{
+		char (*l)[300] = k ? S.fav : S.recent;
+		int n = k ? S.n_fav : S.n_recent;
+		for (i = 0; i < n; i++)
+		{
+			server *sv = &g_saved_req[g_nsaved_req];
+			char *bar;
+			memset(sv, 0, sizeof(*sv));
+			strncpy(sv->addr, l[i], sizeof(sv->addr) - 1);
+			bar = strchr(sv->addr, '|');
+			if (bar)
+			{
+				*bar = 0;
+				strncpy(sv->name, strchr(l[i], '|') + 1, sizeof(sv->name) - 1);
+			}
+			g_nsaved_req++;
+		}
+	}
+	LeaveCriticalSection(&g_lock);
 	SetDlgItemTextW(dlg, IDC_STATUS, L"Loading the server list...");
 	t = CreateThread(NULL, 0, list_thread, dlg, 0, NULL);
 	if (t)
@@ -1389,7 +1483,7 @@ static INT_PTR CALLBACK servers_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 		char t[96];
 		sprintf(t, "Done. Found %d servers.", g_nlist);
 		SetDlgItemTextA(dlg, IDC_STATUS, t);
-		if (g_tab == 0)
+		if (g_tab <= 2)
 			servers_show_tab(dlg);
 		return TRUE;
 	}
