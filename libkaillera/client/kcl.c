@@ -133,7 +133,7 @@ static void load_settings(void)
 	int i;
 	ini_path(ini, sizeof(ini));
 	GetPrivateProfileStringA("Client", "Nick", "Player", S.nick, sizeof(S.nick), ini);
-	S.conn = GetPrivateProfileIntA("Client", "Connection", KC_CONN_GOOD, ini);
+	S.conn = GetPrivateProfileIntA("Client", "Connection", KC_CONN_LAN, ini);
 	S.sound = GetPrivateProfileIntA("Client", "Sound", 1, ini);
 	S.joinmsg = GetPrivateProfileIntA("Client", "JoinMessages", 1, ini);
 	S.codepage = GetPrivateProfileIntA("Client", "CodePage", 0, ini);
@@ -163,7 +163,7 @@ static void load_settings(void)
 		S.n_fav = 1;
 	}
 	if (S.conn < KC_CONN_LAN || S.conn > KC_CONN_BAD)
-		S.conn = KC_CONN_GOOD;
+		S.conn = KC_CONN_LAN;
 }
 
 static void save_settings(void)
@@ -427,12 +427,18 @@ static DWORD WINAPI net_thread(LPVOID unused)
 
 /* ---------------------------------------------------------------- the game room */
 
+static const int g_room_ids[] = { IDC_ROOMGRP, IDC_ROOMINFO, IDC_LEAVE, IDC_START, IDC_PLAYERSGRP,
+	IDC_ROOMLOG, IDC_ROOMEDIT, IDC_ROOMSEND, IDC_PLAYERS, IDC_KICK };
+static const int g_games_ids[] = { IDC_GAMESGRP, IDC_GAMES, IDC_JOIN, IDC_CREATE };
+
+/* the room lives in the lobby window (g_room == g_lobby while in a game, NULL otherwise) */
 static void room_refresh(HWND dlg)
 {
 	HWND lv = GetDlgItem(dlg, IDC_PLAYERS);
 	int i, n, state, owner;
 	char buf[300];
 	const kc_game *g;
+	SendMessageW(lv, WM_SETREDRAW, FALSE, 0);
 	EnterCriticalSection(&g_lock);
 	ListView_DeleteAllItems(lv);
 	n = g_kc ? kc_room_count(g_kc) : 0;
@@ -442,99 +448,112 @@ static void room_refresh(HWND dlg)
 		lv_set(lv, i, 0, u->name, u->id);
 		sprintf(buf, "%d ms", u->ping);
 		lv_set(lv, i, 1, buf, 0);
-		lv_set(lv, i, 2, conn_name(u->conn), 0);
+		lv_set(lv, i, 2, conn_short(u->conn), 0);
 	}
 	state = g_kc ? kc_state(g_kc) : 0;
 	owner = g_kc ? kc_room_owner(g_kc) : 0;
 	g = g_kc ? kc_game_find(g_kc, kc_room_game(g_kc)) : NULL;
 	if (g)
 	{
-		snprintf(buf, sizeof(buf), "%s  (%s, created by %s)", g->rom, g->emulator, g->owner);
+		snprintf(buf, sizeof(buf), " %s", g->rom);
 		set_text(GetDlgItem(dlg, IDC_ROOMINFO), buf);
-		snprintf(buf, sizeof(buf), "Game: %s", g->rom);
-		set_text(dlg, buf);
 	}
 	LeaveCriticalSection(&g_lock);
-	EnableWindow(GetDlgItem(dlg, IDC_START), owner && state == KC_STATE_IN_GAME);
+	SendMessageW(lv, WM_SETREDRAW, TRUE, 0);
+	/* Start game becomes Drop while the game runs */
+	if (state >= KC_STATE_STARTING)
+	{
+		SetDlgItemTextW(dlg, IDC_START, L"Drop");
+		EnableWindow(GetDlgItem(dlg, IDC_START), TRUE);
+	}
+	else
+	{
+		SetDlgItemTextW(dlg, IDC_START, L"Start game");
+		EnableWindow(GetDlgItem(dlg, IDC_START), owner && state == KC_STATE_IN_GAME);
+	}
 	EnableWindow(GetDlgItem(dlg, IDC_KICK), owner && state == KC_STATE_IN_GAME);
-	EnableWindow(GetDlgItem(dlg, IDC_DROP), state >= KC_STATE_STARTING);
+	SetDlgItemTextW(dlg, IDC_LEAVE, state >= KC_STATE_STARTING ? L"Leave" : L"Cancel");
 }
 
-static INT_PTR CALLBACK room_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
+static void room_init(HWND dlg)
 {
-	(void) lp;
-	switch (msg)
+	static const char *cols[] = { "Nick", "Ping", "Connection" };
+	static const int w[] = { 95, 50, 65 };
+	lv_columns(GetDlgItem(dlg, IDC_PLAYERS), cols, w, 3);
+	edit_enter_sends(GetDlgItem(dlg, IDC_ROOMEDIT), IDC_ROOMSEND);
+	SendDlgItemMessageW(dlg, IDC_ROOMLOG, EM_SETBKGNDCOLOR, 0, GetSysColor(COLOR_WINDOW));
+}
+
+/* the room's buttons; returns 1 if handled */
+static int room_command(HWND dlg, int id)
+{
+	switch (id)
 	{
-	case WM_INITDIALOG:
+	case IDC_ROOMSEND:
 	{
-		static const char *cols[] = { "Nick", "Ping", "Connection" };
-		static const int w[] = { 200, 70, 160 };
-		lv_columns(GetDlgItem(dlg, IDC_PLAYERS), cols, w, 3);
-		edit_enter_sends(GetDlgItem(dlg, IDC_ROOMEDIT), IDC_ROOMSEND);
-		SendDlgItemMessageW(dlg, IDC_ROOMLOG, EM_SETBKGNDCOLOR, 0, GetSysColor(COLOR_WINDOW));
+		char text[400];
+		get_text(GetDlgItem(dlg, IDC_ROOMEDIT), text, sizeof(text));
+		if (text[0])
+		{
+			EnterCriticalSection(&g_lock);
+			if (g_kc) kc_game_chat(g_kc, text);
+			LeaveCriticalSection(&g_lock);
+		}
+		SetDlgItemTextW(dlg, IDC_ROOMEDIT, L"");
+		return 1;
+	}
+	case IDC_START:
+		EnterCriticalSection(&g_lock);
+		if (g_kc && kc_state(g_kc) >= KC_STATE_STARTING)
+			kc_game_drop(g_kc);
+		else if (g_kc)
+			kc_start_game(g_kc);
+		LeaveCriticalSection(&g_lock);
 		room_refresh(dlg);
-		return TRUE;
+		return 1;
+	case IDC_KICK:
+	{
+		LPARAM id = lv_selected(GetDlgItem(dlg, IDC_PLAYERS), NULL);
+		EnterCriticalSection(&g_lock);
+		if (g_kc && id >= 0 && id != kc_my_id(g_kc))
+			kc_kick(g_kc, (int) id);
+		LeaveCriticalSection(&g_lock);
+		return 1;
 	}
-	case WM_COMMAND:
-		switch (LOWORD(wp))
-		{
-		case IDC_ROOMSEND:
-		{
-			char text[400];
-			get_text(GetDlgItem(dlg, IDC_ROOMEDIT), text, sizeof(text));
-			if (text[0])
-			{
-				EnterCriticalSection(&g_lock);
-				if (g_kc) kc_game_chat(g_kc, text);
-				LeaveCriticalSection(&g_lock);
-			}
-			SetDlgItemTextW(dlg, IDC_ROOMEDIT, L"");
-			return TRUE;
-		}
-		case IDC_START:
-			EnterCriticalSection(&g_lock);
-			if (g_kc) kc_start_game(g_kc);
-			LeaveCriticalSection(&g_lock);
-			return TRUE;
-		case IDC_DROP:
-			EnterCriticalSection(&g_lock);
-			if (g_kc) kc_game_drop(g_kc);
-			LeaveCriticalSection(&g_lock);
-			room_refresh(dlg);
-			return TRUE;
-		case IDC_KICK:
-		{
-			LPARAM id = lv_selected(GetDlgItem(dlg, IDC_PLAYERS), NULL);
-			EnterCriticalSection(&g_lock);
-			if (g_kc && id >= 0 && id != kc_my_id(g_kc))
-				kc_kick(g_kc, (int) id);
-			LeaveCriticalSection(&g_lock);
-			return TRUE;
-		}
-		case IDC_LEAVE:
-		case IDCANCEL:
-			EnterCriticalSection(&g_lock);
-			if (g_kc) kc_quit_game(g_kc);
-			LeaveCriticalSection(&g_lock);
-			return TRUE;
-		}
-		break;
+	case IDC_LEAVE:
+		EnterCriticalSection(&g_lock);
+		if (g_kc) kc_quit_game(g_kc);
+		LeaveCriticalSection(&g_lock);
+		return 1;
 	}
-	return FALSE;
+	return 0;
+}
+
+static void room_show(HWND dlg, int show)
+{
+	int i;
+	for (i = 0; i < (int) (sizeof(g_room_ids) / sizeof(g_room_ids[0])); i++)
+		ShowWindow(GetDlgItem(dlg, g_room_ids[i]), show ? SW_SHOW : SW_HIDE);
+	for (i = 0; i < (int) (sizeof(g_games_ids) / sizeof(g_games_ids[0])); i++)
+		ShowWindow(GetDlgItem(dlg, g_games_ids[i]), show ? SW_HIDE : SW_SHOW);
 }
 
 static void room_open(void)
 {
-	if (g_room)
+	if (g_room || !g_lobby)
 		return;
-	g_room = CreateDialogParamW(g_inst, MAKEINTRESOURCEW(IDD_ROOM), g_lobby, room_proc, 0);
-	ShowWindow(g_room, SW_SHOW);
+	g_room = g_lobby;
+	SetDlgItemTextW(g_room, IDC_ROOMLOG, L"");
+	SetDlgItemTextW(g_room, IDC_ROOMEDIT, L"");
+	room_show(g_room, 1);
+	room_refresh(g_room);
+	SetFocus(GetDlgItem(g_room, IDC_ROOMEDIT));
 }
 
 static void room_close(void)
 {
 	if (g_room)
-		DestroyWindow(g_room);
+		room_show(g_room, 0);
 	g_room = NULL;
 }
 
@@ -823,6 +842,7 @@ static INT_PTR CALLBACK lobby_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 		lv_columns(GetDlgItem(dlg, IDC_GAMES), gcols, gw, 5);
 		edit_enter_sends(GetDlgItem(dlg, IDC_CHATEDIT), IDC_CHATSEND);
 		SendDlgItemMessageW(dlg, IDC_CHATLOG, EM_SETBKGNDCOLOR, 0, GetSysColor(COLOR_WINDOW));
+		room_init(dlg);
 		snprintf(t, sizeof(t), "Kaillera %s: connecting to %s:%d...", KCL_VERSION, g_host, g_port);
 		set_text(dlg, t);
 		EnterCriticalSection(&g_lock);
@@ -869,6 +889,12 @@ static INT_PTR CALLBACK lobby_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 		case IDOK:
 			if (GetFocus() == GetDlgItem(dlg, IDC_CHATEDIT))
 				SendMessageW(dlg, WM_COMMAND, IDC_CHATSEND, 0);
+			else if (GetFocus() == GetDlgItem(dlg, IDC_ROOMEDIT))
+				SendMessageW(dlg, WM_COMMAND, IDC_ROOMSEND, 0);
+			return TRUE;
+		case IDC_ROOMSEND: case IDC_START: case IDC_KICK: case IDC_LEAVE:
+			if (g_room)
+				room_command(dlg, LOWORD(wp));
 			return TRUE;
 		case IDC_JOIN:
 		{
@@ -937,8 +963,15 @@ static INT_PTR CALLBACK lobby_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 		case IDCANCEL:
 			if (g_in_game)
 			{
-				MessageBoxW(dlg, L"Close the game in the emulator first.", L"Kaillera", MB_OK);
-				return TRUE;
+				/* the emulator runs the game inside gameCallback, called from this window: drop
+				   the game and disconnect; kailleraModifyPlayValues then returns -1 (as when the
+				   connection is lost) and the dialog ends when the emulator leaves the game */
+				if (MessageBoxW(dlg, L"A netplay game is running. Leave it and close the lobby?",
+						L"Kaillera", MB_YESNO | MB_ICONQUESTION) != IDYES)
+					return TRUE;
+				EnterCriticalSection(&g_lock);
+				if (g_kc) kc_game_drop(g_kc);
+				LeaveCriticalSection(&g_lock);
 			}
 			room_close();
 			lobby_stop();
@@ -1220,7 +1253,7 @@ static void servers_read_options(HWND dlg)
 	get_text(GetDlgItem(dlg, IDC_NICK), S.nick, sizeof(S.nick));
 	S.conn = (int) SendDlgItemMessageW(dlg, IDC_CONN, CB_GETCURSEL, 0, 0) + 1;
 	if (S.conn < KC_CONN_LAN || S.conn > KC_CONN_BAD)
-		S.conn = KC_CONN_GOOD;
+		S.conn = KC_CONN_LAN;
 }
 
 static void get_selected_addr(HWND dlg, char *addr, int n, char *name, int nn)

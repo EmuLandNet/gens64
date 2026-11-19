@@ -1593,6 +1593,10 @@ int Check_If_Kaillera_Running(void)
 }
 
 
+// gens64: netplay state for the timer that keeps the game running in menus (WM_TIMER)
+#define NETPLAY_TIMER_ID 0x4E50
+static int Netplay_Player, Netplay_Players, Netplay_In_Update;
+
 // gens64: the ROM types offered for netplay (Kaillera games are the file names without extension)
 static const char *Netplay_Exts[] = { "bin", "gen", "md", "smd", "32x", "zip", NULL };
 
@@ -1648,6 +1652,10 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 	Kaillera_Keys[8] = Kaillera_Keys[9] = 0xFF;
 	Kaillera_Error = 0;
 
+	Netplay_Player = player;
+	Netplay_Players = maxplayers;
+	SetTimer(HWnd, NETPLAY_TIMER_ID, 5, NULL);
+
 	while (Net_Play)
 	{
 		if (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
@@ -1662,7 +1670,9 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 		}
 		else if ((Active) && (!Paused))
 		{
+			Netplay_In_Update = 1;
 			Update_Emulation_Netplay(HWnd, player, maxplayers);
+			Netplay_In_Update = 0;
 		}
 		else
 		{
@@ -1671,6 +1681,7 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 		}
 	}
 
+	KillTimer(HWnd, NETPLAY_TIMER_ID);
 	Kaillera_End_Game();
 
 	return 0;
@@ -2851,7 +2862,25 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case WM_MENUSELECT:
  		case WM_ENTERSIZEMOVE:
-			Clear_Sound_Buffer();
+			if (!Net_Play)	// gens64: a netplay game keeps running (and playing sound) in menus
+				Clear_Sound_Buffer();
+			break;
+
+		case WM_TIMER:
+			// gens64: while a menu is open or the window is moved, Windows runs its own message
+			// loop and the netplay loop below stands still - the other players would wait. The
+			// timer keeps the game going there; Update_Emulation_Netplay counts frames by time,
+			// so running it from both places does not change the speed.
+			if (wParam == NETPLAY_TIMER_ID)
+			{
+				if (Net_Play && Active && !Paused && !Netplay_In_Update)
+				{
+					Netplay_In_Update = 1;
+					Update_Emulation_Netplay(hWnd, Netplay_Player, Netplay_Players);
+					Netplay_In_Update = 0;
+				}
+				return 0;
+			}
 			break;
 
 		case WM_MOVE:
