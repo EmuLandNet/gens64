@@ -23,7 +23,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define KCL_VERSION "0.9"
+#define KCL_VERSION "1.0"	/* libkaillera's own numbering (the original client is 0.9) */
+#define KCL_VERSION_W L"1.0"
 #define KCL_NAME "libkaillera " KCL_VERSION
 #define WM_KC_EVENT (WM_APP + 1)
 #define WM_KC_LIST (WM_APP + 2)
@@ -575,7 +576,7 @@ static void lobby_title(HWND dlg)
 	EnterCriticalSection(&g_lock);
 	n = g_kc ? kc_user_count(g_kc) : 0;
 	LeaveCriticalSection(&g_lock);
-	snprintf(t, sizeof(t), "Kaillera %s: %s:%d (%d online users)", KCL_VERSION, g_host, g_port, n);
+	snprintf(t, sizeof(t), "Kaillera: %s:%d (%d online users)", g_host, g_port, n);
 	set_text(dlg, t);
 }
 
@@ -853,7 +854,7 @@ static INT_PTR CALLBACK lobby_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 		edit_enter_sends(GetDlgItem(dlg, IDC_CHATEDIT), IDC_CHATSEND);
 		SendDlgItemMessageW(dlg, IDC_CHATLOG, EM_SETBKGNDCOLOR, 0, GetSysColor(COLOR_WINDOW));
 		room_init(dlg);
-		snprintf(t, sizeof(t), "Kaillera %s: connecting to %s:%d...", KCL_VERSION, g_host, g_port);
+		snprintf(t, sizeof(t), "Kaillera: connecting to %s:%d...", g_host, g_port);
 		set_text(dlg, t);
 		EnterCriticalSection(&g_lock);
 		g_kc = kc_create();
@@ -1524,8 +1525,7 @@ static INT_PTR CALLBACK servers_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 			}
 			SendDlgItemMessageW(dlg, IDC_OPT_CHARSET, CB_SETCURSEL, sel, 0);
 		}
-		sprintf(t, "Kaillera Client %s (%s)", KCL_VERSION, "libkaillera");
-		SetWindowTextA(dlg, t);
+		SetWindowTextW(dlg, L"libkaillera " KCL_VERSION_W);
 		g_tab = S.n_recent ? 1 : 2;
 		SendDlgItemMessageW(dlg, IDC_TABS, TCM_SETCURSEL, g_tab, 0);
 		servers_show_tab(dlg);

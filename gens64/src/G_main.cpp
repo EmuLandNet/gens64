@@ -1666,6 +1666,9 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 			Net_Play = 0;
 			break;
 		}
+		// gens64: no pause in netplay (frame advance and other tools set it too): the other
+		// players would wait
+		Paused = 0;
 		if (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
 		{
 			if (!GetMessage(&msg, NULL, 0, 0)) return msg.wParam;
@@ -4818,6 +4821,11 @@ dialogAgain: //Nitsuja added this
 				}
 
 				case ID_EMULATION_PAUSED:
+					if (Net_Play)	// gens64: a pause would stop every player of the netplay game
+					{
+						MESSAGE_L("Pause is disabled in netplay", "Pause is disabled in netplay")
+						return 0;
+					}
 					if (Debug)
 					{
 						Change_Debug(HWnd, 0);
