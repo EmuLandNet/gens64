@@ -30,6 +30,10 @@ LPDIRECTDRAW lpDD_Init;
 LPDIRECTDRAW4 lpDD;
 LPDIRECTDRAWSURFACE4 lpDDS_Primary;
 LPDIRECTDRAWSURFACE4 lpDDS_Flip;
+// gens64: the picture scaled to the window by us (nearest pixel), then copied 1:1: a scaled
+// DirectDraw blit is smoothed (bilinear) by Windows 8/10/11, not by Wine
+static LPDIRECTDRAWSURFACE4 lpDDS_Scaled;
+static int Scaled_W, Scaled_H;
 LPDIRECTDRAWSURFACE4 lpDDS_Back;
 LPDIRECTDRAWSURFACE4 lpDDS_Blit;
 LPDIRECTDRAWCLIPPER lpDDC_Clipper;
@@ -322,7 +326,7 @@ int Init_DDraw(HWND hWnd)
 	}
 	else
 	{
-		ddsd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_VIDEOMEMORY;
+		ddsd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;	// gens64: was video memory; it is read back for the scaling (Scale_Nearest)
 		ddsd.dwWidth = 672; //Upth-Modif - was 640, but for single mode the value was 336, not 320.
 		ddsd.dwHeight = 480;
 	}
@@ -398,6 +402,13 @@ void End_DDraw()
 	{
 		lpDDS_Back->Release();
 		lpDDS_Back = NULL;
+	}
+
+	if (lpDDS_Scaled)
+	{
+		lpDDS_Scaled->Release();
+		lpDDS_Scaled = NULL;
+		Scaled_W = Scaled_H = 0;
 	}
 
 	if (lpDDS_Flip)
@@ -987,6 +998,90 @@ void DrawInformationOnTheScreen()
 #endif
 }
 
+// gens64: copies RectSrc of lpDDS_Back into a surface of the destination size, nearest pixel;
+// returns that surface (or NULL: then the caller blits with stretching as before)
+static LPDIRECTDRAWSURFACE4 Scale_Nearest(const RECT& RectSrc, int dw, int dh, int bpp)
+{
+	if (dw <= 0 || dh <= 0 || dw > 16384 || dh > 16384)
+		return NULL;
+	if (!lpDDS_Scaled || Scaled_W != dw || Scaled_H != dh)
+	{
+		DDSURFACEDESC2 sd, bd;
+		if (lpDDS_Scaled)
+			lpDDS_Scaled->Release();
+		lpDDS_Scaled = NULL;
+		memset(&bd, 0, sizeof(bd));
+		bd.dwSize = sizeof(bd);
+		if (FAILED(lpDDS_Back->GetSurfaceDesc(&bd)))	// the same pixel format as the back surface
+			return NULL;
+		memset(&sd, 0, sizeof(sd));
+		sd.dwSize = sizeof(sd);
+		sd.dwFlags = DDSD_CAPS | DDSD_HEIGHT | DDSD_WIDTH | DDSD_PIXELFORMAT;
+		sd.ddsCaps.dwCaps = DDSCAPS_OFFSCREENPLAIN | DDSCAPS_SYSTEMMEMORY;
+		sd.dwWidth = dw;
+		sd.dwHeight = dh;
+		sd.ddpfPixelFormat = bd.ddpfPixelFormat;
+		if (FAILED(lpDD->CreateSurface(&sd, &lpDDS_Scaled, NULL)))
+		{
+			lpDDS_Scaled = NULL;
+			return NULL;
+		}
+		Scaled_W = dw;
+		Scaled_H = dh;
+	}
+
+	DDSURFACEDESC2 src, dst;
+	memset(&src, 0, sizeof(src));
+	src.dwSize = sizeof(src);
+	memset(&dst, 0, sizeof(dst));
+	dst.dwSize = sizeof(dst);
+	if (FAILED(lpDDS_Back->Lock(NULL, &src, DDLOCK_WAIT | DDLOCK_READONLY, NULL)))
+		return NULL;
+	if (FAILED(lpDDS_Scaled->Lock(NULL, &dst, DDLOCK_WAIT | DDLOCK_WRITEONLY, NULL)))
+	{
+		lpDDS_Back->Unlock(NULL);
+		return NULL;
+	}
+
+	const int sw = RectSrc.right - RectSrc.left, sh = RectSrc.bottom - RectSrc.top;
+	static int xmap[16384];
+	for (int x = 0; x < dw; x++)
+		xmap[x] = RectSrc.left + (int) (((long long) x * sw) / dw);
+	int prev_sy = -1;
+	unsigned char *prev_row = NULL;
+	for (int y = 0; y < dh; y++)
+	{
+		int sy = RectSrc.top + (int) (((long long) y * sh) / dh);
+		unsigned char *d = (unsigned char *) dst.lpSurface + (size_t) y * dst.lPitch;
+		if (sy == prev_sy)
+		{
+			memcpy(d, prev_row, (size_t) dw * bpp);	// the same source line: copy the line above
+			continue;
+		}
+		const unsigned char *srow = (const unsigned char *) src.lpSurface + (size_t) sy * src.lPitch;
+		if (bpp == 4)
+		{
+			const unsigned int *sp = (const unsigned int *) srow;
+			unsigned int *dp = (unsigned int *) d;
+			for (int x = 0; x < dw; x++)
+				dp[x] = sp[xmap[x]];
+		}
+		else
+		{
+			const unsigned short *sp = (const unsigned short *) srow;
+			unsigned short *dp = (unsigned short *) d;
+			for (int x = 0; x < dw; x++)
+				dp[x] = sp[xmap[x]];
+		}
+		prev_sy = sy;
+		prev_row = d;
+	}
+
+	lpDDS_Scaled->Unlock(NULL);
+	lpDDS_Back->Unlock(NULL);
+	return lpDDS_Scaled;
+}
+
 int Flip(HWND hWnd)
 {
 	if(!lpDD)
@@ -1056,8 +1151,14 @@ int Flip(HWND hWnd)
 				if (!vb)*/ lpDD->WaitForVerticalBlank(DDWAITVB_BLOCKBEGIN, 0);
 			}
 
-			rval = lpDDS_Primary->Blt(&RectDest, lpDDS_Back, &RectSrc, DDBLT_WAIT | DDBLT_ASYNC, NULL);
-//			rval = lpDDS_Primary->Blt(&RectDest, lpDDS_Back, &RectSrc, NULL, NULL);
+			LPDIRECTDRAWSURFACE4 scaled = NULL;
+			int dw = RectDest.right - RectDest.left, dh = RectDest.bottom - RectDest.top;
+			if (dw != Src_X || dh != Src_Y)
+				scaled = Scale_Nearest(RectSrc, dw, dh, bpp);
+			if (scaled)
+				rval = lpDDS_Primary->Blt(&RectDest, scaled, NULL, DDBLT_WAIT | DDBLT_ASYNC, NULL);
+			else
+				rval = lpDDS_Primary->Blt(&RectDest, lpDDS_Back, &RectSrc, DDBLT_WAIT | DDBLT_ASYNC, NULL);
 		}
 	}
 

@@ -1586,9 +1586,10 @@ int Check_If_Kaillera_Running(void)
 #define CURSOR_TIMER_ID 0x4355
 #define CURSOR_HIDE_MS 2000
 static DWORD Last_Mouse_Move;
+static int In_Menu_Loop;	// a menu is open (the right button menu): keep the pointer
 static bool Cursor_Idle(void)
 {
-	return Full_Screen == 1 && GetTickCount() - Last_Mouse_Move > CURSOR_HIDE_MS;
+	return Full_Screen == 1 && !In_Menu_Loop && GetTickCount() - Last_Mouse_Move > CURSOR_HIDE_MS;
 }
 static int Netplay_Player, Netplay_Players, Netplay_In_Update;
 
@@ -2982,6 +2983,28 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			break;
 		}
+
+		case WM_ENTERMENULOOP:
+			In_Menu_Loop = 1;
+			break;
+
+		case WM_EXITMENULOOP:
+			In_Menu_Loop = 0;
+			Last_Mouse_Move = GetTickCount();
+			break;
+
+		case WM_KEYDOWN:
+			// gens64: Right Alt + Enter: with AltGr layouts Right Alt is Ctrl+Alt, and the Alt+Enter
+			// accelerator does not match it
+			if (wParam == VK_RETURN && (GetKeyState(VK_RMENU) & 0x8000))
+			{
+				SendMessage(hWnd, WM_COMMAND, ID_GRAPHICS_SWITCH_MODE, 0);
+				return 0;
+			}
+#ifdef GENS_DEBUG
+			if (Debug) Debug_Event((lParam >> 16) & 0x7F);
+#endif
+			break;
 
 		case WM_SETCURSOR:
 			if (LOWORD(lParam) == HTCLIENT && Cursor_Idle())
@@ -4865,11 +4888,6 @@ dialogAgain: //Nitsuja added this
 				break;
 */
 
-#ifdef GENS_DEBUG
-		case WM_KEYDOWN:
-			if (Debug) Debug_Event((lParam >> 16) & 0x7F);
-			break;
-#endif
 
 		case WM_KNUX:
 			MESSAGE_L("Communicating", "Communicating ...")
