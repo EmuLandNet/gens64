@@ -41,6 +41,7 @@ static HANDLE g_net_thread;
 static volatile LONG g_net_stop;
 static HWND g_lobby, g_room, g_servers;
 static int g_in_game;			/* inside gameCallback */
+static int g_close_all;			/* the lobby was closed during a game: close the client too */
 static char g_host[256], g_server_name[128];
 static int g_port;
 
@@ -981,6 +982,7 @@ static INT_PTR CALLBACK lobby_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 				EnterCriticalSection(&g_lock);
 				if (g_kc) kc_game_drop(g_kc);
 				LeaveCriticalSection(&g_lock);
+				g_close_all = 1;
 			}
 			room_close();
 			lobby_stop();
@@ -1362,8 +1364,18 @@ static void connect_to(HWND dlg, const char *addr, const char *name)
 	if (split_addr(addr, g_host, sizeof(g_host), &g_port) != 0)
 		return;
 	ShowWindow(dlg, SW_HIDE);
+	g_close_all = 0;
 	DialogBoxParamW(g_inst, MAKEINTRESOURCEW(IDD_LOBBY), GetParent(dlg), lobby_proc, 0);
 	g_lobby = NULL;
+	if (g_close_all)	/* left during a game: the whole client closes */
+	{
+		g_close_all = 0;
+		servers_read_options(dlg);
+		save_settings();
+		g_servers = NULL;
+		EndDialog(dlg, 0);
+		return;
+	}
 	ShowWindow(dlg, SW_SHOW);
 	SetForegroundWindow(dlg);
 	if (g_tab == 1)

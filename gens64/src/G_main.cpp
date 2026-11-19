@@ -1658,6 +1658,14 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 
 	while (Net_Play)
 	{
+		// gens64: the client ended the game (we left it, dropped, or the connection was lost;
+		// kailleraModifyPlayValues returned -1): close the ROM, which ends netplay
+		if (Kaillera_Error == -1)
+		{
+			SendMessage(HWnd, WM_COMMAND, ID_FILES_CLOSEROM, 0);
+			Net_Play = 0;
+			break;
+		}
 		if (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
 		{
 			if (!GetMessage(&msg, NULL, 0, 0)) return msg.wParam;
