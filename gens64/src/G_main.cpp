@@ -1583,25 +1583,32 @@ int Check_If_Kaillera_Running(void)
 }
 
 
+// gens64: the ROM types offered for netplay (Kaillera games are the file names without extension)
+static const char *Netplay_Exts[] = { "bin", "gen", "md", "smd", "32x", "zip", NULL };
+
 int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 {
 	MSG msg;
 	char name[2048];
-	HANDLE f;
-	WIN32_FIND_DATA fd;
 
-	SetCurrentDirectory(Rom_Dir);
-
-	sprintf(name, "%s.*", game);
-	memset(&fd, 0, sizeof(fd));
-	fd.dwFileAttributes = FILE_ATTRIBUTE_ARCHIVE;
-	f = FindFirstFile(name, &fd);
-
-	if (f == INVALID_HANDLE_VALUE) return 1;
-
-	if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+	// gens64: the ROM is looked up by the extensions of the list (not "name.*", which could
+	// find a save or a state file first)
 	{
-		sprintf(name, "%s%s", Rom_Dir, fd.cFileName);
+		int i;
+		name[0] = 0;
+		for (i = 0; Netplay_Exts[i]; i++)
+		{
+			char path[2048];
+			DWORD attr;
+			sprintf(path, "%s%s.%s", Rom_Dir, game, Netplay_Exts[i]);
+			attr = GetFileAttributes(path);
+			if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY))
+			{
+				strcpy(name, path);
+				break;
+			}
+		}
+		if (!name[0]) return 1;
 		GensLoadRom(name);
 	}
 
@@ -1672,177 +1679,57 @@ int Start_Netplay(void)
 
 	SetCurrentDirectory(Rom_Dir);
 
+	// gens64: one scan per extension; names without the extension, lower case, sorted and
+	// without duplicates; the list ends with an empty name (the original allocated it one byte
+	// short and left it unterminated, so with no ROMs the client got garbage)
 	Liste_Games = (char *) malloc(cursize);
-	Liste_Games[0] = 0;
-	Liste_Games[1] = 0;
-
-	memset(&fd, 0, sizeof(fd));
-	fd.dwFileAttributes = FILE_ATTRIBUTE_ARCHIVE;
-	f = FindFirstFile("*.bin", &fd);
-	if (f != INVALID_HANDLE_VALUE)
+	for (int x = 0; Netplay_Exts[x]; x++)
 	{
-		if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
+		char mask[16];
+		sprintf(mask, "*.%s", Netplay_Exts[x]);
+		f = FindFirstFile(mask, &fd);
+		if (f == INVALID_HANDLE_VALUE) continue;
+		do
 		{
-			len = strlen(fd.cFileName) - 4;
-			fd.cFileName[len++] = 0;
-			if ((dep + len) > cursize)
+			char *dot;
+			if (fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) continue;
+			dot = strrchr(fd.cFileName, '.');
+			if (dot) *dot = 0;
+			strlwr(fd.cFileName);
+			len = (int) strlen(fd.cFileName) + 1;
+			if (len < 2) continue;
+			if (dep + len + 1 > cursize)
 			{
-				cursize += 8192;
-				Liste_Games = (char*) realloc(Liste_Games, cursize);
+				cursize += 8192 + len;
+				Liste_Games = (char *) realloc(Liste_Games, cursize);
 			}
 			strcpy(Liste_Games + dep, fd.cFileName);
 			dep += len;
 			num++;
-		}
-
-		while (FindNextFile(f, &fd))
-		{
-			if(!(fd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY))
-			{
-				len = strlen(fd.cFileName) - 4;
-				fd.cFileName[len++] = 0;
-				if ((dep + len) > cursize)
-				{
-					cursize += 8192;
-					Liste_Games = (char*) realloc(Liste_Games, cursize);
-				}
-				strcpy(Liste_Games + dep, fd.cFileName);
-				dep += len;
-				num++;
-			}
-		}
+		} while (FindNextFile(f, &fd));
+		FindClose(f);
 	}
-
-	memset(&fd, 0, sizeof(fd));
-	fd.dwFileAttributes = FILE_ATTRIBUTE_ARCHIVE;
-	f = FindFirstFile("*.smd", &fd);
-	if (f != INVALID_HANDLE_VALUE)
-	{
-		if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-		{
-			len = strlen(fd.cFileName) - 4;
-			fd.cFileName[len++] = 0;
-			if ((dep + len) > cursize)
-			{
-				cursize += 8192;
-				Liste_Games = (char*) realloc(Liste_Games, cursize);
-			}
-			strcpy(Liste_Games + dep, fd.cFileName);
-			dep += len;
-			num++;
-		}
-
-		while (FindNextFile(f, &fd))
-		{
-			if(!(fd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY))
-			{
-				len = strlen(fd.cFileName) - 4;
-				fd.cFileName[len++] = 0;
-				if ((dep + len) > cursize)
-				{
-					cursize += 8192;
-					Liste_Games = (char*) realloc(Liste_Games, cursize);
-				}
-				strcpy(Liste_Games + dep, fd.cFileName);
-				dep += len;
-				num++;
-			}
-		}
-	}
-
-	memset(&fd, 0, sizeof(fd));
-	fd.dwFileAttributes = FILE_ATTRIBUTE_ARCHIVE;
-	f = FindFirstFile("*.32X", &fd);
-	if (f != INVALID_HANDLE_VALUE)
-	{
-		if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-		{
-			len = strlen(fd.cFileName) - 4;
-			fd.cFileName[len++] = 0;
-			if ((dep + len) > cursize)
-			{
-				cursize += 8192;
-				Liste_Games = (char*) realloc(Liste_Games, cursize);
-			}
-			strcpy(Liste_Games + dep, fd.cFileName);
-			dep += len;
-			num++;
-		}
-
-		while (FindNextFile(f, &fd))
-		{
-			if(!(fd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY))
-			{
-				len = strlen(fd.cFileName) - 4;
-				fd.cFileName[len++] = 0;
-				if ((dep + len) > cursize)
-				{
-					cursize += 8192;
-					Liste_Games = (char*) realloc(Liste_Games, cursize);
-				}
-				strcpy(Liste_Games + dep, fd.cFileName);
-				dep += len;
-				num++;
-			}
-		}
-	}
-
-	memset(&fd, 0, sizeof(fd));
-	fd.dwFileAttributes = FILE_ATTRIBUTE_ARCHIVE;
-	f = FindFirstFile("*.zip", &fd);
-	if (f != INVALID_HANDLE_VALUE)
-	{
-		if (!(fd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY))
-		{
-			len = strlen(fd.cFileName) - 4;
-			fd.cFileName[len++] = 0;
-			if ((dep + len) > cursize)
-			{
-				cursize += 8192;
-				Liste_Games = (char*) realloc(Liste_Games, cursize);
-			}
-			strcpy(Liste_Games + dep, fd.cFileName);
-			dep += len;
-			num++;
-		}
-
-		while (FindNextFile(f, &fd))
-		{
-			if(!(fd.dwFileAttributes&FILE_ATTRIBUTE_DIRECTORY))
-			{
-				len = strlen(fd.cFileName) - 4;
-				fd.cFileName[len++] = 0;
-				if ((dep + len) > cursize)
-				{
-					cursize += 8192;
-					Liste_Games = (char*) realloc(Liste_Games, cursize);
-				}
-				strcpy(Liste_Games + dep, fd.cFileName);
-				dep += len;
-				num++;
-			}
-		}
-	}
-
 	Liste_Games[dep] = 0;
-	LG = (char*) malloc(dep);
+
+	LG = (char *) malloc(dep + 2);
+	char *Last_Game = LG;
 	dep = 0;
-	
-	for(; num > 0; num--)
+	for (; num > 0; num--)
 	{
-		Min_Game = Cur_Game = Liste_Games;
-
-		while(*Cur_Game)
+		Min_Game = NULL;
+		for (Cur_Game = Liste_Games; *Cur_Game; Cur_Game += strlen(Cur_Game) + 1)
+			if (*Cur_Game != '\x01' && (!Min_Game || strcmp(Cur_Game, Min_Game) < 0)) Min_Game = Cur_Game;
+		if (!Min_Game) break;
+		if (!dep || strcmp(Last_Game, Min_Game))	// "sonic.bin" and "sonic.zip": once
 		{
-			if (stricmp(Cur_Game, Min_Game) < 0) Min_Game = Cur_Game; 
-			Cur_Game += strlen(Cur_Game) + 1;
+			Last_Game = LG + dep;
+			strcpy(LG + dep, Min_Game);
+			dep += (int) strlen(Min_Game) + 1;
 		}
-
-		strlwr(Min_Game);
-		strcpy(LG + dep, Min_Game);
-		dep += strlen(Min_Game) + 1;
-		Min_Game[0] = -1;
+		memset(Min_Game, '\x01', strlen(Min_Game));
 	}
+	LG[dep] = 0;
+	LG[dep + 1] = 0;
 
 	GetWindowText(HWnd, name, 2046);
 	backup_infos[0] = Controller_1_Type;
