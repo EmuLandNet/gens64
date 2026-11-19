@@ -94,13 +94,9 @@ char *mapped_cd;
 #define GENS_VERSION   2.10
 #define GENS_VERSION_H 2 * 65536 + 10
 
+// gens64: dialogs open over the borderless full screen window, no need to leave it
 #define MINIMIZE								\
-{Clear_Sound_Buffer();							\
-if (Full_Screen)								\
-{												\
-	Set_Render(HWnd, 0, -1, true);				\
-	FS_Minimised = 1;							\
-}}
+{Clear_Sound_Buffer();}
 
 #define MENU_L(smenu, pos, flags, id, str, suffixe, def)	do{									\
 {GetPrivateProfileString(language_name[Language], (str), (def), Str_Tmp, 1024, Language_Path);	\
@@ -354,14 +350,7 @@ void ReopenRamWindows() //Reopen them when a new Rom is loaded
 
 int Change_VSync(HWND hWnd)
 {
-	int *p_vsync;
-	
-	if (Full_Screen)
-	{
-		End_DDraw();
-		p_vsync = &FS_VSync;
-	}
-	else p_vsync = &W_VSync;
+	int *p_vsync = &W_VSync;	// gens64: one setting for the window and the full screen
 	
 	*p_vsync = 1 - *p_vsync;
 	
@@ -369,8 +358,7 @@ int Change_VSync(HWND hWnd)
 	else MESSAGE_L("Vertical Sync Disabled", "Vertical Sync Disabled")
 
 	Build_Main_Menu();
-	if (Full_Screen) return Init_DDraw(HWnd);
-	else return 1;
+	return 1;
 }
 
 
@@ -444,14 +432,16 @@ int Set_Current_State(int Num, bool showOccupiedMessage, bool showEmptyMessage)
 }
 
 
+// gens64: was Stretch (the picture filled the window, out of proportion); now the integer
+// scaling switch (the same command and hotkey)
 int Change_Stretch(void)
 {
 	Flag_Clr_Scr = 1;
 
-	if (Stretch = (1 - Stretch))
-		MESSAGE_L("Stretched mode", "Stretched mode")
+	if (Integer_Scale = (1 - Integer_Scale))
+		MESSAGE_L("Integer scaling", "Integer scaling")
 	else
-		MESSAGE_L("Correct ratio mode", "Correct ratio mode")
+		MESSAGE_L("Scaling to fit", "Scaling to fit")
 
 	Build_Main_Menu();
 	return(1);
@@ -460,7 +450,7 @@ int Change_Stretch(void)
 
 int Change_Blit_Style(void)
 {
-	if ((!Full_Screen) || (Render_FS > 1)) return(0);
+	return(0);	// gens64: a full screen setting of the old exclusive mode
 
 	Flag_Clr_Scr = 1;
 
@@ -882,16 +872,9 @@ tryAgain:
 	int Old_Rend, *Rend;
 	BlitFunc* Blit;
 	
-	if (Full)
-	{
-		Rend = &Render_FS; // Render_FS = ...
-		Blit = &Blit_FS; // Blit_FS = ...
-	}
-	else
-	{
-		Rend = &Render_W; // Render_W = ...
-		Blit = &Blit_W; // Blit_W = ...
-	}
+	// gens64: one render mode for the window and the full screen
+	Rend = &Render_W; // Render_W = ...
+	Blit = &Blit_W; // Blit_W = ...
 
 	Old_Rend = *Rend;
 	Flag_Clr_Scr = 1;
@@ -912,11 +895,16 @@ tryAgain:
 
 		if (Full_Screen = Full)
 		{
-			while (ShowCursor(true) < 1);
-			while (ShowCursor(false) >= 0);
-
-			SetWindowPos(hWnd, NULL, 0, 0, 320 * ((*Rend == 0)?1:2), 240 * ((*Rend == 0)?1:2), SWP_NOZORDER | SWP_NOACTIVATE);
-			SetWindowLong(hWnd, GWL_STYLE, NULL);
+			// gens64: a borderless window over the whole monitor the window is on (not its work
+			// area: Windows, KDE and GNOME hide their panels then); the display mode stays
+			MONITORINFO mi;
+			mi.cbSize = sizeof(mi);
+			GetMonitorInfo(MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST), &mi);
+			SetMenu(hWnd, NULL);
+			SetWindowLong(hWnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
+			SetWindowPos(hWnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top,
+				mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top,
+				SWP_FRAMECHANGED | SWP_SHOWWINDOW);
 		}
 		else
 		{
@@ -928,9 +916,8 @@ tryAgain:
 
 //			ChangeDisplaySettings(&dm, 0);
 
-			while (ShowCursor(false) >= 0);
-			while (ShowCursor(true) < 1);
-
+			SetWindowLong(hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
+			SetWindowPos(hWnd, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 			Set_Window_Size(hWnd);
 		}
 		DEVMODE dm;
@@ -1595,6 +1582,14 @@ int Check_If_Kaillera_Running(void)
 
 // gens64: netplay state for the timer that keeps the game running in menus (WM_TIMER)
 #define NETPLAY_TIMER_ID 0x4E50
+// gens64: hides the mouse pointer over the full screen picture after a while without moving
+#define CURSOR_TIMER_ID 0x4355
+#define CURSOR_HIDE_MS 2000
+static DWORD Last_Mouse_Move;
+static bool Cursor_Idle(void)
+{
+	return Full_Screen == 1 && GetTickCount() - Last_Mouse_Move > CURSOR_HIDE_MS;
+}
 static int Netplay_Player, Netplay_Players, Netplay_In_Update;
 
 // gens64: the ROM types offered for netplay (Kaillera games are the file names without extension)
@@ -2842,11 +2837,7 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			else
 			{
-				if ((Full_Screen) && ((BOOL) HIWORD(wParam)) && (Active))
-				{
-					Set_Render(hWnd, 0, -1, false);
-					FS_Minimised = 1;
-				}
+				// gens64: the borderless full screen stays when another window is activated
 
 				// gens64: Auto Pause moved to WM_ACTIVATEAPP (another program in front, not one of
 				// our own tool windows such as RAM Watch or the Lua console)
@@ -2882,6 +2873,16 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			// loop and the netplay loop below stands still - the other players would wait. The
 			// timer keeps the game going there; Update_Emulation_Netplay counts frames by time,
 			// so running it from both places does not change the speed.
+			if (wParam == CURSOR_TIMER_ID)
+			{
+				POINT pt;
+				RECT rc;
+				GetCursorPos(&pt);
+				GetWindowRect(hWnd, &rc);
+				if (Cursor_Idle() && GetForegroundWindow() == hWnd && PtInRect(&rc, pt))
+					SetCursor(NULL);
+				return 0;
+			}
 			if (wParam == NETPLAY_TIMER_ID)
 			{
 				if (Net_Play && Active && !Paused && !Netplay_In_Update)
@@ -2922,11 +2923,8 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case WM_SIZE:	// gens64: maximize/restore and resizing: clear the whole client area on the next
 						// frame, or the margins kept the picture of the previous size (seen under Wine)
-			if (!Full_Screen)
-			{
-				Flag_Clr_Scr = 0;
-				InvalidateRect(hWnd, NULL, TRUE);
-			}
+			Flag_Clr_Scr = 0;
+			InvalidateRect(hWnd, NULL, TRUE);
 			break;
 
 		case WM_CLOSE:
@@ -2962,8 +2960,6 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				PaintsEnabled = false;
 				TrackPopupMenu(Gens_Menu, TPM_LEFTALIGN | TPM_TOPALIGN, point.x, point.y, NULL, hWnd, NULL);
 				PaintsEnabled = true;
-				while (ShowCursor(true) < 0);
-				while (ShowCursor(false) >= 0);
 			}
 			else
 				Clear_Sound_Buffer();
@@ -2973,6 +2969,26 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case WM_CREATE:
 			Active = 1;
+			SetTimer(hWnd, CURSOR_TIMER_ID, 500, NULL);
+			break;
+
+		case WM_MOUSEMOVE:
+		{
+			static LPARAM last_pos = -1;
+			if (lParam != last_pos)	// Windows also sends it without a move
+			{
+				last_pos = lParam;
+				Last_Mouse_Move = GetTickCount();
+			}
+			break;
+		}
+
+		case WM_SETCURSOR:
+			if (LOWORD(lParam) == HTCLIENT && Cursor_Idle())
+			{
+				SetCursor(NULL);
+				return TRUE;
+			}
 			break;
 		
 		case WM_PAINT:
@@ -3798,13 +3814,7 @@ dialogAgain: //Nitsuja added this
 
 				case ID_GRAPHICS_SWITCH_MODE:
 					if (Full_Screen) Set_Render(hWnd, 0, -1, true);
-					else Set_Render(hWnd, 1, Render_FS, true);
-					return 0;
-
-				case ID_GRAPHICS_FS_SAME_RES: //Upth-Add - toggle the same-res fullscreen flag
-					FS_No_Res_Change = !(FS_No_Res_Change);
-					Build_Main_Menu();
-					if (Full_Screen) Set_Render(hWnd, 1, Render_FS, true); // Modif N. -- if already in fullscreen, take effect immediately
+					else Set_Render(hWnd, 1, -1, true);
 					return 0;
 
 				case ID_GRAPHICS_COLOR_ADJUST:
@@ -3949,7 +3959,7 @@ dialogAgain: //Nitsuja added this
 				case ID_GRAPHICS_PREVIOUS_RENDER:
 				case ID_GRAPHICS_NEXT_RENDER:
 					{
-						int& Rend = Full_Screen ? Render_FS : Render_W;
+						int& Rend = Render_W;
 						int RendOrder [] = {-1, 0,1,2,11,Bits32?-2:10,3,4,5,6,7,8,9, -1,-1};
 						int index = 1; for(; RendOrder[index] != Rend && index<sizeof(RendOrder)/sizeof(*RendOrder)-1; index++);
 						do {index += (command == ID_GRAPHICS_PREVIOUS_RENDER) ? -1 : 1;} while(RendOrder[index] == -2);
@@ -5159,7 +5169,7 @@ HMENU Build_Main_Menu(void)
 	if (Full_Screen)
 	{
 		MainMenu = CreatePopupMenu();
-		Rend = Render_FS;
+		Rend = Render_W;
 	}
 	else
 	{
@@ -5376,12 +5386,10 @@ HMENU Build_Main_Menu(void)
 		MENU_L(Graphics, i++, Flags,
 			ID_GRAPHICS_SWITCH_MODE, "Full Screen", "", "&Full Screen");
 
-	MENU_L(Graphics, i++, Flags | (((Full_Screen && FS_VSync) || (!Full_Screen && W_VSync)) ? MF_CHECKED : MF_UNCHECKED),
+	MENU_L(Graphics, i++, Flags | (W_VSync ? MF_CHECKED : MF_UNCHECKED),
 		ID_GRAPHICS_VSYNC, "VSync", "\tShift+F3", "&VSync");
-	MENU_L(Graphics, i++, Flags | (Stretch ? MF_CHECKED : MF_UNCHECKED),
-		ID_GRAPHICS_STRETCH, "Stretch", "\tShift+F2", "&Stretch");
-	MENU_L(Graphics, i++, Flags |(FS_No_Res_Change ? MF_CHECKED : MF_UNCHECKED),
-		ID_GRAPHICS_FS_SAME_RES, "FS_Windowed", "", "&Windowed Fullscreen"); // UpthAdd
+	MENU_L(Graphics, i++, Flags | (Integer_Scale ? MF_CHECKED : MF_UNCHECKED),
+		ID_GRAPHICS_STRETCH, "Integer Scaling", "\tShift+F2", "&Integer Scaling");
 	MENU_L(Graphics, i++, Flags | (Correct_256_Aspect_Ratio ? MF_CHECKED : MF_UNCHECKED),
 		ID_CHANGE_256RATIO, "Proper Aspect Ratio in low-res mode", "", "Proper Aspect Ratio in low-res mode");
 	MENU_L(Graphics, i++, Flags,
@@ -8546,8 +8554,7 @@ LRESULT CALLBACK OptionProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			SendDlgItemMessage(hDlg, IDC_TOP_RIGHT, BM_SETCHECK, (WPARAM) (FrameCounterPosition==FRAME_COUNTER_TOP_RIGHT)?BST_CHECKED:BST_UNCHECKED, 0); //Modif
 			SendDlgItemMessage(hDlg, IDC_BOTTOM_LEFT, BM_SETCHECK, (WPARAM) (FrameCounterPosition==FRAME_COUNTER_BOTTOM_LEFT)?BST_CHECKED:BST_UNCHECKED, 0); //Modif
 			SendDlgItemMessage(hDlg, IDC_BOTTOM_RIGHT, BM_SETCHECK, (WPARAM) (FrameCounterPosition==FRAME_COUNTER_BOTTOM_RIGHT)?BST_CHECKED:BST_UNCHECKED, 0); //Modif
-			SetDlgItemInt(hDlg,IDC_TEXT_RES_X,Res_X,true); //Upth-Add - These will show the currently configured
-			SetDlgItemInt(hDlg,IDC_TEXT_RES_Y,Res_Y,true); //Upth-Add - fullscreen resolution value
+
 			SetDlgItemFloat(hDlg,IDC_TEXT_SCALE,ScaleFactor);
 			SetDlgItemInt(hDlg,IDC_TEXT_DELAY,DelayFactor,false); //Upth-Add - Frame Advance delay mod
 			
@@ -8608,8 +8615,7 @@ LRESULT CALLBACK OptionProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 								FrameCounterPosition = FRAME_COUNTER_BOTTOM_LEFT;
 							else
 								FrameCounterPosition = FRAME_COUNTER_BOTTOM_RIGHT;
-					Res_X = GetDlgItemInt(hDlg,IDC_TEXT_RES_X,NULL,true); //Upth-Add - This reconfigures
-					Res_Y = GetDlgItemInt(hDlg,IDC_TEXT_RES_Y,NULL,true); //Upth-Add - the fullscreen resolution
+
 					ScaleFactor = GetDlgItemFloat(hDlg,IDC_TEXT_SCALE);
 
 					Def_Read_Only = (SendDlgItemMessage(hDlg, IDC_CHECK_DEF_READ_ONLY, BM_GETCHECK, 0, 0) == BST_CHECKED)?1:0; //Upth-Add //Modif N. - it shouldn't save if the user hits Cancel instead of OK

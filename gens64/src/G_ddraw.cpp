@@ -46,6 +46,7 @@ int Res_Y = 240 << (int) (Render_FS > 0); //Upth-Add - fullscreen resolution (de
 bool FS_No_Res_Change = false; //Upth-Add - For the new fullscreen at same resolution
 int Stretch; 
 int Blit_Soft;
+int Integer_Scale = 0;	// gens64: whole multiples of the picture size only
 int Effect_Color = 0;	// gens64: 0 = the original coloured intro effect
 int FPS_Style = EMU_MODE | WHITE;
 int Message_Style = EMU_MODE | WHITE | SIZE_X2;
@@ -255,8 +256,10 @@ int Init_DDraw(HWND hWnd)
 
 	End_DDraw();
 	
-	if (Full_Screen) Rend = Render_FS;
-	else Rend = Render_W;
+	// gens64: full screen is a borderless window over the whole monitor (Set_Render): the same
+	// drawing as in a window, no display mode change, no exclusive mode (16-bit display modes
+	// are gone in Windows 10/11, and the exclusive mode broke Alt+Tab, tool windows, Wine)
+	Rend = Render_W;
 
 	if (FAILED(DirectDrawCreate(NULL, &lpDD_Init, NULL)))
 		return Init_Fail(hWnd, "Error with DirectDrawCreate !");
@@ -280,63 +283,22 @@ int Init_DDraw(HWND hWnd)
 		Recalculate_Palettes();
 	}
 
-#ifdef DISABLE_EXCLUSIVE_FULLSCREEN_LOCK
-	FS_VSync = 0;
 	rval = lpDD->SetCooperativeLevel(hWnd, DDSCL_NORMAL);
-#else
-	if (Full_Screen)
-		rval = lpDD->SetCooperativeLevel(hWnd, DDSCL_EXCLUSIVE | DDSCL_FULLSCREEN);
-	else
-		rval = lpDD->SetCooperativeLevel(hWnd, DDSCL_NORMAL);
-#endif
 
 	if (FAILED(rval))
 		return Init_Fail(hWnd, "Error with lpDD->SetCooperativeLevel !");
 	
-	if (Res_X < (320 << (int) (Render_FS > 0))) Res_X = 320 << (int) (Render_FS > 0); //Upth-Add - Set a floor for the resolution
-    if (Res_Y < (240 << (int) (Render_FS > 0))) Res_Y = 240 << (int) (Render_FS > 0); //Upth-Add - 320x240 for single, 640x480 for double and other
-
-	//if (Full_Screen && Render_FS >= 2) //Upth-Modif - Since software blits don't stretch right, we'll use 640x480 for those render modes
-	// Modif N. removed the forced 640x480 case because it caused "windowed fullscreen mode" to be ignored and because I fixed the fullscreen software blit stretching
-
-	if (Full_Screen && !(FS_No_Res_Change))
-	{
-		if (FAILED(lpDD->SetDisplayMode(Res_X, Res_Y, 16, 0, 0)))
-			return Init_Fail(hWnd, "Error with lpDD->SetDisplayMode !");
-	}
-
 	memset(&ddsd, 0, sizeof(ddsd));
 	ddsd.dwSize = sizeof(ddsd);
 
-	if ((Full_Screen) && (FS_VSync))
-	{
-		ddsd.dwFlags = DDSD_CAPS | DDSD_BACKBUFFERCOUNT;
-		ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE | DDSCAPS_FLIP | DDSCAPS_COMPLEX;
-		ddsd.dwBackBufferCount = 1;
-	}
-	else
-	{
-		ddsd.dwFlags = DDSD_CAPS;
-		ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-	}
+	memset(&ddsd, 0, sizeof(ddsd));
+	ddsd.dwSize = sizeof(ddsd);
+	ddsd.dwFlags = DDSD_CAPS;
+	ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
 
 	if (FAILED(lpDD->CreateSurface(&ddsd, &lpDDS_Primary, NULL )))
 		return Init_Fail(hWnd, "Error with lpDD->CreateSurface !");
 
-	if (Full_Screen)
-	{
-	    if (FS_VSync)
-		{
-			ddsd.ddsCaps.dwCaps = DDSCAPS_BACKBUFFER;
-
-			if (FAILED(lpDDS_Primary->GetAttachedSurface(&ddsd.ddsCaps, &lpDDS_Flip)))
-				return Init_Fail(hWnd, "Error with lpDDPrimary->GetAttachedSurface !");
-
-			lpDDS_Blit = lpDDS_Flip;
-		}
-		else lpDDS_Blit = lpDDS_Primary;
-	}
-	else
 	{
 		if (FAILED(lpDD->CreateClipper(0, &lpDDC_Clipper, NULL )))
 			return Init_Fail(hWnd, "Error with lpDD->CreateClipper !");
@@ -491,16 +453,6 @@ int Clear_Primary_Screen(HWND hWnd)
 	ddbltfx.dwSize = sizeof(ddbltfx);
 	ddbltfx.dwFillColor = 0;
 
-	if (Full_Screen)
-	{
-		if (FS_VSync)
-		{
-			lpDDS_Flip->Blt(NULL, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx);
-			//lpDDS_Primary->Blt(NULL, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx);
-		}
-		else lpDDS_Primary->Blt(NULL, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx);
-	}
-	else
 	{
 		// gens64: cleared with GDI: a DirectDraw colour fill of the primary surface does not always
 		// reach the window (Windows 8/10/11 compose the desktop; Wine too at times), and the part of
@@ -513,7 +465,13 @@ int Clear_Primary_Screen(HWND hWnd)
 			ReleaseDC(hWnd, dc);
 			GdiFlush();
 		}
-		(void) p;
+		// and with DirectDraw as well (the clipper keeps it inside the window): under Wine the
+		// GDI fill alone does not always replace what DirectDraw drew there
+		GetClientRect(hWnd, &RD);
+		p.x = p.y = 0;
+		ClientToScreen(hWnd, &p);
+		OffsetRect(&RD, p.x, p.y);
+		lpDDS_Primary->Blt(&RD, NULL, NULL, DDBLT_WAIT | DDBLT_COLORFILL, &ddbltfx);
 	}
 
 	return 1;
@@ -543,11 +501,7 @@ int Clear_Back_Screen(HWND hWnd)
 
 void Restore_Primary(void)
 {
-	if (lpDD && Full_Screen && FS_VSync)
-	{
-		while (lpDDS_Primary->GetFlipStatus(DDGFS_ISFLIPDONE) == DDERR_SURFACEBUSY);
-		lpDD->FlipToGDISurface();
-	}
+	// gens64: nothing to do: no exclusive full screen, no flip chain any more
 }
 
 // Calculate Draw Area
@@ -561,35 +515,19 @@ void CalculateDrawArea(HWND hWnd, RECT& RectDest, RECT& RectSrc)
 	POINT p;
 	float Ratio_X, Ratio_Y;
 	
-	int FS_X,FS_Y; //Upth-Add - So we can set the fullscreen resolution to the current res without changing the value that gets saved to the config
-	int Render_Mode;
-	if (Full_Screen)
-	{
-		Render_Mode = Render_FS;
+	int FS_X,FS_Y;
+	int Render_Mode = Render_W;
 
-		if (FS_No_Res_Change) { //Upth-Add - If we didn't change resolution when we went Full Screen
-			DEVMODE temp;
-			EnumDisplaySettings(NULL,ENUM_CURRENT_SETTINGS,&temp); //Upth-Add - Gets the current screen resolution
-			FS_X = temp.dmPelsWidth;
-			FS_Y = temp.dmPelsHeight;
-		}
-		else { //Upth-Add - Otherwise use the configured resolution values
-			FS_X = Res_X; 
-			FS_Y = Res_Y;
-		}
-	}
-	else
-	{
-		Render_Mode = Render_W;
-
-		GetClientRect(hWnd, &RectDest);
-		FS_X = RectDest.right;
-		FS_Y = RectDest.bottom;
-	}
+	// gens64: the window's client area, also in full screen (a borderless window)
+	GetClientRect(hWnd, &RectDest);
+	FS_X = RectDest.right;
+	FS_Y = RectDest.bottom;
 
 	Ratio_X = (float) FS_X / 320.0f; //Upth-Add - Find the current size-ratio on the x-axis
 	Ratio_Y = (float) FS_Y / 240.0f; //Upth-Add - Find the current size-ratio on the y-axis
 	Ratio_X = Ratio_Y = (Ratio_X < Ratio_Y) ? Ratio_X : Ratio_Y; //Upth-Add - Floor them to the smaller value for correct ratio display
+	if (Integer_Scale && Ratio_X >= 1.0f)	// gens64: whole multiples only, sharp pixels
+		Ratio_X = Ratio_Y = (float) (int) Ratio_X;
 
 	int Screen_X = IS_FULL_X_RESOLUTION ? 320 : 256; // Genesis screen width
 	int Screen_Y = VDP_Num_Vis_Lines; // Genesis screen height
@@ -613,13 +551,7 @@ void CalculateDrawArea(HWND hWnd, RECT& RectDest, RECT& RectSrc)
 	RectDest.top = (int) ((FS_Y - (Screen_Y * Ratio_Y))/2); //Upth-Modif - centering top-bottom under other circumstances
 	RectDest.bottom = (int) (Screen_Y * Ratio_Y) + RectDest.top; //Upth-Modif - using the same method
 
-	if (Stretch)
-	{
-		RectDest.left = 0;
-		RectDest.right = FS_X; //Upth-Modif - use the user configured value
-		RectDest.top = 0;      //Upth-Add - also, if we have stretch enabled
-		RectDest.bottom = FS_Y;//Upth-Add - we don't correct the screen ratio
-	}
+	// gens64: no Stretch mode any more (the picture keeps its proportions)
 
 	if (Render_Mode < 2)
 	{
@@ -657,7 +589,6 @@ void CalculateDrawArea(HWND hWnd, RECT& RectDest, RECT& RectSrc)
 		RectSrc.bottom *= 2;
 	}
 
-	if (!Full_Screen)
 	{
 		p.x = p.y = 0;
 		ClientToScreen(hWnd, &p);
@@ -1087,84 +1018,20 @@ int Flip(HWND hWnd)
 
 	if ((Flag_Clr_Scr & 0xFF) != (Clr_Cmp_Val & 0xFF))
 	{
-		if (!Full_Screen && W_VSync)
+		if (W_VSync)
 			lpDD->WaitForVerticalBlank(DDWAITVB_BLOCKBEGIN, 0);
 		if (!(Flag_Clr_Scr & 0x200))
 			Clear_Primary_Screen(hWnd); // already cleared
-		if ((!Full_Screen && Render_W >= 2)
-		 || ( Full_Screen && Render_FS >= 2))
+		if (Render_W >= 2)
 			Clear_Back_Screen(hWnd);
 		
-		if (Full_Screen && FS_VSync)
-			Flag_Clr_Scr = Clr_Cmp_Val | 0x100; // need to clear second buffer
-		else
-			Flag_Clr_Scr = Clr_Cmp_Val;
+		Flag_Clr_Scr = Clr_Cmp_Val;
 	}
 
 	Flag_Clr_Scr &= 0x1FF; // remove "already cleared"
 
-	if (Full_Screen)
 	{
-		if (Render_FS < 2)
-		{
-			if (FS_VSync)
-			{
-				lpDDS_Flip->Blt(&RectDest, lpDDS_Back, &RectSrc, DDBLT_WAIT | DDBLT_ASYNC, NULL);
-				lpDDS_Primary->Flip(NULL, DDFLIP_WAIT);
-			}
-			else
-			{
-				lpDDS_Primary->Blt(&RectDest, lpDDS_Back, &RectSrc, DDBLT_WAIT | DDBLT_ASYNC, NULL);
-//				lpDDS_Primary->Blt(&RectDest, lpDDS_Back, &RectSrc, NULL, NULL);
-			}
-		}
-		else
-		{
-			// save Primary or Flip surface
-			LPDIRECTDRAWSURFACE4 curBlit = lpDDS_Blit;
-
-			// check equal size
-			if ((RectDest.right - RectDest.left) != Src_X
-			 || (RectDest.bottom - RectDest.top) != Src_Y)
-				curBlit = lpDDS_Back; // replace with Back
-
-			rval = curBlit->Lock(NULL, &ddsd, DDLOCK_WAIT, NULL);
-
-			if (FAILED(rval)) goto cleanup_flip;
-
-			if (curBlit == lpDDS_Back) // note: this can happen in windowed fullscreen, or if Correct_256_Aspect_Ratio is defined and the current display mode is 256 pixels across
-			{
-				// blit into lpDDS_Back first
-				Blit_FS((unsigned char *) ddsd.lpSurface + ddsd.lPitch * RectSrc.top + RectSrc.left * bpp, ddsd.lPitch, Src_X / 2, Src_Y / 2, (16 + 320 - Src_X / 2) * bpp);
-
-				curBlit->Unlock(NULL);
-
-				if (FS_VSync)
-				{
-					lpDDS_Flip->Blt(&RectDest, lpDDS_Back, &RectSrc, DDBLT_WAIT | DDBLT_ASYNC, NULL);
-					lpDDS_Primary->Flip(NULL, DDFLIP_WAIT);
-				}
-				else
-					// blit into Primary
-					lpDDS_Primary->Blt(&RectDest, lpDDS_Back, &RectSrc, DDBLT_WAIT | DDBLT_ASYNC, NULL);
-			}
-			else
-			{
-				// blit direct on screen (or flip if VSync)
-				Blit_FS((unsigned char *) ddsd.lpSurface + ddsd.lPitch * RectDest.top + RectDest.left * bpp, ddsd.lPitch, Src_X / 2, Src_Y / 2, (16 + 320 - Src_X / 2) * bpp);
-
-				curBlit->Unlock(NULL);
-
-				if (FS_VSync)
-				{
-					lpDDS_Primary->Flip(NULL, DDFLIP_WAIT);
-				}
-			}
-		}
-	}
-	else
-	{
-		// Window
+		// Window (and the borderless full screen)
 		lpDDS_Blit = lpDDS_Back;
 
 		if (Render_W >= 2)

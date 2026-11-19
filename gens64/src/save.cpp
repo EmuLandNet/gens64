@@ -84,12 +84,7 @@ bool g_onlyCallSavestateCallbacks = false;
 
 #ifdef _WIN32
 	#define MINIMIZE								\
-	{if (Sound_Initialised) Clear_Sound_Buffer();	\
-	if (Full_Screen)								\
-	{												\
-		Set_Render(HWnd, 0, -1, true);				\
-		FS_Minimised = 1;							\
-	}}
+{Clear_Sound_Buffer();}	// gens64: dialogs open over the borderless full screen
 
 	#define WARNINGBOX(message, title) \
 	do{	if(!g_disableStatestateWarnings) { MINIMIZE \
@@ -2564,30 +2559,20 @@ int Save_Config(char *File_Name)
 
 	wsprintf(Str_Tmp, "%d", Full_Screen & 1);
 	WritePrivateProfileString("Graphics", "Full Screen", Str_Tmp, Conf_File);
-	wsprintf(Str_Tmp, "%d", FS_VSync & 1);
-	WritePrivateProfileString("Graphics", "Full Screen VSync", Str_Tmp, Conf_File);
-	wsprintf(Str_Tmp, "%d", Res_X); //Upth-Add - Save our full screen X resolution to config
-	WritePrivateProfileString("Graphics", "Full Screen X Resolution", Str_Tmp, Conf_File);
-	wsprintf(Str_Tmp, "%d", Res_Y); //Upth-Add - Save our full screen Y resolution to config
-	WritePrivateProfileString("Graphics", "Full Screen Y Resolution", Str_Tmp, Conf_File);
 	sprintf(Str_Tmp, "%.8f", ScaleFactor); // wsprintf forbids float
 	WritePrivateProfileString("Graphics", "Screen Scale Factor", Str_Tmp, Conf_File);
-	wsprintf(Str_Tmp, "%d", FS_No_Res_Change); //Upth-Add - Save our fullscreen without resolution change flag
-	WritePrivateProfileString("Graphics", "Full Screen No Res Change", Str_Tmp, Conf_File);
 	wsprintf(Str_Tmp, "%d", W_VSync & 1);
 	WritePrivateProfileString("Graphics", "Windows VSync", Str_Tmp, Conf_File);
 	wsprintf(Str_Tmp, "%d", Render_W);
 	WritePrivateProfileString("Graphics", "Render Windowed", Str_Tmp, Conf_File);
-	wsprintf(Str_Tmp, "%d", Render_FS);
-	WritePrivateProfileString("Graphics", "Render Fullscreen", Str_Tmp, Conf_File);
 
 	wsprintf(Str_Tmp, "%d", Never_Skip_Frame); //Modif N. -- added never skip frame to preferences
 	WritePrivateProfileString("Graphics", "Never Skip Frame", Str_Tmp, Conf_File);
 	wsprintf(Str_Tmp, "%d", VideoLatencyCompensation);
 	WritePrivateProfileString("Graphics", "Video Latency Compensation", Str_Tmp, Conf_File);
 
-	wsprintf(Str_Tmp, "%d", Stretch & 1);
-	WritePrivateProfileString("Graphics", "Stretch", Str_Tmp, Conf_File);
+	wsprintf(Str_Tmp, "%d", Integer_Scale & 1);
+	WritePrivateProfileString("Graphics", "Integer Scaling", Str_Tmp, Conf_File);
 	wsprintf(Str_Tmp, "%d", Blit_Soft & 1);
 	WritePrivateProfileString("Graphics", "Software Blit", Str_Tmp, Conf_File);
 
@@ -3121,28 +3106,24 @@ int Load_Config(char *File_Name, void *Game_Active)
 
 	Recalculate_Palettes();
 
-	FS_VSync = GetPrivateProfileInt("Graphics", "Full Screen VSync", 0, Conf_File);
-	Res_X = GetPrivateProfileInt("Graphics", "Full Screen X Resolution", 1920, Conf_File); //Upth-Add - Load the fullscreen
-	Res_Y = GetPrivateProfileInt("Graphics", "Full Screen Y Resolution", 1080, Conf_File); //Upth-Add - resolution from config
 	char str[11];
 	GetPrivateProfileString("Graphics", "Screen Scale Factor", "1.0", str, 11, Conf_File);
 	ScaleFactor = (float) atof(str);
-	FS_No_Res_Change = (bool) (GetPrivateProfileInt("Graphics", "Full Screen No Res Change", 0, Conf_File) > 0); //Upth-Add - and the no_res_change flag
 	W_VSync = GetPrivateProfileInt("Graphics", "Windows VSync", 0, Conf_File);
+	// gens64: full screen is a borderless window; no resolution, no separate VSync and render mode
 	Full_Screen = GetPrivateProfileInt("Graphics", "Full Screen", 0, Conf_File);
 	Render_W = GetPrivateProfileInt("Graphics", "Render Windowed", 1, Conf_File);	// gens64: Double by default
-	Render_FS = GetPrivateProfileInt("Graphics", "Render Fullscreen", 1, Conf_File);
+	// gens64: one render mode for the window and the full screen ("Render Fullscreen" is ignored)
 	Never_Skip_Frame = (bool) (GetPrivateProfileInt("Graphics", "Never Skip Frame", 1, Conf_File) > 0); //Modif N. -- added never skip frame to preferences
 	VideoLatencyCompensation = GetPrivateProfileInt("Graphics", "Video Latency Compensation", 0, Conf_File);
-	if (Res_X < 320) Res_X = 320; //Upth-Add - Make sure our resolution
-	if (Res_Y < 240) Res_Y = 240; //Upth-Add - is at least 320x240
 
 	Set_Render(HWnd, Full_Screen, -1, 1);
 
 	ScrollAOn = GetPrivateProfileInt("Graphics", "Scroll A layer", 1, Conf_File);
 	ScrollBOn = GetPrivateProfileInt("Graphics", "Scroll B layer", 1, Conf_File);
 	SpriteOn = GetPrivateProfileInt("Graphics", "Sprites layer", 1, Conf_File);
-	Stretch = GetPrivateProfileInt("Graphics", "Stretch", 0, Conf_File);
+	Stretch = 0;	// gens64: no stretched mode any more
+	Integer_Scale = GetPrivateProfileInt("Graphics", "Integer Scaling", 0, Conf_File);
 	Blit_Soft = GetPrivateProfileInt("Graphics", "Software Blit", 0, Conf_File);
 	Sprite_Over = GetPrivateProfileInt("Graphics", "Sprite limit", 1, Conf_File);
 	Frame_Skip = GetPrivateProfileInt("Graphics", "Frame skip", -1, Conf_File);
