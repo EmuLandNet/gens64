@@ -669,7 +669,19 @@ static HMENU games_menu(void)
 			cur = first;
 		}
 		to_w(g_sorted[i], w, 300);
-		AppendMenuW(sub, MF_STRING, IDM_GAME_BASE + i, w);
+		{
+			/* "&" is the menu's mnemonic mark: "batman & robin" showed "batman _robin" */
+			WCHAR m[600];
+			int k = 0, j;
+			for (j = 0; w[j] && k < 598; j++)
+			{
+				if (w[j] == L'&')
+					m[k++] = L'&';
+				m[k++] = w[j];
+			}
+			m[k] = 0;
+			AppendMenuW(sub, MF_STRING, IDM_GAME_BASE + i, m);
+		}
 	}
 	return top;
 }
