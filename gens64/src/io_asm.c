@@ -201,9 +201,47 @@ static unsigned int team_player_2(void)
 	return read_pad(p, phase, P1.State & 0x40, P1.pad.Start, P1.pad.A);
 }
 
+/* gens64: EA 4 Way Play (Controller_1_Type 0x30: port 1 "4 way play"), as in Genesis Plus GX.
+   It takes both ports: port 2's data bits 4-6 (when TH, TR, TL are outputs) pick the pad that
+   port 1 answers with (0-3: pads 1, 1-B, 1-C, 1-D; 4-7: the adapter's ID, 0x7C); port 2 reads
+   nothing. Gens' "teamplayer" answered a 4 Way Play selection too, but a game that found no
+   adapter (Paprium after a start without it) got Team Player answers for its plain pad reads:
+   buttons pressed by themselves. The selection is kept in Way_Latch; its source (port 2's data
+   and control registers) is in the savestate, so a state comes back right. */
+static unsigned int Way_Latch;
+
+static int four_way(void)
+{
+	return (P1.pad.Type & 0x30) == 0x30;
+}
+
+static unsigned int way_latch(void)
+{
+	if ((Controller_2_COM & 0x70) == 0x70)
+		Way_Latch = (P2.State >> 4) & 7;
+	return Way_Latch;
+}
+
+static unsigned int four_way_read(void)
+{
+	static struct gens64_pad *const pads[4] =
+		{ &gens64_io.p1.pad, &gens64_io.p1b, &gens64_io.p1c, &gens64_io.p1d };
+	unsigned int latch = way_latch();
+	const struct gens64_pad *p;
+	unsigned int phase;
+
+	if (latch & 4)
+		return 0x7C;
+	p = pads[latch];
+	phase = (p->Type & 1) ? (P1.Counter & 3) : 0;
+	return read_pad(p, phase, P1.State & 0x40, p->Start, p->A);
+}
+
 unsigned int RD_Controller_1(void)
 {
 	Lag_Frame = 0;
+	if (four_way())
+		return four_way_read();
 	if (P1.pad.Type & 0x10)
 	{
 		if (P2.State & 0x0C)
@@ -216,6 +254,8 @@ unsigned int RD_Controller_1(void)
 unsigned int RD_Controller_2(void)
 {
 	Lag_Frame = 0;
+	if (four_way())		/* the adapter takes port 2 */
+		return 0x7F;
 	if (P2.pad.Type & 0x10)
 		return team_player(P2.State, P2.Counter);
 	return read_port(&P2);
@@ -239,7 +279,14 @@ void WR_Controller_2(unsigned int data)
 
 	if (!(P2.State & 0x40) && (d & 0x40))
 		LOW_BYTE(P2.Counter)++;
-	if ((P1.pad.Type & 0x10) && (d & 0x0C))
+	if (four_way())
+	{
+		unsigned int old = way_latch();
+		LOW_BYTE(P2.State) = d;
+		if (way_latch() != old)
+			P1.Counter = 0;		/* another pad: its 6-button sequence starts over */
+	}
+	else if ((P1.pad.Type & 0x10) && (d & 0x0C))
 		P1.Counter = 0;
 	LOW_BYTE(P2.Delay) = 0;
 	if ((P2.pad.Type & 0x10) && !(P2.State & 0x20) && (d & 0x20))

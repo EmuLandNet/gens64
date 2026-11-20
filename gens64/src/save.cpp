@@ -2723,7 +2723,7 @@ int Save_Config(char *File_Name)
 	wsprintf(Str_Tmp, "%d", AutoBackupEnabled);//Modif
 	WritePrivateProfileString("Options", "AutoBackupEnabled", Str_Tmp, Conf_File);//Modif
 
-	wsprintf(Str_Tmp, "%d", Controller_1_Type & 0x13);
+	wsprintf(Str_Tmp, "%d", Controller_1_Type & 0x33);	// gens64: 0x20 = 4 way play
 	WritePrivateProfileString("Input", "P1.Type", Str_Tmp, Conf_File);
 	wsprintf(Str_Tmp, "%d", Keys_Def[0].Up);
 	WritePrivateProfileString("Input", "P1.Up", Str_Tmp, Conf_File);

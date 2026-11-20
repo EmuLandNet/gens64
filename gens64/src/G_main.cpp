@@ -1734,9 +1734,12 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 	if (maxplayers > 4) maxplayers = 4;
 	if (player > 4) player = 0;
 
-	Controller_1_Type &= 0xF;
+	// gens64: a 4 way play chosen here stays (0x20); which adapter is used comes from player 1
+	// (Update_Controllers_Net)
+	Controller_1_Type &= 0x2F;
 	Controller_2_Type &= 0xF;
 	if (maxplayers > 2) Controller_1_Type |= 0x10;
+	else Controller_1_Type &= ~0x20;
 	Make_IO_Table();
 
 	Kaillera_Keys[0] = Kaillera_Keys[1] = Kaillera_Keys[2] = Kaillera_Keys[3] = 0xFF;
@@ -7179,7 +7182,7 @@ void PlaySubMovie()
 			Controller_1B_Type &= ~1;
 			Controller_1C_Type &= ~1;
 		}
-		else Controller_1_Type &= ~0x10;
+		else Controller_1_Type &= ~0x30;	// gens64: 0x20 = 4 way play
 		Controller_2_Type &= ~0x10;
 		if (MainMovie.PlayerConfig[0]==3) Controller_1_Type &= ~1;
 		if (MainMovie.PlayerConfig[0]==6) Controller_1_Type |= 1;
@@ -8848,7 +8851,9 @@ LRESULT CALLBACK OptionProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 
 void RefreshEnabledPorts(HWND hDlg)
 {
-	int curController_1_Type = (SendDlgItemMessage(hDlg, IDC_COMBO_PORT1, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0) & 1);
+	int port1 = (int) SendDlgItemMessage(hDlg, IDC_COMBO_PORT1, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0);
+	int curController_1_Type = port1 > 0;	// gens64: teamplayer or 4 way play
+	int port2_free = port1 != 2;			// the 4 way play takes port 2
 	EnableWindow(GetDlgItem(hDlg,IDC_COMBO_PADP1B), curController_1_Type);
 	EnableWindow(GetDlgItem(hDlg,IDC_COMBO_PADP1C), curController_1_Type);
 	EnableWindow(GetDlgItem(hDlg,IDC_COMBO_PADP1D), curController_1_Type);
@@ -8856,7 +8861,10 @@ void RefreshEnabledPorts(HWND hDlg)
 	EnableWindow(GetDlgItem(hDlg,IDC_BUTTON_SETKEYSP1C), curController_1_Type);
 	EnableWindow(GetDlgItem(hDlg,IDC_BUTTON_SETKEYSP1D), curController_1_Type);
 
-	int curController_2_Type = (SendDlgItemMessage(hDlg, IDC_COMBO_PORT2, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0) & 1);
+	int curController_2_Type = port2_free && (SendDlgItemMessage(hDlg, IDC_COMBO_PORT2, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0) & 1);
+	EnableWindow(GetDlgItem(hDlg,IDC_COMBO_PORT2), port2_free);
+	EnableWindow(GetDlgItem(hDlg,IDC_COMBO_PADP2), port2_free);
+	EnableWindow(GetDlgItem(hDlg,IDC_BUTTON_SETKEYSP2), port2_free);
 	EnableWindow(GetDlgItem(hDlg,IDC_COMBO_PADP2B), curController_2_Type);
 	EnableWindow(GetDlgItem(hDlg,IDC_COMBO_PADP2C), curController_2_Type);
 	EnableWindow(GetDlgItem(hDlg,IDC_COMBO_PADP2D), curController_2_Type);
@@ -8897,7 +8905,7 @@ LRESULT CALLBACK ControllerProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 
 			if (!Init_Input(ghInstance, hDlg)) return false;
 
-			WORD_L(IDC_JOYINFO1, "Controller info 1", "", "Player 1-B 1-C and 1-D are enabled only if a teamplayer is connected to port 1");
+			WORD_L(IDC_JOYINFO1, "Controller info 1", "", "Player 1-B 1-C and 1-D are enabled only if a teamplayer or a 4 way play (EA's adapter, takes port 2 too) is connected to port 1");
 			WORD_L(IDC_JOYINFO2, "Controller info 2", "", "Player 2-B 2-C and 2-D are enabled only if a teamplayer is connected to port 2");
 			WORD_L(IDC_JOYINFO3, "Controller info 3", "", "Only a few games support teamplayer (games which have 4 players support), so don't forget to use the \"load config\" and \"save config\" possibility :)");
 
@@ -8906,6 +8914,8 @@ LRESULT CALLBACK ControllerProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 				SendDlgItemMessage(hDlg, IDC_COMBO_PORT1 + i, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "teamplayer");
 				SendDlgItemMessage(hDlg, IDC_COMBO_PORT1 + i, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "pad");
 			}
+			// gens64: EA's adapter, on both ports (Controller_1_Type 0x30, io_asm.c)
+			SendDlgItemMessage(hDlg, IDC_COMBO_PORT1, CB_ADDSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "4 way play");
 
 			for(i = 0; i < 8; i++)
 			{
@@ -8919,7 +8929,7 @@ LRESULT CALLBACK ControllerProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "   Ctrl # Load,        # save, Shift # select");
 			//SendDlgItemMessage(hDlg, IDC_COMBO_NUMLOAD, CB_INSERTSTRING, (WPARAM) 0, (LPARAM) (LPTSTR) "   Ctrl # Load, Shift # save,        # select");
 
-			SendDlgItemMessage(hDlg, IDC_COMBO_PORT1, CB_SETCURSEL, (WPARAM) ((Controller_1_Type >> 4) & 1), (LPARAM) 0);
+			SendDlgItemMessage(hDlg, IDC_COMBO_PORT1, CB_SETCURSEL, (WPARAM) (((Controller_1_Type & 0x30) == 0x30) ? 2 : ((Controller_1_Type >> 4) & 1)), (LPARAM) 0);
 			SendDlgItemMessage(hDlg, IDC_COMBO_PORT2, CB_SETCURSEL, (WPARAM) ((Controller_2_Type >> 4) & 1), (LPARAM) 0);
 
 			SendDlgItemMessage(hDlg, IDC_COMBO_PADP1, CB_SETCURSEL, (WPARAM) (Controller_1_Type & 1), (LPARAM) 0);
@@ -8974,8 +8984,13 @@ LRESULT CALLBACK ControllerProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 			switch(controlID)
 			{
 				case IDOK:
-					Controller_1_Type = (SendDlgItemMessage(hDlg, IDC_COMBO_PORT1, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0) & 1);
-					Controller_1_Type <<= 4;
+					// gens64: 0 pad, 1 teamplayer (0x10), 2 4 way play (0x30)
+					switch (SendDlgItemMessage(hDlg, IDC_COMBO_PORT1, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0))
+					{
+						case 1: Controller_1_Type = 0x10; break;
+						case 2: Controller_1_Type = 0x30; break;
+						default: Controller_1_Type = 0; break;
+					}
 
 					Controller_1_Type |= (SendDlgItemMessage(hDlg, IDC_COMBO_PADP1, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0) & 1);
 					Controller_1B_Type = (SendDlgItemMessage(hDlg, IDC_COMBO_PADP1B, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0) & 1);
@@ -8985,6 +9000,8 @@ LRESULT CALLBACK ControllerProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPar
 					
 					Controller_2_Type = (SendDlgItemMessage(hDlg, IDC_COMBO_PORT2, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0) & 1);
 					Controller_2_Type <<= 4;
+					if ((Controller_1_Type & 0x30) == 0x30)
+						Controller_2_Type = 0;	// the 4 way play takes port 2
 
 					Controller_2_Type |= (SendDlgItemMessage(hDlg, IDC_COMBO_PADP2, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0) & 1);
 					Controller_2B_Type = (SendDlgItemMessage(hDlg, IDC_COMBO_PADP2B, CB_GETCURSEL, (WPARAM) 0, (LPARAM) 0) & 1);

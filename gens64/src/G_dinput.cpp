@@ -2133,6 +2133,11 @@ void Scan_Player_Net(int Player)
 	// buttons, bit 5 cleared = 3 buttons. Gens RR leaves both set (its buttons are low bits).
 	Kaillera_Keys[1] |= 0x30;
 	Kaillera_Keys[1] &= (Controller_1_Type & 1) ? ~0x10 : ~0x20;
+
+	// gens64: and the adapter on port 1 for a game of 3-4 players (player 1's is used by all,
+	// Update_Controllers_Net): bit 7 cleared = 4 way play, bit 6 cleared = teamplayer
+	Kaillera_Keys[1] |= 0xC0;
+	Kaillera_Keys[1] &= ((Controller_1_Type & 0x30) == 0x30) ? ~0x80 : ~0x40;
 }
 
 /* gens64: every emulator in the game took the pad type of each player from its own settings: with
@@ -2150,9 +2155,19 @@ static void Net_Pad_Type(unsigned char b, unsigned int *type)
 
 void Update_Controllers_Net(int num_player)
 {
+	unsigned int types = Controller_1_Type ^ (Controller_1B_Type << 8) ^ (Controller_1C_Type << 16) ^ (Controller_1D_Type << 24);
+
 	Net_Pad_Type(Kaillera_Keys[1], &Controller_1_Type);
 	if (num_player > 2)
 	{
+		// gens64: the adapter of player 1 (Scan_Player_Net) for everyone. The first frames carry
+		// zeros (nothing sent yet): teamplayer for everyone, as before; both bits set (Gens RR
+		// sends nothing): the local setting.
+		if ((Kaillera_Keys[1] & 0xC0) == 0x40)
+			Controller_1_Type |= 0x30;
+		else if ((Kaillera_Keys[1] & 0xC0) != 0xC0)
+			Controller_1_Type &= ~0x20;
+
 		Net_Pad_Type(Kaillera_Keys[3], &Controller_1B_Type);
 		Net_Pad_Type(Kaillera_Keys[5], &Controller_1C_Type);
 		Net_Pad_Type(Kaillera_Keys[7], &Controller_1D_Type);
@@ -2249,6 +2264,10 @@ void Update_Controllers_Net(int num_player)
 			Controller_2_Z = (Kaillera_Keys[2 + 1] & 0x01);
 		}
 	}
+
+	// gens64: the Team Player answers depend on the pad types
+	if (types != (Controller_1_Type ^ (Controller_1B_Type << 8) ^ (Controller_1C_Type << 16) ^ (Controller_1D_Type << 24)))
+		Make_IO_Table();
 }
 
 /*int Check_Pause_Key()
