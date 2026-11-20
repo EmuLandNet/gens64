@@ -2,6 +2,7 @@
 #include "gens.h"
 
 #include <windows.h>
+#include <shlobj.h>	// gens64: SHBrowseForFolder
 #include <commctrl.h>
 #include <stdio.h>
 #include <string.h>
@@ -255,6 +256,37 @@ extern void Update_Emulation_One_Before(HWND hWnd);
 extern void Update_Emulation_After_Fast(HWND hWnd);
 extern "C" int disableSound, disableSound2;
 extern char Lua_Dir [1024];
+extern char Netplay_Rom_Dir [1024];	// save.cpp
+static char Net_Dir[1024];			// gens64: the folder of the netplay ROM list (Start_Netplay, Play_Net_Game)
+
+/* gens64: pick a folder; path gets it with a trailing backslash */
+static int Browse_Folder(HWND owner, const char *title, char *path)
+{
+	BROWSEINFOA bi;
+	LPITEMIDLIST pidl;
+	char buf[MAX_PATH];
+	int ok = 0;
+	CoInitializeEx(NULL, COINIT_APARTMENTTHREADED);
+	memset(&bi, 0, sizeof(bi));
+	bi.hwndOwner = owner;
+	bi.pszDisplayName = buf;
+	bi.lpszTitle = title;
+	bi.ulFlags = BIF_RETURNONLYFSDIRS | BIF_NEWDIALOGSTYLE;
+	pidl = SHBrowseForFolderA(&bi);
+	if (pidl)
+	{
+		if (SHGetPathFromIDListA(pidl, buf) && buf[0])
+		{
+			size_t n = strlen(buf);
+			if (buf[n - 1] != '\\')
+				strcat(buf, "\\");
+			strcpy(path, buf);
+			ok = 1;
+		}
+		CoTaskMemFree(pidl);
+	}
+	return ok;
+}
 
 int frameSearchFrames = -1;
 bool frameSearchInitialized = false;
@@ -1668,7 +1700,7 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 		{
 			char path[2048];
 			DWORD attr;
-			sprintf(path, "%s%s.%s", Rom_Dir, game, Netplay_Exts[i]);
+			sprintf(path, "%s%s.%s", Net_Dir, game, Netplay_Exts[i]);
 			attr = GetFileAttributes(path);
 			if (attr != INVALID_FILE_ATTRIBUTES && !(attr & FILE_ATTRIBUTE_DIRECTORY))
 			{
@@ -1677,7 +1709,7 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 				HANDLE f = FindFirstFile(path, &fd);
 				if (f != INVALID_HANDLE_VALUE)
 				{
-					sprintf(path, "%s%s", Rom_Dir, fd.cFileName);
+					sprintf(path, "%s%s", Net_Dir, fd.cFileName);
 					FindClose(f);
 				}
 				strcpy(name, path);
@@ -1796,7 +1828,30 @@ int Start_Netplay(void)
 		
 	if (Kaillera_Client_Running) return 0;
 
-	SetCurrentDirectory(Rom_Dir);
+	// gens64: a folder of its own for the netplay ROMs; Rom path follows every ROM opened, so the
+	// list was the folder of the last ROM
+	if (!Netplay_Rom_Dir[0])
+	{
+		char msg[1400];
+		int r;
+		_snprintf(msg, sizeof(msg),
+			"No folder for netplay ROMs is set (Options > Directories > NETPLAY ROMS).\n\n"
+			"Choose it now?\n\n"
+			"Otherwise Kaillera gets all the ROMs in the folder of the last ROM you opened:\n%s",
+			Rom_Dir);
+		msg[sizeof(msg) - 1] = 0;
+		r = MessageBox(HWnd, msg, "Netplay ROMs", MB_YESNOCANCEL | MB_ICONQUESTION);
+		if (r == IDCANCEL)
+			return 0;
+		if (r == IDYES && !Browse_Folder(HWnd, "Folder of the ROMs for netplay", Netplay_Rom_Dir))
+			return 0;
+	}
+	SetCurrentDirectory(Gens_Path);
+	SetCurrentDirectory(Netplay_Rom_Dir[0] ? Netplay_Rom_Dir : Rom_Dir);
+	// the absolute path: Play_Net_Game looks the ROM up there, whatever is opened meanwhile
+	GetCurrentDirectory(sizeof(Net_Dir) - 2, Net_Dir);
+	if (Net_Dir[0] && Net_Dir[strlen(Net_Dir) - 1] != '\\')
+		strcat(Net_Dir, "\\");
 
 	// gens64: one scan per extension; names without the extension, lower case, sorted and
 	// without duplicates; the list ends with an empty name (the original allocated it one byte
@@ -6726,6 +6781,7 @@ LRESULT CALLBACK DirectoriesProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 			SetDlgItemText(hDlg, IDC_EDIT_MOVIE, Movie_Dir);
 			SetDlgItemText(hDlg, IDC_EDIT_WATCH, Watch_Dir);
 			SetDlgItemText(hDlg, IDC_EDIT_LUA, Lua_Dir);
+			SetDlgItemText(hDlg, IDC_EDIT_NETROM, Netplay_Rom_Dir);
 
 			return true;
 			break;
@@ -6785,6 +6841,10 @@ LRESULT CALLBACK DirectoriesProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 					if (Change_Dir(Str_Tmp, Str_Tmp2, "Lua script directory", "Lua script files\0*.lua\0\0", "lua", hDlg))
 						SetDlgItemText(hDlg, IDC_EDIT_LUA, Str_Tmp);
 					break;
+				case ID_CHANGE_NETROM:
+					if (Browse_Folder(hDlg, "Folder of the ROMs for netplay", Str_Tmp))
+						SetDlgItemText(hDlg, IDC_EDIT_NETROM, Str_Tmp);
+					break;
 				case ID_CHANGE_MOVIE:
 					GetDlgItemText(hDlg, IDC_EDIT_MOVIE, Str_Tmp2, 1024);
 					if (Change_Dir(Str_Tmp, Str_Tmp2, "Movie directory", "Gens Movie files\0*.gmv\0\0", "gmv", hDlg))
@@ -6807,6 +6867,9 @@ LRESULT CALLBACK DirectoriesProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPa
 					GetDlgItemText(hDlg, IDC_EDIT_MOVIE, Movie_Dir, 1024);
 					GetDlgItemText(hDlg, IDC_EDIT_WATCH, Watch_Dir, 1024);
 					GetDlgItemText(hDlg, IDC_EDIT_LUA, Lua_Dir, 1024);
+					GetDlgItemText(hDlg, IDC_EDIT_NETROM, Netplay_Rom_Dir, 1024);
+					if (Netplay_Rom_Dir[0] && Netplay_Rom_Dir[strlen(Netplay_Rom_Dir) - 1] != '\\')
+						strcat(Netplay_Rom_Dir, "\\");
 				case ID_CANCEL:
 				case IDCANCEL:
 					DialogsOpen--;
