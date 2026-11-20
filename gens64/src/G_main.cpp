@@ -7,6 +7,7 @@
 #include <string.h>
 #include "G_main.h"
 #include "G_ddraw.h"
+#include "d3d_out.h"	// gens64
 #include "G_dsound.h"
 #include "G_Input.h"
 #include "Debug.h"
@@ -876,7 +877,8 @@ tryAgain:
 	Flag_Clr_Scr = 1;
 
 	bool reinit = false;
-	if(Full != Full_Screen || (Num != -1 && (Num<2 || Old_Rend<2)) || Force)
+	// gens64: with the Direct3D output a render mode change needs no new device (no lag)
+	if(Full != Full_Screen || (Num != -1 && (Num<2 || Old_Rend<2) && !D3DOut_Active()) || Force)
 		reinit = true;
 	// gens64: 2xSaI works in 32-bit colour too (CBlit_2xSaI)
 

@@ -45,6 +45,7 @@ set(GENS_C_CXX_SOURCES
   src/Debug.cpp
   src/drawutil.cpp
   src/G_ddraw.cpp
+  src/d3d_out.cpp
   src/G_dinput.cpp
   src/G_dsound.cpp
   src/G_main.cpp

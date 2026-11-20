@@ -24,6 +24,7 @@
 #include "io.h"
 #include "hackscommon.h"
 #include "drawutil.h"
+#include "d3d_out.h"	// gens64
 #include "luascript.h"
 
 LPDIRECTDRAW lpDD_Init;
@@ -260,7 +261,27 @@ int Init_DDraw(HWND hWnd)
 	int oldBits32 = Bits32;
 
 	End_DDraw();
-	
+
+	// gens64: Direct3D 9 output first (d3d_out.cpp): the video card scales the picture with
+	// sharp pixels; DirectDraw below stays as the fallback
+	if (!(Mode_555 & 2) && !Bits32)
+	{
+		Mode_555 = 0;	// the 16-bit texture is R5G6B5
+		Recalculate_Palettes();
+	}
+	if (D3DOut_Init(hWnd, Bits32 != 0, (Mode_555 & 1) != 0, W_VSync != 0))
+	{
+		if (Bits32 && !oldBits32)
+			for (int i = 0; i < 336 * 240; i++)
+				MD_Screen32[i] = DrawUtil::Pix16To32(MD_Screen[i]);
+		if (!Bits32 && oldBits32)
+			for (int i = 0; i < 336 * 240; i++)
+				MD_Screen[i] = DrawUtil::Pix32To16(MD_Screen32[i]);
+		Set_Render(hWnd, Full_Screen, -1, false);
+		Build_Main_Menu();
+		return 1;
+	}
+
 	// gens64: full screen is a borderless window over the whole monitor (Set_Render): the same
 	// drawing as in a window, no display mode change, no exclusive mode (16-bit display modes
 	// are gone in Windows 10/11, and the exclusive mode broke Alt+Tab, tool windows, Wine)
@@ -393,6 +414,8 @@ int Init_DDraw(HWND hWnd)
 
 void End_DDraw()
 {
+	D3DOut_End();	// gens64
+
 	if (lpDDC_Clipper)
 	{
 		lpDDC_Clipper->Release();
@@ -450,6 +473,12 @@ HRESULT RestoreGraphics(HWND hWnd)
 
 int Clear_Primary_Screen(HWND hWnd)
 {
+	if (D3DOut_Active())	// gens64: Direct3D output: every frame clears the whole window anyway
+	{
+		D3DOut_Clear();
+		return 1;
+	}
+
 	if(!lpDD)
 		return 0; // bail if directdraw hasn't been initialized yet or if we're still in the middle of initializing it
 
@@ -492,6 +521,9 @@ int Clear_Primary_Screen(HWND hWnd)
 
 int Clear_Back_Screen(HWND hWnd)
 {
+	if (D3DOut_Active())	// gens64: nothing kept between frames
+		return 1;
+
 	if(!lpDD)
 		return 0; // bail if directdraw hasn't been initialized yet or if we're still in the middle of initializing it
 
@@ -1083,8 +1115,47 @@ static LPDIRECTDRAWSURFACE4 Scale_Nearest(const RECT& RectSrc, int dw, int dh, i
 	return lpDDS_Scaled;
 }
 
+// gens64: the frame through Direct3D 9: the picture (or the filter's output) into the texture,
+// the video card scales it over the window
+static int Flip_D3D(HWND hWnd)
+{
+	RECT RectDest, RectSrc;
+	int bpp = Bits32 ? 4 : 2;
+	int pitch;
+
+	DrawInformationOnTheScreen();
+	if (Fast_Blur) { Half_Blur(); Half_Blur32(); }
+	CalculateDrawArea(hWnd, RectDest, RectSrc);
+
+	int Src_X = RectSrc.right - RectSrc.left;
+	int Src_Y = RectSrc.bottom - RectSrc.top;
+
+	unsigned char *t = D3DOut_Lock(&pitch);
+	if (t)
+	{
+		if (Render_W >= 2)
+			Blit_W(t, pitch, Src_X / 2, Src_Y / 2, (16 + 320 - Src_X / 2) * bpp);
+		else
+		{
+			const unsigned char *src = Bits32 ? (const unsigned char *) MD_Screen32 : (const unsigned char *) MD_Screen;
+			for (int y = 0; y < Src_Y; y++)
+				memcpy(t + (size_t) y * pitch, src + ((size_t) (RectSrc.top + y) * 336 + RectSrc.left) * bpp, (size_t) Src_X * bpp);
+		}
+		D3DOut_Unlock();
+	}
+
+	// CalculateDrawArea gives screen coordinates (Lua's mouse position uses them): back to the window's
+	POINT p = { 0, 0 };
+	ClientToScreen(hWnd, &p);
+	OffsetRect(&RectDest, -p.x, -p.y);
+	D3DOut_Present(Src_X, Src_Y, &RectDest, W_VSync != 0);
+	return 1;
+}
+
 int Flip(HWND hWnd)
 {
+	if (D3DOut_Active())
+		return Flip_D3D(hWnd);
 	if(!lpDD)
 		return 0; // bail if directdraw hasn't been initialized yet or if we're still in the middle of initializing it
 
