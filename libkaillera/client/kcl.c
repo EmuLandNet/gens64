@@ -1463,10 +1463,37 @@ static void refresh_list(HWND dlg)
 		CloseHandle(t);
 }
 
+/* the Options tab: labels and check boxes sit on the tab control, which the visual styles (an
+   emulator with a Common Controls 6 manifest) paint white; give them its colour, not the
+   dialog's grey */
+static int themed(HWND dlg)
+{
+	static int t = -1;
+	if (t < 0)
+	{
+		HMODULE ux = LoadLibraryA("uxtheme.dll");
+		BOOL (WINAPI *is_app_themed)(void) = ux ? (BOOL (WINAPI *)(void)) GetProcAddress(ux, "IsAppThemed") : NULL;
+		/* the tab control tells which Common Controls it comes from */
+		t = is_app_themed && is_app_themed() && SendDlgItemMessageW(dlg, IDC_TABS, CCM_GETVERSION, 0, 0) >= 6;
+	}
+	return t;
+}
+
 static INT_PTR CALLBACK servers_proc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp)
 {
 	switch (msg)
 	{
+	case WM_CTLCOLORSTATIC:
+	case WM_CTLCOLORBTN:
+	{
+		int id = GetDlgCtrlID((HWND) lp);
+		if (themed(dlg) && (id == IDC_OPT_SOUND || id == IDC_OPT_JOINMSG || id == IDC_OPT_QUITLBL || id == IDC_OPT_CSLBL))
+		{
+			SetBkColor((HDC) wp, GetSysColor(COLOR_WINDOW));
+			return (INT_PTR) GetSysColorBrush(COLOR_WINDOW);
+		}
+		break;
+	}
 	case WM_INITDIALOG:
 	{
 		static const char *tabs[] = { "All servers", "Recent", "Favorites", "Waiting games", "Options" };
