@@ -616,6 +616,11 @@ static bool M68K_Settings_Locked(void)
 	return false;
 }
 
+/* gens64: netplay with the user's 68000 speed and RAM 2 MB (CPU > Use my 68000 settings in
+   netplay); off: 100% and 64 KB for the game. Kaillera does not carry them: all players must
+   have the same, so Gens says its settings in the game chat when the game starts. */
+int Netplay_Own_M68K = 0;
+
 void Gens64_Set_M68K_Settings(int pct, int ram2mb, bool quiet)
 {
 	if (Net_Play)	// gens64: the same for all players (Play_Net_Game)
@@ -1690,6 +1695,7 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 	MSG msg;
 	char name[2048];
 	int net_speed = 100, net_ram2mb = 0;
+	int net_sprite_over = Sprite_Over;	// gens64: Sprite Limit is on in netplay (VDP status bit 6)
 
 	// gens64: the ROM is looked up by the extensions of the list (not "name.*", which could
 	// find a save or a state file first)
@@ -1717,11 +1723,15 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 			}
 		}
 		if (!name[0]) return 1;
+		Sprite_Over = 1;
 		// gens64: the 68000 speed and RAM 2 MB are local settings the other players do not know:
 		// standard ones for the game (as Gens RR has), the user's back afterwards
+		// (unless CPU > Use my 68000 settings in netplay)
 		net_speed = M68K_Speed_Setting;
 		net_ram2mb = Ram_2MB_Setting;
-		if (net_speed != 100 || net_ram2mb)
+		if (Netplay_Own_M68K)
+			net_speed = 100, net_ram2mb = 0;	// nothing to give back afterwards
+		else if (net_speed != 100 || net_ram2mb)
 			Gens64_Set_M68K_Settings(100, 0, true);
 		GensLoadRom(name);
 	}
@@ -1730,6 +1740,15 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 	
 	Net_Play = 1;
 	SetFocus(HWnd);
+
+	// gens64: say the 68000 settings used, so that a difference between the players is seen
+	if (Netplay_Own_M68K)
+	{
+		char msg[128];
+		sprintf(msg, "[Gens64] 68000: %d%% (%.2f MHz), RAM %s", M68K_Speed_Setting, M68K_MHz(M68K_Speed_Setting),
+			Ram_2MB_Setting ? "2 MB" : "64 KB");
+		Kaillera_Chat_Send(msg);
+	}
 
 	if (maxplayers > 4) maxplayers = 4;
 	if (player > 4) player = 0;
@@ -1769,6 +1788,7 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 			if (!GetMessage(&msg, NULL, 0, 0))
 			{
 				Net_Play = 0;
+				Sprite_Over = net_sprite_over;
 				if (net_speed != 100 || net_ram2mb)
 					Gens64_Set_M68K_Settings(net_speed, net_ram2mb, true);
 				return msg.wParam;
@@ -1795,6 +1815,7 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 
 	KillTimer(HWnd, NETPLAY_TIMER_ID);
 	Kaillera_End_Game();
+	Sprite_Over = net_sprite_over;
 	if (net_speed != 100 || net_ram2mb)
 		Gens64_Set_M68K_Settings(net_speed, net_ram2mb, true);
 	// gens64: the game is closed, but we are still inside the Kaillera lobby's call and the main
@@ -4218,6 +4239,11 @@ dialogAgain: //Nitsuja added this
 					return 0;
 
 				case ID_GRAPHICS_SPRITEOVER:
+					if (Net_Play)	// gens64: it changes the VDP status (sprite overflow) the game reads
+					{
+						MESSAGE_L("Not in netplay: Sprite Limit is on for all players", "Not in netplay: Sprite Limit is on for all players")
+						return 0;
+					}
 					Set_Sprite_Over(hWnd, Sprite_Over ^ 1);
 					return 0;
 
@@ -4538,6 +4564,20 @@ dialogAgain: //Nitsuja added this
 						if (v > 0)
 							Gens64_Set_M68K_Settings(v, Ram_2MB_Setting, false);
 					}
+					return 0;
+
+				case ID_M68K_NETPLAY:
+					if (Net_Play)
+					{
+						MESSAGE_L("Not in netplay", "Not in netplay")
+						return 0;
+					}
+					Netplay_Own_M68K = !Netplay_Own_M68K;
+					if (Netplay_Own_M68K)
+						MESSAGE_L("Netplay: my 68000 settings (all players need the same)", "Netplay: my 68000 settings (all players need the same)")
+					else
+						MESSAGE_L("Netplay: 68000 at 100% with 64 KB", "Netplay: 68000 at 100% with 64 KB")
+					Build_Main_Menu();
 					return 0;
 
 				case ID_M68K_RAM_2MB:
@@ -5801,6 +5841,8 @@ HMENU Build_Main_Menu(void)
 		(UINT_PTR)CPUM68KSpeed, "68000 Speed", "", "68000 &Speed");
 	MENU_L(CPU, i++, Flags | (Ram_2MB_Setting ? MF_CHECKED : MF_UNCHECKED),
 		ID_M68K_RAM_2MB, "68000 RAM 2 MB (debug)", "", "68000 RAM &2 MB (debug)");
+	MENU_L(CPU, i++, Flags | (Netplay_Own_M68K ? MF_CHECKED : MF_UNCHECKED),
+		ID_M68K_NETPLAY, "Use my 68000 settings in netplay", "", "Use my 68000 settings in &netplay");
 
 	InsertMenu(CPU, i++, MF_SEPARATOR, NULL, NULL);
 

@@ -199,7 +199,11 @@ int Update_Frame_Fast_Hook()
 	// because it needs to run immediately before SetCurrentInputCondensed() might get called
 	// in order for joypad.get() and joypad.set() to work as expected
 
-	int retval = Update_Frame_Fast();
+	// gens64: in netplay the skipped frames are emulated with the VDP too (drawn into the frame
+	// buffer, not shown): the sprite overflow and collision flags of the VDP status (bits 6, 5)
+	// are only raised while drawing, so the players' emulators, which skip different frames,
+	// gave games different VDP status reads and went apart.
+	int retval = Net_Play ? Update_Frame() : Update_Frame_Fast();
 
 	Gens64_AfterFrame(0); // gens64
 

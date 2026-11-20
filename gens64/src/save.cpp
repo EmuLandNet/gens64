@@ -61,6 +61,7 @@ char SRAM_Dir[1024] = "";
 char Netplay_Rom_Dir[1024] = "";	// gens64: ROMs offered to Kaillera; empty: the folder of the last ROM (Rom_Dir)
 char BRAM_Dir[1024] = "";
 extern char Lua_Dir [1024];
+extern int Netplay_Own_M68K;	// G_main.cpp
 unsigned short FrameBuffer[336 * 240];
 unsigned int FrameBuffer32[336 * 240];
 ALIGN16 unsigned char State_Buffer[MAX_STATE_FILE_LENGTH];
@@ -2668,6 +2669,8 @@ int Save_Config(char *File_Name)
 	WritePrivateProfileString("CPU", "68000 Speed", Str_Tmp, Conf_File);
 	wsprintf(Str_Tmp, "%d", Ram_2MB_Setting);
 	WritePrivateProfileString("CPU", "68000 RAM 2MB", Str_Tmp, Conf_File);
+	wsprintf(Str_Tmp, "%d", Netplay_Own_M68K);
+	WritePrivateProfileString("CPU", "68000 settings in netplay", Str_Tmp, Conf_File);
 
 	wsprintf(Str_Tmp, "%d", MSH2_Speed);
 	WritePrivateProfileString("CPU", "Main SH2 Speed", Str_Tmp, Conf_File);
@@ -3187,6 +3190,7 @@ int Load_Config(char *File_Name, void *Game_Active)
 	M68K_Speed_Setting = GetPrivateProfileInt("CPU", "68000 Speed", 100, Conf_File); // gens64
 	if (M68K_Speed_Setting < 100 || M68K_Speed_Setting > 1300) M68K_Speed_Setting = 100;
 	Ram_2MB_Setting = GetPrivateProfileInt("CPU", "68000 RAM 2MB", 0, Conf_File) ? 1 : 0;
+	Netplay_Own_M68K = GetPrivateProfileInt("CPU", "68000 settings in netplay", 0, Conf_File) ? 1 : 0;
 
 	MSH2_Speed = GetPrivateProfileInt("CPU", "Main SH2 Speed", 100, Conf_File);
 	SSH2_Speed = GetPrivateProfileInt("CPU", "Slave SH2 Speed", 100, Conf_File);

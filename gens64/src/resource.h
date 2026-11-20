@@ -664,6 +664,7 @@
 #define ID_M68K_SPEED_1300              40546
 #define ID_M68K_SPEED_CUSTOM            40547
 #define ID_M68K_RAM_2MB                 40548
+#define ID_M68K_NETPLAY                 40549
 #define IDC_C_HEX_LINES                 42191
 #define IDC_C_HEX_TEXT                  42192
 #define IDC_C_HEX_GOTO                  42193
