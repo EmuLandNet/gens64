@@ -8368,37 +8368,32 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			// gens64: the text is Windows-1252 (é in Stéphane); shown through Unicode, so
 			// it stays right whatever the system code page is
 			SetDlgItemText1252(hDlg, IDC_EDIT1,
-				"Original version (c) 1999/2002 by Stéphane Dallongeville" "\r\n" "\r\n"
-				// gens64: base version instead of the Gens RR links
-				"Based on Gens Re-Recording v11c (svn341)" "\r\n" "\r\n"
-				// gens64: features ported from Gens r57shell mod
+				"Original version (c) 1999/2002 by Stéphane Dallongeville" "\r\n"
+				"and the Gens development team" "\r\n" "\r\n"
+				"Based on Gens Re-Recording v11c (svn341)" "\r\n"
+				"by Jyzero, Nitsuja, Upthorn," "\r\n"
+				"with adelikat, gocha, feos" "\r\n"
+				"and the TASVideos community" "\r\n" "\r\n"
 				"Includes features of Gens r57shell mod" "\r\n"
 				"(c) 2011-2014 r57shell:" "\r\n"
 				"68000 and Z80 debuggers, RAM Dump," "\r\n"
 				"VDP RAM and VDP Sprites viewers," "\r\n"
 				"32X layers, Sprites Boxing, Lua additions" "\r\n" "\r\n"
-				// gens64: code taken from other projects
-				"YX5200 MP3 player from Genesis Plus GX," "\r\n"
-				"(c) 2025 Eke-Eke" "\r\n" "\r\n"
+				"From Genesis Plus GX by Eke-Eke:" "\r\n"
+				"YX5200 MP3 player, CFI flash save," "\r\n"
+				"ROM mappers over 6 MB (Sega, Mega Everdrive)," "\r\n"
+				"T-5740 board (mapper and SPI EEPROM)," "\r\n"
+				"Super Fighter Team boards SF-001/002/004," "\r\n"
+				"Sega CD WAV and CHD images," "\r\n"
+				"SVP: SSP1601 DSP interpreter" "\r\n"
+				"(c) 2008 Grazvydas \"notaz\" Ignotas" "\r\n" "\r\n"
 				"Paprium cartridge processor: \"Project Little Man\"" "\r\n"
 				"high-level emulation from a Genesis Plus GX fork" "\r\n" "\r\n"
-				"ROM mappers over 6 MB (Sega, Mega Everdrive)" "\r\n"
-				"after Genesis Plus GX" "\r\n" "\r\n"
-				"T-5740 board: mapper and SPI EEPROM" "\r\n"
-				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
-				"CFI flash save" "\r\n"
-				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
-				"SVP: SSP1601 DSP interpreter" "\r\n"
-				"(c) 2008 Grazvydas \"notaz\" Ignotas," "\r\n"
-				"as modified for Genesis Plus GX by Eke-Eke" "\r\n" "\r\n"
-				"Super Fighter Team boards SF-001/002/004" "\r\n"
-				"from Genesis Plus GX, Eke-Eke" "\r\n" "\r\n"
-				"Sega CD WAV and CHD images after Genesis Plus GX, Eke-Eke;" "\r\n"
 				"libchdr (c) Romain Tisserand (BSD), zstd (c) Meta (BSD)," "\r\n"
 				"LZMA SDK by Igor Pavlov (public domain)," "\r\n"
 				"zlib (c) Jean-loup Gailly and Mark Adler," "\r\n"
-				"dr_flac by David Reid (public domain)" "\r\n" "\r\n"
-				"MP3 decoding: minimp3 by lieff (public domain)"
+				"dr_flac by David Reid (public domain)," "\r\n"
+				"minimp3 by lieff (public domain)"
 			);
 
 			return true;
