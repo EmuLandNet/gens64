@@ -1762,6 +1762,17 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 	Kaillera_End_Game();
 	if (net_speed != 100 || net_ram2mb)
 		Gens64_Set_M68K_Settings(net_speed, net_ram2mb, true);
+	// gens64: the game is closed, but we are still inside the Kaillera lobby's call and the main
+	// loop (logo, intro effect) does not run until it closes: the window kept showing (and
+	// repainting) the last frame of the game. Clear the picture.
+	if (!Game)
+	{
+		memset(MD_Screen, 0, sizeof(MD_Screen));
+		memset(MD_Screen32, 0, sizeof(MD_Screen32));
+		Clear_Back_Screen(HWnd);
+		Clear_Primary_Screen(HWnd);
+		Flip(HWnd);
+	}
 
 	return 0;
 }
