@@ -8678,7 +8678,7 @@ LRESULT CALLBACK OptionProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			SetWindowPos(hDlg, NULL, max(0, r.left + (dx1 - dx2)), max(0, r.top + (dy1 - dy2)), NULL, NULL, SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
 
 			WORD_L(IDC_AUTOFIXCHECKSUM, "Auto Fix Checksum", "", "Auto Fix Checksum");
-			WORD_L(IDC_AUTOPAUSE, "Auto Pause", "", "Auto Pause");
+			WORD_L(IDC_AUTOPAUSE, "Pause in background", "", "Pause in background");	// gens64: was "Auto Pause"
 			WORD_L(IDC_FASTBLUR, "Fast Blur", "", "Fast Blur");
 			WORD_L(IDC_SHOWLED, "Show Sega-CD LED", "", "Show Sega-CD LED");
 			WORD_L(IDC_ENABLE_FPS, "Enable", "", "Enable");
