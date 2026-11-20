@@ -10,7 +10,7 @@
    A00000-A7FFFF (Z80, I/O) and C00000-C7FFFF (VDP) stay as they are.
 
    Detected by the product code GM T-097146-00 (UMK3) with a ROM over 10 MB: every version with
-   tracks h13-h23 and none without (docs/umk-tracks.md). Nothing to save: the layout follows from
+   tracks h13-h23 and none without. Nothing to save: the layout follows from
    the ROM, so savestates and movies keep their format. */
 
 #include <string.h>

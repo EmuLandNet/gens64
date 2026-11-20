@@ -1,6 +1,6 @@
 /* gens64: the music tracks of Kabal's Ultimate Mortal Kombat 3 / Trilogy hacks (versions over
    10 MB, h13-h23). Not real hardware: the hack's author made his own memory layout in a modified
-   Gens; see docs/umk-tracks.md. Everything is in umk_tracks.c; Mem_M68k_asm.c only calls these. */
+   Gens. Everything is in umk_tracks.c; Mem_M68k_asm.c only calls these. */
 #ifndef GENS64_UMK_TRACKS_H
 #define GENS64_UMK_TRACKS_H
 

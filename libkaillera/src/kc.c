@@ -2,7 +2,7 @@
 
    Written from the published protocol description (Anthem, Okai project, SupraFast, Moosehead:
    "Kaillera Network Protocol") and from the behaviour of the EmuLinker-K server; no code from
-   other clients or servers. See docs/kaillera-protocol.md for what each message holds. */
+   other clients or servers. */
 #include "kaillera/kc.h"
 #include "kc_net.h"
 
