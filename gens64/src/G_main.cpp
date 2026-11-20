@@ -184,6 +184,8 @@ int Country_Order[3];
 int Kaillera_Client_Running = 0;
 int Intro_Style = 0;
 
+bool Is_Text_Field(HWND h);	// G_dinput.cpp
+
 // gens64: is one of our windows (main window or a dialog) the foreground one?
 static bool App_In_Foreground(void)
 {
@@ -584,6 +586,11 @@ static bool M68K_Settings_Locked(void)
 
 void Gens64_Set_M68K_Settings(int pct, int ram2mb, bool quiet)
 {
+	if (Net_Play)	// gens64: the same for all players (Play_Net_Game)
+	{
+		MESSAGE_L("Not in netplay: the 68000 runs at 100% with 64 KB", "Not in netplay: the 68000 runs at 100% with 64 KB")
+		return;
+	}
 	if (pct < M68K_SPEED_MIN) pct = M68K_SPEED_MIN;
 	if (pct > M68K_SPEED_MAX) pct = M68K_SPEED_MAX;
 	M68K_Speed_Setting = pct;
@@ -1650,6 +1657,7 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 {
 	MSG msg;
 	char name[2048];
+	int net_speed = 100, net_ram2mb = 0;
 
 	// gens64: the ROM is looked up by the extensions of the list (not "name.*", which could
 	// find a save or a state file first)
@@ -1677,6 +1685,12 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 			}
 		}
 		if (!name[0]) return 1;
+		// gens64: the 68000 speed and RAM 2 MB are local settings the other players do not know:
+		// standard ones for the game (as Gens RR has), the user's back afterwards
+		net_speed = M68K_Speed_Setting;
+		net_ram2mb = Ram_2MB_Setting;
+		if (net_speed != 100 || net_ram2mb)
+			Gens64_Set_M68K_Settings(100, 0, true);
 		GensLoadRom(name);
 	}
 
@@ -1717,9 +1731,15 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 		Paused = 0;
 		if (PeekMessage(&msg, NULL, 0, 0, PM_NOREMOVE))
 		{
-			if (!GetMessage(&msg, NULL, 0, 0)) return msg.wParam;
+			if (!GetMessage(&msg, NULL, 0, 0))
+			{
+				Net_Play = 0;
+				if (net_speed != 100 || net_ram2mb)
+					Gens64_Set_M68K_Settings(net_speed, net_ram2mb, true);
+				return msg.wParam;
+			}
 			if (!RamSearchHWnd || !IsDialogMessage(RamSearchHWnd, &msg)) 
-			if (!TranslateAccelerator (HWnd, hAccelTable, &msg))
+			if (Is_Text_Field(msg.hwnd) || !TranslateAccelerator (HWnd, hAccelTable, &msg))	// gens64: the chat
 			{
 				TranslateMessage(&msg); 
 				DispatchMessage(&msg);
@@ -1740,6 +1760,8 @@ int WINAPI Play_Net_Game(char *game, int player, int maxplayers)
 
 	KillTimer(HWnd, NETPLAY_TIMER_ID);
 	Kaillera_End_Game();
+	if (net_speed != 100 || net_ram2mb)
+		Gens64_Set_M68K_Settings(net_speed, net_ram2mb, true);
 
 	return 0;
 }
@@ -2106,7 +2128,8 @@ void Handle_Gens_Messages()
 			else if (GetKeyState(VK_MENU) & 0x8000)
 				Alt_Combo = 1;
 		}
-		if (TranslateAccelerator (HWnd, hAccelTable, &msg))
+		// gens64: not for keys typed into a text field (the Kaillera chat runs in this thread too)
+		if (!Is_Text_Field(msg.hwnd) && TranslateAccelerator (HWnd, hAccelTable, &msg))
 			continue;
 
 		TranslateMessage(&msg); 
@@ -5524,12 +5547,13 @@ HMENU Build_Main_Menu(void)
 	MENU_L(Graphics, i++, Flags | (Never_Skip_Frame ? MF_CHECKED : MF_UNCHECKED),
 		ID_GRAPHICS_NEVER_SKIP_FRAME, "Never skip frame with auto frameskip", "", "&Never skip frame with auto frameskip");
 
-	InsertMenu(Graphics, i++, MF_MENUBARBREAK, NULL, NULL);
+	// gens64: at the end of the menu (they stood in a second column on the right)
+	InsertMenu(Graphics, i++, MF_SEPARATOR, NULL, NULL);
 
 	MENU_L(Graphics, i++, Flags | MF_UNCHECKED,
-		ID_GRAPHICS_SHOT, "Screen Shot To File", "", "&Screen Shot To File");
+		ID_GRAPHICS_SHOT, "Screen Shot To File", "", "Screen Shot T&o File");
 	MENU_L(Graphics, i++, Flags | MF_UNCHECKED,
-		ID_GRAPHICS_CLIPBOARD, "Screen Shot To Clipboard", "", "&Screen Shot To Clipboard");
+		ID_GRAPHICS_CLIPBOARD, "Screen Shot To Clipboard", "", "Screen Shot To Clip&board");
 
 //	InsertMenu(Graphics, 12, MF_SEPARATOR, NULL, NULL);
 

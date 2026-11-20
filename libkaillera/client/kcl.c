@@ -1732,11 +1732,34 @@ KAILLERA_API int WINAPI kailleraSelectServerDialog(HWND parent)
 	return 0;
 }
 
+/* while kailleraModifyPlayValues waits for the other players: keep the lobby window working (Drop,
+   chat, closing it), as the emulator's loop is stuck in here. Only the lobby's messages: the
+   emulator's own windows would run its frame code again from inside this call. */
+static void pump_lobby(void)
+{
+	MSG m;
+	int n = 0;
+	while (g_lobby && n++ < 50 && PeekMessageW(&m, g_lobby, 0, 0, PM_REMOVE))
+	{
+		if (m.message == WM_QUIT)
+		{
+			PostQuitMessage((int) m.wParam);
+			break;
+		}
+		if (!IsDialogMessageW(g_lobby, &m))
+		{
+			TranslateMessage(&m);
+			DispatchMessageW(&m);
+		}
+	}
+}
+
 KAILLERA_API int WINAPI kailleraModifyPlayValues(void *values, int size)
 {
 	unsigned char out[KC_MAX_PLAYERS * 256];
-	DWORD t0 = GetTickCount();
+	DWORD t0 = GetTickCount(), last_pump = t0;
 	static unsigned frames, waits, hash;
+	static int stalled;	/* "waiting for the other players" was shown */
 	if (!g_inited || size <= 0 || size > 256)
 		return -1;
 	for (;;)
@@ -1755,6 +1778,12 @@ KAILLERA_API int WINAPI kailleraModifyPlayValues(void *values, int size)
 			if ((++frames % 120) == 0 || frames < 4)
 				dbg("frame %u: %d bytes, hash %08x, waited %u ms (%u waits)", frames, n, hash, (unsigned) (GetTickCount() - t0), waits);
 			memcpy(values, out, (size_t) n);
+			if (stalled)
+			{
+				stalled = 0;
+				if (g_room)
+					log_line(GetDlgItem(g_room, IDC_ROOMLOG), C_INFO, "* The game goes on");
+			}
 			return n;
 		}
 		if (n < 0)
@@ -1763,6 +1792,22 @@ KAILLERA_API int WINAPI kailleraModifyPlayValues(void *values, int size)
 			return -1;
 		}
 		waits++;
+		/* gens64: a player gone (his connection changed: a VPN turned on...) stopped both
+		   emulators here for 30 s with no window working */
+		if (GetTickCount() - last_pump >= 50)
+		{
+			last_pump = GetTickCount();
+			if (!stalled && last_pump - t0 >= 2000)
+			{
+				stalled = 1;
+				dbg("frame %u: no data for 2 s", frames);
+				if (g_room)
+					log_line(GetDlgItem(g_room, IDC_ROOMLOG), C_INFO,
+						"* Waiting for the other players... (Drop to stop; the game is dropped after 30 s)");
+			}
+			if (last_pump - t0 >= 200)
+				pump_lobby();
+		}
 		if (GetTickCount() - t0 > 30000)	/* nobody for 30 s: give up */
 		{
 			EnterCriticalSection(&g_lock);

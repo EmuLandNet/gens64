@@ -1284,6 +1284,29 @@ void Restore_Input()
 
 bool Debugger_WindowActive();	// debugwindow.cpp (gens64)
 
+/* gens64: is the keyboard focus in a text field (an edit box, a rich edit: the Kaillera chat, RAM
+   Search fields...) of the foreground window? Then typed keys are text, not hotkeys: "," in the
+   chat toggled Show Input. Used here for the polled hotkeys and in Handle_Gens_Messages for the
+   accelerators. */
+bool Is_Text_Field(HWND h)
+{
+	char cls[32];
+	if (!h || !GetClassNameA(h, cls, sizeof(cls)))
+		return false;
+	return !_stricmp(cls, "Edit") || !_strnicmp(cls, "RichEdit", 8) || !_stricmp(cls, "RICHEDIT50W");
+}
+bool Text_Field_Focused(void)
+{
+	GUITHREADINFO gti;
+	HWND fg = GetForegroundWindow();
+	if (!fg)
+		return false;
+	gti.cbSize = sizeof(gti);
+	if (!GetGUIThreadInfo(GetWindowThreadProcessId(fg, NULL), &gti))
+		return false;
+	return Is_Text_Field(gti.hwndFocus);
+}
+
 void Update_Input()
 {
 //	DIMOUSESTATE MouseState;
@@ -1322,6 +1345,7 @@ void Update_Input()
 //  MouseY = MouseState.lY;
 
 	int numInputButtons = GetNumHotkeys();
+	bool typing = Text_Field_Focused();
 	for(int i=0; i<numInputButtons; i++)
 	{
 		InputButton& button = s_inputButtons[i];
@@ -1343,6 +1367,9 @@ void Update_Input()
 			if(!pressed2)
 				pressed = FALSE;
 		}
+
+		if(typing)	// gens64: keys typed into a text field are not hotkeys (nor held keys like fast forward)
+			pressed = FALSE;
 
 		if(button.alias)
 			*button.alias = pressed;
@@ -2101,11 +2128,38 @@ void Scan_Player_Net(int Player)
 		if (Check_Key_Pressed(Keys_Def[0].Z)) Kaillera_Keys[1] &= ~0x01;
 		else Kaillera_Keys[1] |= 0x01;
 	}
+
+	// gens64: our pad type for the other players (Update_Controllers_Net): bit 4 cleared = 6
+	// buttons, bit 5 cleared = 3 buttons. Gens RR leaves both set (its buttons are low bits).
+	Kaillera_Keys[1] |= 0x30;
+	Kaillera_Keys[1] &= (Controller_1_Type & 1) ? ~0x10 : ~0x20;
+}
+
+/* gens64: every emulator in the game took the pad type of each player from its own settings: with
+   a 6-button pad here and a 3-button one there for the same player, the games read different
+   values and the emulators went apart (Paprium, which knows 6-button pads). Now the player's own
+   setting, sent with his buttons, is used everywhere; nothing sent (Gens RR): the local one. */
+static void Net_Pad_Type(unsigned char b, unsigned int *type)
+{
+	if (!(b & 0x10))
+		*type |= 1;
+	else if (!(b & 0x20))
+		*type &= ~1u;
 }
 
 
 void Update_Controllers_Net(int num_player)
 {
+	Net_Pad_Type(Kaillera_Keys[1], &Controller_1_Type);
+	if (num_player > 2)
+	{
+		Net_Pad_Type(Kaillera_Keys[3], &Controller_1B_Type);
+		Net_Pad_Type(Kaillera_Keys[5], &Controller_1C_Type);
+		Net_Pad_Type(Kaillera_Keys[7], &Controller_1D_Type);
+	}
+	else
+		Net_Pad_Type(Kaillera_Keys[3], &Controller_2_Type);
+
 	Controller_1_Up = (Kaillera_Keys[0] & 0x08) >> 3;
 	Controller_1_Down = (Kaillera_Keys[0] & 0x04) >> 2;
 	Controller_1_Left = (Kaillera_Keys[0] & 0x02) >> 1;
