@@ -321,14 +321,17 @@ static InputButton s_inputButtons [] =
 	{MOD_NONE,              VK_F3,     ID_GRAPHICS_FRAMESKIP_DECREASE, 0, NULL, "Decrease Frameskip", "PrevFrameskipKey"},
 	{MOD_NONE,              VK_F4,     ID_GRAPHICS_FRAMESKIP_INCREASE, 0, NULL, "Increase Frameskip", "NextFrameskipKey"},
 
-	{MOD_NONE,              VK_F12,    ID_GRAPHICS_NEXT_RENDER,        0, NULL, "Next Render Mode", "NextRenderKey"},
-	{MOD_NONE,              VK_F11,    ID_GRAPHICS_PREVIOUS_RENDER,    0, NULL, "Previous Render Mode", "PrevRenderKey"},
-	{MOD_ALT,               VK_RETURN, ID_GRAPHICS_SWITCH_MODE,        0, NULL, "Fullscreen Mode On/Off", "FullscreenKey"},
-	{MOD_SHIFT,             VK_F2,     ID_GRAPHICS_STRETCH,            0, NULL, "Stretch Graphics On/Off", "StretchKey"},
+	// gens64: new defaults: F9/F10 render modes, F11 (and Alt+Enter) full screen, Shift+F9 Fast Blur,
+	// Shift+F10 frame rate; F12 / Shift+F12 screenshots (below). "Force Software Blit" is gone (the
+	// Direct3D output has no such thing)
+	{MOD_NONE,              VK_F10,    ID_GRAPHICS_NEXT_RENDER,        0, NULL, "Next Render Mode", "NextRenderKey"},
+	{MOD_NONE,              VK_F9,     ID_GRAPHICS_PREVIOUS_RENDER,    0, NULL, "Previous Render Mode", "PrevRenderKey"},
+	{MOD_NONE,              VK_F11,    ID_GRAPHICS_SWITCH_MODE,        0, NULL, "Fullscreen Mode On/Off", "FullscreenKey"},
+	{MOD_ALT,               VK_RETURN, ID_GRAPHICS_SWITCH_MODE,        0, NULL, "Fullscreen Mode On/Off (key 2)", "FullscreenKey2"},
+	{MOD_SHIFT,             VK_F2,     ID_GRAPHICS_STRETCH,            0, NULL, "Integer Scaling On/Off", "StretchKey"},
 	{MOD_SHIFT,             VK_F3,     ID_GRAPHICS_VSYNC,              0, NULL, "VSync On/Off", "VSyncKey"},
-	{MOD_SHIFT,             VK_F9,     ID_GRAPHICS_FORCESOFT,          0, NULL, "Force Software Blit On/Off", "SoftwareBlitKey"},
-	{MOD_NONE,              VK_F9,     ID_OPTIONS_FASTBLUR,            0, NULL, "Motion Blur On/Off", "MotionBlurKey"},
-	{MOD_NONE,              VK_F10,    ID_OPTIONS_SHOWFPS,             0, NULL, "Show Framerate On/Off", "ShowFPSKey"},
+	{MOD_SHIFT,             VK_F9,     ID_OPTIONS_FASTBLUR,            0, NULL, "Fast Blur On/Off", "MotionBlurKey"},
+	{MOD_SHIFT,             VK_F10,    ID_OPTIONS_SHOWFPS,             0, NULL, "Show Framerate On/Off", "ShowFPSKey"},
 
 	{MOD_NONE,            VK_OEM_MINUS,ID_SLOW_SPEED_MINUS,      0, NULL, "Decrease Speed", "SlowDownKey"},
 	{MOD_NONE,            VK_OEM_PLUS, ID_SLOW_SPEED_PLUS,       0, NULL, "Increase Speed", "SpeedUpKey"},
@@ -358,8 +361,8 @@ static InputButton s_inputButtons [] =
 	{MOD_NONE,              VK_NONE,   IDC_LUA_SCRIPT_HOTKEY_15,       0, NULL, "Lua Custom Hotkey 15", "LuaHotkey15"},
 	{MOD_NONE,              VK_NONE,   IDC_LUA_SCRIPT_HOTKEY_16,       0, NULL, "Lua Custom Hotkey 16", "LuaHotkey16"},
 
-	{MOD_SHIFT,             VK_BACK,   ID_GRAPHICS_SHOT,         0, NULL, "Screenshot To File", "ScreenshotFileKey"},
-	{MOD_CONTROL,           VK_BACK,   ID_GRAPHICS_CLIPBOARD,    0, NULL, "Screenshot To Clipboard", "ScreenshotClipboardKey"},
+	{MOD_NONE,              VK_F12,    ID_GRAPHICS_SHOT,         0, NULL, "Screenshot To File", "ScreenshotFileKey"},
+	{MOD_SHIFT,             VK_F12,    ID_GRAPHICS_CLIPBOARD,    0, NULL, "Screenshot To Clipboard", "ScreenshotClipboardKey"},
 	{MOD_NONE,              VK_F1,     ID_HELP_HELP,             0, NULL, "Get Help", "HelpKey"},
 
 	{MOD_NONE,              VK_NONE,   ID_GRAPHICS_SPRITEALWAYS, 0, NULL, "Sprites On Top On/Off", "SpritesOnTopKey"},

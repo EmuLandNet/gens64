@@ -830,6 +830,9 @@ END
 // remains consistent on all systems.
 IDI_GENS                ICON                    "resource\\Gens2.ico"
 IDI_SONIC               ICON                    "resource\\sonic.ico"
+
+// gens64: application manifest (Common Controls 6, Windows 7-11, DPI aware)
+1                       24                      "resource\\gens64.manifest"
 IDI_LUA                 ICON                    "resource\\lua.ico"
 
 /////////////////////////////////////////////////////////////////////////////

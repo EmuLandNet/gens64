@@ -1862,7 +1862,7 @@ BOOL Init(HINSTANCE hInst, int nCmdShow)
 	Window_Pos.x = 0;
 	Window_Pos.y = 0;
 
-	WndClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW;
+	WndClass.style = CS_OWNDC | CS_HREDRAW | CS_VREDRAW | CS_DBLCLKS;	// gens64: double click: full screen
 	WndClass.lpfnWndProc = WinProc;
 	WndClass.cbClsExtra = 0;
 	WndClass.cbWndExtra = 0;
@@ -1879,6 +1879,13 @@ BOOL Init(HINSTANCE hInst, int nCmdShow)
 	frameSearchFrames = -1; frameSearchInitialized = false;
 
 	RegisterClass(&WndClass);
+
+	{	// gens64: with the manifest (Common Controls 6) the control classes must be registered
+		INITCOMMONCONTROLSEX icc;
+		icc.dwSize = sizeof(icc);
+		icc.dwICC = ICC_WIN95_CLASSES | ICC_STANDARD_CLASSES | ICC_TAB_CLASSES | ICC_BAR_CLASSES | ICC_LISTVIEW_CLASSES | ICC_UPDOWN_CLASS | ICC_PROGRESS_CLASS;
+		InitCommonControlsEx(&icc);
+	}
 
 	ghInstance = hInst;
 
@@ -2963,10 +2970,17 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				PaintsEnabled = true;
 			}
 			else
+			{	// gens64: the braces were missing: in full screen the context menu opened as well,
+				// after the main one (and the game stood still under it)
 				Clear_Sound_Buffer();
 				Build_Context_Menu();
 				TrackPopupMenu(Context_Menu, TPM_LEFTALIGN | TPM_TOPALIGN, point.x, point.y, NULL, hWnd, NULL);
+			}
 			break;
+
+		case WM_LBUTTONDBLCLK:	// gens64: a double click on the picture switches full screen
+			SendMessage(hWnd, WM_COMMAND, ID_GRAPHICS_SWITCH_MODE, 0);
+			return 0;
 
 		case WM_CREATE:
 			Active = 1;
