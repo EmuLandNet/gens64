@@ -1096,7 +1096,9 @@ LRESULT CALLBACK RamWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 					return 1;
 				}
 			}
-		}
+		}	break;	// gens64: it fell through into WM_COMMAND with the control ID as the command:
+				// buttons under the visual styles (manifest) notify on hover and drawing, so the Edit
+				// button opened Edit Watch, Remove removed watches, OK/Cancel closed the window
 
 		case WM_COMMAND:
 			switch(LOWORD(wParam))
