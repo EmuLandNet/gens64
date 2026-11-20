@@ -1597,7 +1597,8 @@ static DWORD Last_Mouse_Move;
    the input level, so there Alt+Enter never opened the menu bar. */
 static int Alt_Combo;
 static int In_Menu_Loop;	// a menu is open (the right button menu): keep the pointer
-static int Dbl_Click;		// a double click switches the mode when the button is released
+static int Dbl_Click;
+static int In_Size_Move;	// the user moves or resizes the window		// a double click switches the mode when the button is released
 /* gens64: in full screen the menu bar comes out while the pointer is at the top edge of the
    screen and goes away when it leaves (the picture stays in place: CalculateDrawArea uses the
    whole monitor in full screen) */
@@ -2934,6 +2935,8 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case WM_MENUSELECT:
  		case WM_ENTERSIZEMOVE:
+			if (message == WM_ENTERSIZEMOVE)
+				In_Size_Move = 1;
 			if (!Net_Play)	// gens64: a netplay game keeps running (and playing sound) in menus
 				Clear_Sound_Buffer();
 			break;
@@ -2976,24 +2979,27 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			break;
 
  		case WM_SIZING:
-			if (!Full_Screen)
-			{
-				GetWindowRect(HWnd, &r);
-				Window_Pos.x = r.left;
-				Window_Pos.y = r.top;
-				ScaleFactor = min(
-					(float) (r.right-r.left) / 320 / ((Render_W == 0) ? 1 : 2),
-					(float) (r.bottom-r.top) / 240 / ((Render_W == 0) ? 1 : 2)
-				);
-			}
 			break;
 
 		case WM_EXITSIZEMOVE:
+			In_Size_Move = 0;
 			Build_Main_Menu();
 			break;
 
 		case WM_SIZE:	// gens64: maximize/restore and resizing: clear the whole client area on the next
 						// frame, or the margins kept the picture of the previous size (seen under Wine)
+			// gens64: the scale factor from the new client area (WM_SIZING read the window's old
+			// size with its frame): exactly 2 after Window Size 2x, the menu checks only that
+			if (In_Size_Move && !Full_Screen && wParam == SIZE_RESTORED && LOWORD(lParam) && HIWORD(lParam))
+			{
+				GetWindowRect(hWnd, &r);
+				Window_Pos.x = r.left;
+				Window_Pos.y = r.top;
+				ScaleFactor = min(
+					(float) LOWORD(lParam) / 320 / ((Render_W == 0) ? 1 : 2),
+					(float) HIWORD(lParam) / 240 / ((Render_W == 0) ? 1 : 2)
+				);
+			}
 			Flag_Clr_Scr = 0;
 			InvalidateRect(hWnd, NULL, TRUE);
 			break;
@@ -3964,40 +3970,28 @@ dialogAgain: //Nitsuja added this
 					Set_Render(hWnd, Full_Screen, 4, false);
 					return 0;
 
-				case ID_GRAPHICS_SIZE_1X:
-					if (ScaleFactor != 1.0)
-					{
-						ScaleFactor = 1.0;
-						Set_Window_Size(hWnd);
-						Build_Main_Menu();
-					}
+				case ID_GRAPHICS_SIZE_1X:	// gens64: also when it is checked (the window may have been resized by hand since)
+					ScaleFactor = 1.0;
+					Set_Window_Size(hWnd);
+					Build_Main_Menu();
 					return 0;
 
-				case ID_GRAPHICS_SIZE_2X:
-					if (ScaleFactor != 2.0)
-					{
-						ScaleFactor = 2.0;
-						Set_Window_Size(hWnd);
-						Build_Main_Menu();
-					}
+				case ID_GRAPHICS_SIZE_2X:	// gens64: also when it is checked (the window may have been resized by hand since)
+					ScaleFactor = 2.0;
+					Set_Window_Size(hWnd);
+					Build_Main_Menu();
 					return 0;
 
-				case ID_GRAPHICS_SIZE_3X:
-					if (ScaleFactor != 3.0)
-					{
-						ScaleFactor = 3.0;
-						Set_Window_Size(hWnd);
-						Build_Main_Menu();
-					}
+				case ID_GRAPHICS_SIZE_3X:	// gens64: also when it is checked (the window may have been resized by hand since)
+					ScaleFactor = 3.0;
+					Set_Window_Size(hWnd);
+					Build_Main_Menu();
 					return 0;
 
-				case ID_GRAPHICS_SIZE_4X:
-					if (ScaleFactor != 4.0)
-					{
-						ScaleFactor = 4.0;
-						Set_Window_Size(hWnd);
-						Build_Main_Menu();
-					}
+				case ID_GRAPHICS_SIZE_4X:	// gens64: also when it is checked (the window may have been resized by hand since)
+					ScaleFactor = 4.0;
+					Set_Window_Size(hWnd);
+					Build_Main_Menu();
 					return 0;
 
 				case ID_GRAPHICS_LAYER0: //Nitsuja added these
