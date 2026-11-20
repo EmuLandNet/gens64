@@ -18,6 +18,7 @@
 #include "gens64_addr.h"
 #include "yx5200.h"
 #include "paprium.h"
+#include "umk_tracks.h"	/* gens64: Kabal's UMK3 hacks with music tracks */
 #include "eeprom_spi.h"
 #include "flash_cfi.h"
 #include "svp.h"
@@ -1774,6 +1775,7 @@ void Mapper_Init(int system)
 	u32 size = 0x80000;
 	Rom_Mapper = 0;
 	Rom_Mask = 0;
+	UMK_Tracks_Detect(0);	/* forget the previous ROM */
 	if (system != 0 || B.Rom_Size <= 6 * 1024 * 1024)
 		return;
 	while (size < B.Rom_Size && size < ROM_DATA_MAX)
@@ -1805,6 +1807,8 @@ void Mapper_Init(int system)
 		memset(Rom_Data + size, 0xFF, 16 * 1024 * 1024 - size);
 		size = 16 * 1024 * 1024;
 	}
+	if (Rom_Mapper == 1)
+		UMK_Tracks_Detect(B.Rom_Size);	/* gens64: the rest of the file in two windows (umk_tracks.c) */
 	Rom_Mask = size - 1;
 	Mapper_Reset();
 }
@@ -1888,6 +1892,7 @@ static void mapper_install(void)
 	}
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
 		Paprium_Install(D.RB, D.RW, D.WB, D.WW);	/* gens64: Paprium */
+	UMK_Tracks_Install(D.RB, D.RW);	/* gens64: only for the UMK3 hacks with tracks */
 }
 
 /* gens64: flash save (flash_cfi.c): the chip answers in 64 KB bank 0 and in

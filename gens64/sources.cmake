@@ -64,6 +64,7 @@ set(GENS_C_CXX_SOURCES
   src/blit_asm.c
   src/z80_asm.c
   src/Mem_M68k_asm.c
+  src/umk_tracks.c
   src/Mem_S68k_asm.c
   src/Mem_SH2_asm.c
   src/SH2a_asm.c
