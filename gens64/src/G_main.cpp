@@ -294,6 +294,7 @@ void DoMovieSplice();
 
 int Set_Render(HWND hWnd, int Full, int Num, int Force);
 HMENU Build_Main_Menu(void);
+extern int FS_Menu_Shown;	// gens64: the menu bar shown at the top edge in full screen
 HMENU Build_Context_Menu(void);
 
 void ResetResults()
@@ -898,6 +899,7 @@ tryAgain:
 			mi.cbSize = sizeof(mi);
 			GetMonitorInfo(MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST), &mi);
 			SetMenu(hWnd, NULL);
+			FS_Menu_Shown = 0;
 			SetWindowLong(hWnd, GWL_STYLE, WS_POPUP | WS_VISIBLE);
 			SetWindowPos(hWnd, HWND_TOP, mi.rcMonitor.left, mi.rcMonitor.top,
 				mi.rcMonitor.right - mi.rcMonitor.left, mi.rcMonitor.bottom - mi.rcMonitor.top,
@@ -916,6 +918,11 @@ tryAgain:
 			SetWindowLong(hWnd, GWL_STYLE, WS_OVERLAPPEDWINDOW | WS_VISIBLE);
 			SetWindowPos(hWnd, NULL, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
 			Set_Window_Size(hWnd);
+			// gens64: Wine confines the pointer to a full screen window after the first click in it
+			// and kept it so after the switch back: every click then went to Wine's clipping
+			// window (the window and the desktop took no clicks until Alt+Tab). Gens never
+			// confines the pointer itself, so free it here (nothing changes on Windows)
+			ClipCursor(NULL);
 		}
 		DEVMODE dm;
 		EnumDisplaySettings(NULL,ENUM_CURRENT_SETTINGS,&dm);
@@ -1583,10 +1590,55 @@ int Check_If_Kaillera_Running(void)
 #define CURSOR_TIMER_ID 0x4355
 #define CURSOR_HIDE_MS 2000
 static DWORD Last_Mouse_Move;
+/* gens64: a key was pressed while Alt was held (Alt+Enter...). Wine's DefWindowProc only sees the keys
+   that reach it, and an accelerator or a hotkey takes Enter away: releasing Alt then opens the menu
+   bar from the keyboard (SC_KEYMENU), and its menu mode holds an X pointer grab - after Alt+Enter
+   back to the window no click worked on the whole desktop until Alt+Tab. Windows tracks this at
+   the input level, so there Alt+Enter never opened the menu bar. */
+static int Alt_Combo;
 static int In_Menu_Loop;	// a menu is open (the right button menu): keep the pointer
+static int Dbl_Click;		// a double click switches the mode when the button is released
+/* gens64: in full screen the menu bar comes out while the pointer is at the top edge of the
+   screen and goes away when it leaves (the picture stays in place: CalculateDrawArea uses the
+   whole monitor in full screen) */
+int FS_Menu_Shown;
 static bool Cursor_Idle(void)
 {
-	return Full_Screen == 1 && !In_Menu_Loop && GetTickCount() - Last_Mouse_Move > CURSOR_HIDE_MS;
+	return Full_Screen == 1 && !In_Menu_Loop && !FS_Menu_Shown && GetTickCount() - Last_Mouse_Move > CURSOR_HIDE_MS;
+}
+static void FS_Menu_Update(HWND hWnd)
+{
+	POINT pt;
+	MONITORINFO mi;
+	if (!Full_Screen)
+	{
+		FS_Menu_Shown = 0;
+		return;
+	}
+	if (In_Menu_Loop)
+		return;
+	GetCursorPos(&pt);
+	mi.cbSize = sizeof(mi);
+	GetMonitorInfo(MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST), &mi);
+	if (!PtInRect(&mi.rcMonitor, pt) || GetForegroundWindow() != hWnd)
+	{
+		if (FS_Menu_Shown)
+		{
+			FS_Menu_Shown = 0;
+			SetMenu(hWnd, NULL);
+		}
+		return;
+	}
+	if (!FS_Menu_Shown && pt.y <= mi.rcMonitor.top + 1)
+	{
+		FS_Menu_Shown = 1;
+		SetMenu(hWnd, Gens_Menu);
+	}
+	else if (FS_Menu_Shown && pt.y > mi.rcMonitor.top + GetSystemMetrics(SM_CYMENU) * 2 + 8)
+	{
+		FS_Menu_Shown = 0;
+		SetMenu(hWnd, NULL);
+	}
 }
 static int Netplay_Player, Netplay_Players, Netplay_In_Update;
 
@@ -2043,6 +2095,16 @@ void Handle_Gens_Messages()
 				docontinue = true;
 		if (docontinue)
 			continue;
+		if (msg.message == WM_SYSKEYDOWN || msg.message == WM_KEYDOWN)
+		{
+			if (msg.wParam == VK_MENU || msg.wParam == VK_LMENU || msg.wParam == VK_RMENU)
+			{
+				if (!(msg.lParam & (1 << 30)))	/* a new press, not a repeat */
+					Alt_Combo = 0;
+			}
+			else if (GetKeyState(VK_MENU) & 0x8000)
+				Alt_Combo = 1;
+		}
 		if (TranslateAccelerator (HWnd, hAccelTable, &msg))
 			continue;
 
@@ -2887,6 +2949,7 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 				RECT rc;
 				GetCursorPos(&pt);
 				GetWindowRect(hWnd, &rc);
+				FS_Menu_Update(hWnd);
 				if (Cursor_Idle() && GetForegroundWindow() == hWnd && PtInRect(&rc, pt))
 					SetCursor(NULL);
 				return 0;
@@ -2954,33 +3017,33 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			return 0;
 		
-		case WM_RBUTTONDOWN:
+		case WM_RBUTTONUP:	// gens64: was WM_RBUTTONDOWN: the menu loop ran with the button still
+							// held (an implicit X pointer grab under wine); menus open on release.
+							// Full screen has the same context menu now (the menu bar is at the
+							// top edge of the screen)
+		{
 			POINT point;
 			GetCursorPos(&point);
-			if (Full_Screen)
+			Clear_Sound_Buffer();
+			Build_Context_Menu();
+			TrackPopupMenu(Context_Menu, TPM_LEFTALIGN | TPM_TOPALIGN, point.x, point.y, NULL, hWnd, NULL);
+			break;
+		}
+
+		case WM_LBUTTONDBLCLK:	// gens64: a double click on the picture switches full screen, when the
+								// button is released: with the window changed under the held button
+								// the window took no clicks any more under wine/Proton until Alt+Tab
+			Dbl_Click = 1;
+			return 0;
+
+		case WM_LBUTTONUP:
+			if (Dbl_Click)
 			{
-				Clear_Sound_Buffer();
-				//SetCursorPos(40, 30);
-				while (ShowCursor(false) >= 0);
-				while (ShowCursor(true) < 0);				
-				SendMessage(hWnd, WM_PAINT, 0,0);
-				Restore_Primary();
-				PaintsEnabled = false;
-				TrackPopupMenu(Gens_Menu, TPM_LEFTALIGN | TPM_TOPALIGN, point.x, point.y, NULL, hWnd, NULL);
-				PaintsEnabled = true;
-			}
-			else
-			{	// gens64: the braces were missing: in full screen the context menu opened as well,
-				// after the main one (and the game stood still under it)
-				Clear_Sound_Buffer();
-				Build_Context_Menu();
-				TrackPopupMenu(Context_Menu, TPM_LEFTALIGN | TPM_TOPALIGN, point.x, point.y, NULL, hWnd, NULL);
+				Dbl_Click = 0;
+				SendMessage(hWnd, WM_COMMAND, ID_GRAPHICS_SWITCH_MODE, 0);
+				return 0;
 			}
 			break;
-
-		case WM_LBUTTONDBLCLK:	// gens64: a double click on the picture switches full screen
-			SendMessage(hWnd, WM_COMMAND, ID_GRAPHICS_SWITCH_MODE, 0);
-			return 0;
 
 		case WM_CREATE:
 			Active = 1;
@@ -2994,6 +3057,7 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			{
 				last_pos = lParam;
 				Last_Mouse_Move = GetTickCount();
+				FS_Menu_Update(hWnd);
 			}
 			break;
 		}
@@ -3002,9 +3066,19 @@ LRESULT WINAPI WinProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			In_Menu_Loop = 1;
 			break;
 
+		case WM_SYSCOMMAND:
+			// gens64: no menu bar from releasing Alt after Alt+Enter and such (see Alt_Combo)
+			if ((wParam & 0xFFF0) == SC_KEYMENU && lParam == 0 && Alt_Combo)
+			{
+				Alt_Combo = 0;
+				return 0;
+			}
+			break;
+
 		case WM_EXITMENULOOP:
 			In_Menu_Loop = 0;
 			Last_Mouse_Move = GetTickCount();
+			FS_Menu_Update(hWnd);
 			break;
 
 		case WM_KEYDOWN:
@@ -5206,16 +5280,11 @@ HMENU Build_Main_Menu(void)
 	DestroyMenu(Gens_Menu);
 	Build_Language_String();
 
-	if (Full_Screen)
-	{
-		MainMenu = CreatePopupMenu();
-		Rend = Render_W;
-	}
-	else
-	{
-		MainMenu = CreateMenu();
-		Rend = Render_W;
-	}
+	// gens64: a menu bar in full screen too (it comes out at the top edge). It was a popup menu
+	// for the right button there; as a menu bar such a menu made Wine destroy the main window
+	// when its menu mode ended (Wine destroys the window of a popup menu then)
+	MainMenu = CreateMenu();
+	Rend = Render_W;
 
 	Files = CreatePopupMenu();
 	Graphics = CreatePopupMenu();
@@ -6264,7 +6333,7 @@ HMENU Build_Main_Menu(void)
 	///////////////////////////////////////////
 
 	Gens_Menu = MainMenu;
-	if (Full_Screen) SetMenu(HWnd, NULL);
+	if (Full_Screen && !FS_Menu_Shown) SetMenu(HWnd, NULL);
 	else SetMenu(HWnd, Gens_Menu);
 	MustUpdateMenu = 0;
 

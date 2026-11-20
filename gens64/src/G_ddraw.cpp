@@ -562,10 +562,18 @@ void CalculateDrawArea(HWND hWnd, RECT& RectDest, RECT& RectSrc)
 	int FS_X,FS_Y;
 	int Render_Mode = Render_W;
 
-	// gens64: the window's client area, also in full screen (a borderless window)
+	// gens64: the window's client area; in full screen the whole window (the monitor), so the
+	// picture stays in place when the menu bar comes out at the top edge
 	GetClientRect(hWnd, &RectDest);
 	FS_X = RectDest.right;
 	FS_Y = RectDest.bottom;
+	if (Full_Screen)
+	{
+		RECT rw;
+		GetWindowRect(hWnd, &rw);
+		FS_X = rw.right - rw.left;
+		FS_Y = rw.bottom - rw.top;
+	}
 
 	Ratio_X = (float) FS_X / 320.0f; //Upth-Add - Find the current size-ratio on the x-axis
 	Ratio_Y = (float) FS_Y / 240.0f; //Upth-Add - Find the current size-ratio on the y-axis
@@ -636,6 +644,13 @@ void CalculateDrawArea(HWND hWnd, RECT& RectDest, RECT& RectSrc)
 	{
 		p.x = p.y = 0;
 		ClientToScreen(hWnd, &p);
+		if (Full_Screen)
+		{
+			RECT rw;
+			GetWindowRect(hWnd, &rw);
+			p.x = rw.left;
+			p.y = rw.top;
+		}
 
 		RectDest.top += p.y; //Upth-Modif - this part moves the picture into the window
 		RectDest.bottom += p.y; //Upth-Modif - I had to move it after all of the centering
