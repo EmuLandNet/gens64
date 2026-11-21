@@ -83,6 +83,12 @@ bool D3DOut_Init(HWND hwnd, bool bits32, bool mode555, bool vsync)
 {
 	D3DOut_End();
 
+	// Windows XP: DirectDraw. It scales the picture in hardware there (the blur Direct3D avoids is a
+	// Windows 8+ thing), and the d3d9 of some XP setups never returns: VirtualBox Guest Additions'
+	// MSD3D9.dll spun at 100% CPU inside Direct3DCreate9 (gens_hang.log, 21.11).
+	if ((BYTE) GetVersion() < 6)
+		return false;
+
 	s_lib = LoadLibraryA("d3d9.dll");
 	if (!s_lib)
 		return false;

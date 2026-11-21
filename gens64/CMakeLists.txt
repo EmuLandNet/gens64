@@ -142,6 +142,11 @@ target_link_options(Gens PRIVATE -static -static-libgcc -static-libstdc++ -Wl,--
 # after linking (tools/check_imports.py, tools/xp_imports.txt).
 if(NOT GENS_WIN64 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(i.86|x86)$")
   target_sources(Gens PRIVATE src/xp_compat.c)
+  # -DGENS64_HANGLOG=ON: diagnostic build that writes gens_hang.log (where the main thread is, each second)
+  option(GENS64_HANGLOG "32-bit: hang recorder (src/hang_log.c), not for releases" OFF)
+  if(GENS64_HANGLOG)
+    target_sources(Gens PRIVATE src/hang_log.c)
+  endif()
   target_compile_options(Gens PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-threadsafe-statics>)
   add_custom_command(TARGET Gens POST_BUILD
     COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/check_imports.py ${CMAKE_OBJDUMP}
