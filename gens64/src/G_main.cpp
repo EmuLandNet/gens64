@@ -8505,6 +8505,9 @@ LRESULT CALLBACK AboutProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam)
 			// gens64: the text is Windows-1252 (é in Stéphane); shown through Unicode, so
 			// it stays right whatever the system code page is
 			SetDlgItemText1252(hDlg, IDC_EDIT1,
+#ifdef GENS64_REV	/* gens64: which build this is: architecture (in the name) and git revision */
+				GENS_NAME ", build " GENS64_REV "\r\n" "\r\n"
+#endif
 				"Original version (c) 1999/2002 by Stéphane Dallongeville" "\r\n"
 				"and the Gens development team" "\r\n" "\r\n"
 				"Based on Gens Re-Recording v11c (svn341)" "\r\n"

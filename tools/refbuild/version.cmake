@@ -17,14 +17,14 @@ endif()
 if(ARCH)
   set(tagged "${tagged}, ${ARCH}")
 endif()
-# window title: "Gens64 v2.20" (release; was "Gens64 2.20 WIP (<rev>, x86_64|x86)"); the revision
-# and the architecture stay in GENS64_TAG
+# window title: "Gens64 v2.20 x86-64" / "Gens64 v2.20 x86" (the architecture is seen at once); the
+# revision is in Help > About (GENS64_REV) and in GENS64_TAG
 if(ARCH STREQUAL "x64")
-  set(title_arch "x86_64")
+  set(title_arch "x86-64")
 else()
   set(title_arch "x86")
 endif()
-set(text "#define GENS64_REV \"${rev}\"\n#define GENS64_PORTED \"${ported}\"\n#define GENS64_TAG \" gens64-${rev} [${tagged}]\"\n#define GENS64_TITLE \"Gens64 v2.20\"\n")
+set(text "#define GENS64_REV \"${rev}\"\n#define GENS64_PORTED \"${ported}\"\n#define GENS64_TAG \" gens64-${rev} [${tagged}]\"\n#define GENS64_TITLE \"Gens64 v2.20 ${title_arch}\"\n")
 if(EXISTS ${OUT})
   file(READ ${OUT} old)
 endif()
