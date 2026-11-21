@@ -47,6 +47,7 @@ int Flag_Clr_Scr = 0;
 int Sleep_Time = 1;
 int FS_VSync;
 int W_VSync;
+int Use_DirectDraw = 0;	// gens64: Graphics > DirectDraw Output: no Direct3D 9 (for broken d3d9 drivers)
 int Res_X = 320 << (int) (Render_FS > 0); //Upth-Add - For the new configurable
 int Res_Y = 240 << (int) (Render_FS > 0); //Upth-Add - fullscreen resolution (defaults 320 x 240)
 bool FS_No_Res_Change = false; //Upth-Add - For the new fullscreen at same resolution
@@ -273,7 +274,7 @@ int Init_DDraw(HWND hWnd)
 		Mode_555 = 0;	// the 16-bit texture is R5G6B5
 		Recalculate_Palettes();
 	}
-	if (D3DOut_Init(hWnd, Bits32 != 0, (Mode_555 & 1) != 0, W_VSync != 0))
+	if (!Use_DirectDraw && D3DOut_Init(hWnd, Bits32 != 0, (Mode_555 & 1) != 0, W_VSync != 0))
 	{
 		if (Bits32 && !oldBits32)
 			for (int i = 0; i < 336 * 240; i++)

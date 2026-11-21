@@ -4042,6 +4042,12 @@ dialogAgain: //Nitsuja added this
 					Change_VSync(hWnd);
 					return 0;
 
+				case ID_GRAPHICS_DIRECTDRAW:	// gens64: DirectDraw output on/off, a new output at once
+					Use_DirectDraw = !Use_DirectDraw;
+					Set_Render(hWnd, Full_Screen, -1, true);
+					Build_Main_Menu();
+					return 0;
+
 				case ID_FILES_CLEARHISTORY:	// gens64: as in Gens+
 					for (int k = 0; k < MAX_RECENT_ROMS; k++)
 						Recent_Rom[k][0] = 0;
@@ -5633,6 +5639,10 @@ HMENU Build_Main_Menu(void)
 		ID_GRAPHICS_COLOR_ADJUST, "Color", "", "&Color Adjust...");
 	MENU_L(Graphics, i++, Flags | MF_POPUP,
 		(UINT_PTR)GraphicsRender, "Render", "", "&Render");
+	// gens64: DirectDraw instead of Direct3D 9, for drivers whose d3d9 shows nothing (VirtualBox);
+	// on Windows XP the output is always DirectDraw (d3d_out.cpp)
+	MENU_L(Graphics, i++, Flags | ((Use_DirectDraw || (BYTE) GetVersion() < 6) ? MF_CHECKED : MF_UNCHECKED) | ((BYTE) GetVersion() < 6 ? MF_GRAYED : 0),
+		ID_GRAPHICS_DIRECTDRAW, "DirectDraw Output", "", "&DirectDraw Output");
 	MENU_L(Graphics, i++, Flags | MF_POPUP,
 		(UINT_PTR)GraphicsSize, "Window Size", "", "&Window Size");
 

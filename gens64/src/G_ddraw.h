@@ -18,6 +18,7 @@ extern int Res_Y; //Upth-Add - to be externally accessible
 extern bool FS_No_Res_Change; //Upth-Add - as well as the No_Res_Change flag
 extern bool Def_Read_Only; //Upth-Add - This is here because G_ddraw.h has bools defined in it, and I couldn't find another good place
 extern int W_VSync;
+extern int Use_DirectDraw;
 extern int Stretch;
 extern int Blit_Soft;
 extern int Integer_Scale;

@@ -25,7 +25,8 @@ Forum: https://www.emu-land.net/forum/
   same pad types and adapter for all players, a separate folder for netplay ROMs.
 - Display: Direct3D 9 output with sharp (nearest) scaling, integer scaling, borderless full screen
   on the current monitor (the menu bar comes out at the top edge), filters in 32-bit colour,
-  double click for full screen; DirectDraw stays as the fallback.
+  double click for full screen; DirectDraw stays as the fallback (Graphics > DirectDraw Output, for
+  video drivers whose Direct3D shows nothing; always on Windows XP).
 - Interface: many old bugs fixed (window sizes, dialogs cut or overlapping under the visual styles,
   RAM Watch, menus in full screen, the mouse pointer), clearer settings and defaults,
   File > Clear History, .md ROMs; works under Wine and Proton.

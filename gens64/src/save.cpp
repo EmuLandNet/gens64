@@ -2566,6 +2566,8 @@ int Save_Config(char *File_Name)
 	WritePrivateProfileString("Graphics", "Screen Scale Factor", Str_Tmp, Conf_File);
 	wsprintf(Str_Tmp, "%d", W_VSync & 1);
 	WritePrivateProfileString("Graphics", "Windows VSync", Str_Tmp, Conf_File);
+	wsprintf(Str_Tmp, "%d", Use_DirectDraw & 1);
+	WritePrivateProfileString("Graphics", "DirectDraw Output", Str_Tmp, Conf_File);
 	wsprintf(Str_Tmp, "%d", Render_W);
 	WritePrivateProfileString("Graphics", "Render Windowed", Str_Tmp, Conf_File);
 
@@ -3116,6 +3118,7 @@ int Load_Config(char *File_Name, void *Game_Active)
 	GetPrivateProfileString("Graphics", "Screen Scale Factor", "1.0", str, 11, Conf_File);
 	ScaleFactor = (float) atof(str);
 	W_VSync = GetPrivateProfileInt("Graphics", "Windows VSync", 0, Conf_File);
+	Use_DirectDraw = GetPrivateProfileInt("Graphics", "DirectDraw Output", 0, Conf_File) & 1;
 	// gens64: full screen is a borderless window; no resolution, no separate VSync and render mode
 	Full_Screen = GetPrivateProfileInt("Graphics", "Full Screen", 0, Conf_File);
 	Render_W = GetPrivateProfileInt("Graphics", "Render Windowed", 1, Conf_File);	// gens64: Double by default
