@@ -7,7 +7,7 @@ r341 play back in sync.
 
 Version: 2.20.
 
-Forum: https://www.emu-land.net/forum/
+Forum topic: https://www.emu-land.net/forum/index.php?topic=93643
 
 ## What is new compared to Gens Re-Recording r341
 
