@@ -120,6 +120,9 @@ __asm__(
 extern u8 Rom_Data[];
 #include "svp.h"
 #include "sfteam.h"
+/* gens64: the cartridge's SRAM as a DMA source (Mem_M68k_asm.c, gens64_m68k_bss) */
+extern unsigned char SRAM[64 * 1024];
+extern int SRAM_Start, SRAM_End, SRAM_ON, SRAM_Custom;
 extern u32 Rom_Size;
 extern u32 Rom_Mapper, Rom_Page[32];	/* gens64: mapper for ROMs over 6 MB (Mem_M68k_asm.c) */
 extern u32 M68K_Speed;	/* gens64: 68000 speed in % and 2 MB RAM (Mem_M68k_asm.c) */
@@ -334,7 +337,7 @@ u32 Update_DMA(void)
 static u16 swap16(u16 x) { return (u16)((x << 8) | (x >> 8)); }
 
 /* memory -> VRAM/CRAM/VSRAM. sel: 0 ROM, 1 RAM, 2 PRG RAM, 3 Word RAM 2M, 5/6 Word RAM 1M bank 0/1,
-   7/8 cell-arranged bank 0/1; dest: 0 VRAM, 1 CRAM, 2 VSRAM */
+   7/8 cell-arranged bank 0/1, 14 cartridge SRAM (gens64); dest: 0 VRAM, 1 CRAM, 2 VSRAM */
 static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 {
 	u32 bx = dst;
@@ -346,6 +349,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 	case 11: src &= 0x00FFFFFE; break;	/* gens64: Paprium */
 	case 12: src &= 0x00FFFFFE; break;	/* gens64: SVP */
 	case 13: src &= 0x00FFFFFE; break;	/* gens64: SF boards */
+	case 14: src = (src - (u32)SRAM_Start) & 0xFFFE; break;	/* gens64: cartridge SRAM */
 	case 10: src = (src - 0xE00000) & 0x1FFFFE; break;	/* gens64: 2 MB RAM, E00000-FEFFFF */
 	case 1: src &= 0xFFFE; break;
 	case 2: src = (src & 0x0001FFFE) + (u32)Bank_M68K; break;
@@ -384,6 +388,7 @@ static void dma_mem(u32 sel, u32 dest, u32 src, u32 dst, u32 len, u32 inc)
 		case 11: w = (u16)Paprium_DMA_Word(src); src += 2; break;
 		case 12: w = (u16)SVP_Read_Word(src); src = (src & 0xFFFE0000) | ((src + 2) & 0x1FFFF); break;
 		case 13: w = (u16)SF_Read_Word(src); src += 2; break;
+		case 14: w = (u16)(SRAM[src] << 8 | SRAM[src + 1]); src = (src + 2) & 0xFFFF; break;
 		case 10: w = *(u16 *)(Ram_Ext + src); src = (src + 2) % 0x1F0000; break;
 		case 1: w = *(u16 *)(Ram_68k + src); src = (src & 0xFFFF0000) | ((src + 2) & 0xFFFF); break;
 		case 2: w = *(u16 *)(Ram_Prg + src); src += 2; break;
@@ -494,6 +499,11 @@ static void do_dma(u32 t)
 	/* gens64: 2 MB RAM: E00000-FEFFFF is its own memory */
 	if (sel == 1 && Ram_68k_2MB && src >= 0xE00000 && src < 0xFF0000)
 		sel = 10;
+	/* gens64: DMA from the cartridge's SRAM (Dread MD draws its 3D view in the 16-bit SRAM at
+	   200000 and copies it to VRAM): r341 read the 68000 RAM there. Bytes as the 68000 sees them. */
+	if ((sel == 1 || sel == 9) && !B0(gens64_vdp_data.SegaCD_Started) && (SRAM_ON & 1) && !(SRAM_Custom & 1) &&
+		src >= (u32)SRAM_Start && src <= (u32)SRAM_End)
+		sel = 14;
 	if (type & 2)
 		dst &= 0x7F;
 	W0(V.VDP_Status) |= 0x0002;

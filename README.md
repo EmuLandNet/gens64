@@ -16,8 +16,8 @@ Forum topic: https://www.emu-land.net/forum/index.php?topic=93643
   Windows XP.
 - Cartridge hardware: Paprium (high-level emulation of the cartridge's processor and its music), the SVP
   chip (SSP1601 DSP), the T-5740 mapper with SPI EEPROM saves, flash memory saves, Super Fighter Team
-  boards, the MP3 music player of the KAISER WAVE board, the ROM write mode of the MegaSD, ROMs over
-  6 MB (Sega and Mega Everdrive mappers).
+  boards, the MP3 music player of the KAISER WAVE board, the ROM write mode of the MegaSD, DMA from the
+  cartridge's SRAM, ROMs over 6 MB (Sega and Mega Everdrive mappers).
 - Controllers: EA 4 Way Play (three players in Paprium) next to the Team Player.
 - 68000 speed setting and 2 MB of extra RAM, stored in movies and savestates.
 - Sega CD: WAV audio tracks (CUE and ISO + NN.wav) and CHD images.
