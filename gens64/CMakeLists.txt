@@ -137,6 +137,17 @@ target_compile_options(Gens PRIVATE
   $<$<COMPILE_LANGUAGE:CXX>:-std=gnu++11 -include ${GEN}/ci/msvc_compat.h -fdelayed-template-parsing
      -Wno-error=incompatible-function-pointer-types -Wno-error=invalid-token-paste>)
 target_link_options(Gens PRIVATE -static -static-libgcc -static-libstdc++ -Wl,--stack,8388608)
+# Windows XP for the 32-bit build: no thread-safe static locals (they need Vista's condition variables
+# from the C++ runtime) and our GetThreadId import (xp_compat.c); the imports are checked against XP's
+# after linking (tools/check_imports.py, tools/xp_imports.txt).
+if(NOT GENS_WIN64 AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(i.86|x86)$")
+  target_sources(Gens PRIVATE src/xp_compat.c)
+  target_compile_options(Gens PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-threadsafe-statics>)
+  add_custom_command(TARGET Gens POST_BUILD
+    COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/check_imports.py ${CMAKE_OBJDUMP}
+            $<TARGET_FILE:Gens> ${PROJECT_SOURCE_DIR}/tools/xp_imports.txt
+    COMMENT "Imports available on Windows XP" VERBATIM)
+endif()
 # Release exes are stripped (no symbol table: ~3.4 MB less). -DGENS64_STRIP=OFF keeps the symbols for debugging.
 option(GENS64_STRIP "strip the symbol table from Gens.exe" ON)
 if(GENS64_STRIP)
