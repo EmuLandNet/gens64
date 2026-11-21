@@ -48,6 +48,7 @@
 #include "flash_cfi.h"
 #include "svp.h"
 #include "sfteam.h"
+#include "megasd.h"
 
 extern "C" struct S68000CONTEXT main68k_context;
 extern "C" struct S68000CONTEXT sub68k_context;
@@ -181,6 +182,8 @@ void HashLog_OnFrame(int rendered)
 		glen += SVP_STATE_SIZE; // gens64: Virtua Racing's DSP
 	if (SF_Type && !SegaCD_Started && !_32X_Started)
 		glen += SF_STATE_SIZE; // gens64: Super Fighter Team boards
+	if (Rom_Mapper == ROM_MAPPER_MEGASD && !SegaCD_Started && !_32X_Started)
+		glen += MEGASD_STATE_SIZE; // gens64: MegaSD cartridge area
 	unsigned long long hg = fnv1a64(hashBuf, glen);
 	char cd[24] = "-", x32[24] = "-";
 	const unsigned char *p = hashBuf + glen;

@@ -8,6 +8,7 @@
 #include "ym2612.h"
 #include "misc.h"
 #include "gfx_cd.h"
+#include "megasd.h"
 
 #include "io.h"
 #include "cd_sys.h"
@@ -353,6 +354,8 @@ void M68K_Reset(int System_ID, char Hard)
  	}
 	if (System_ID == GENESIS)
 	{
+		if (Hard && Rom_Mapper == ROM_MAPPER_MEGASD)
+			MegaSD_Power_On();	/* gens64: the MegaSD's ROM image as loaded */
 		Mapper_Reset();	/* gens64: ROMs over 6 MB (nothing otherwise) */
 		if (YX5200_On)
 			YX5200_Reset();	/* gens64: MP3 player */

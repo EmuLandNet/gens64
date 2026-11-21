@@ -33,6 +33,7 @@
 #include "eeprom_spi.h"
 #include "flash_cfi.h"
 #include "svp.h"
+#include "megasd.h"
 #include "sfteam.h"
 #include "cd_chd.h"
 extern "C" int Gens64_Prefetch_Hack; extern "C" void Gens64_Prefetch_Flush(void);
@@ -295,6 +296,11 @@ int Load_State_From_Buffer(unsigned char *buf)
 		buf += SF_STATE_SIZE;
 		M68K_Update_Fetch();
 	}
+	if (Rom_Mapper == ROM_MAPPER_MEGASD && !SegaCD_Started && !_32X_Started) // gens64: MegaSD cartridge area
+	{
+		MegaSD_Load(buf);
+		buf += MEGASD_STATE_SIZE;
+	}
 	if (SegaCD_Started)
 	{
 		buf += Import_SegaCD(buf); // Uncommented - function now exists
@@ -405,6 +411,8 @@ int Load_State(char *Name)
 			len += SVP_STATE_SIZE;
 		if (SF_Type) // gens64: Super Fighter Team boards
 			len += SF_STATE_SIZE;
+		if (Rom_Mapper == ROM_MAPPER_MEGASD) // gens64: MegaSD cartridge area
+			len += MEGASD_STATE_SIZE;
 		fseek(f, 0, SEEK_SET);
 	}
 
@@ -621,6 +629,7 @@ int Save_State_To_Buffer (unsigned char *buf)
 	if (Flash_CFI_On && !SegaCD_Started && !_32X_Started) len += Flash_CFI_State_Size(); // gens64
 	if (SVP_On && !SegaCD_Started && !_32X_Started) len += SVP_STATE_SIZE; // gens64
 	if (SF_Type && !SegaCD_Started && !_32X_Started) len += SF_STATE_SIZE; // gens64
+	if (Rom_Mapper == ROM_MAPPER_MEGASD && !SegaCD_Started && !_32X_Started) len += MEGASD_STATE_SIZE; // gens64
 
 	memset(buf, 0, len);
 
@@ -656,6 +665,11 @@ int Save_State_To_Buffer (unsigned char *buf)
 	{
 		SF_Save(buf);
 		buf += SF_STATE_SIZE;
+	}
+	if (Rom_Mapper == ROM_MAPPER_MEGASD && !SegaCD_Started && !_32X_Started)
+	{
+		MegaSD_Save(buf);
+		buf += MEGASD_STATE_SIZE;
 	}
 	if (SegaCD_Started)
 	{

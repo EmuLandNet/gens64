@@ -23,6 +23,7 @@
 #include "flash_cfi.h"
 #include "svp.h"
 #include "sfteam.h"
+#include "megasd.h"	/* gens64: MegaSD ROM write mode (Pool of Radiance MD) */
 
 #ifndef ROM_DATA_MAX
 #define ROM_DATA_MAX (32 * 1024 * 1024)	/* as in Mem_M68k.h */
@@ -1684,6 +1685,11 @@ static u32 M68K_Read_Word_Mapped(u32 a)
 static void M68K_Write_Byte_Mapped(u32 a, u32 d)
 {
 	int e = ed_sram(a);
+	if (Rom_Mapper == ROM_MAPPER_MEGASD && mapped_sram(a))
+	{
+		M68K_Write_Byte_SRAM(a, d);	/* gens64: MegaSD: the battery RAM above the writable ROM */
+		return;
+	}
 	if (e >= 0)
 	{
 		if (Mapper_Ctrl & 0x20)
@@ -1700,6 +1706,11 @@ static void M68K_Write_Byte_Mapped(u32 a, u32 d)
 static void M68K_Write_Word_Mapped(u32 a, u32 d)
 {
 	int e = ed_sram(a);
+	if (Rom_Mapper == ROM_MAPPER_MEGASD && mapped_sram(a))
+	{
+		M68K_Write_Word_SRAM(a, d);
+		return;
+	}
 	if (e >= 0)
 	{
 		if (Mapper_Ctrl & 0x20)
@@ -1776,6 +1787,18 @@ void Mapper_Init(int system)
 	Rom_Mapper = 0;
 	Rom_Mask = 0;
 	UMK_Tracks_Detect(0);	/* forget the previous ROM */
+	if (system == 0 && MegaSD_Detect())
+	{
+		/* gens64: MegaSD ROM write mode (megasd.h): 4 MB, pages fixed, writable after 'W' */
+		if (B.Rom_Size < MEGASD_STATE_SIZE)
+			memset(Rom_Data + B.Rom_Size, 0xFF, MEGASD_STATE_SIZE - B.Rom_Size);
+		Rom_Mapper = ROM_MAPPER_MEGASD;
+		Rom_Mask = MEGASD_STATE_SIZE - 1;
+		MegaSD_Init();
+		MegaSD_Setup_SRAM();
+		Mapper_Reset();
+		return;
+	}
 	if (system != 0 || B.Rom_Size <= 6 * 1024 * 1024)
 		return;
 	while (size < B.Rom_Size && size < ROM_DATA_MAX)
@@ -1837,6 +1860,14 @@ static int mapper_write(u32 a, u32 d, int word)
 	}
 	if (Rom_Mapper == ROM_MAPPER_PAPRIUM)
 		return 1;	/* no bank registers, no SRAM window */
+	if (Rom_Mapper == ROM_MAPPER_MEGASD)
+	{
+		/* gens64: A130FF: 'W' makes 000000-3FFFFF writable, any other byte read-only (byte writes
+		   only, as Genesis Plus GX) */
+		if (!word && (a & 0xFF) == 0xFF)
+			Mapper_Ctrl = (u8)((d & 0xFF) == 'W' ? 0x20 : 0);
+		return 1;
+	}
 	if (Rom_Mapper == 2)
 	{
 		if ((a & 0xF0) != 0xF0)

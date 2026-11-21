@@ -102,6 +102,7 @@ set(GENS_C_CXX_SOURCES
   src/ym2612.c
   src/yx5200.c
   src/eeprom_spi.c
+  src/megasd.c
   src/flash_cfi.c
   src/svp.c
   src/ssp16.c
