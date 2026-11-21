@@ -29,7 +29,7 @@ extern "C" {
 	#define SUB_STRING " debug"
 #endif
 
-#if defined(GENS64_TITLE) /* gens64: "Gens64 v2.20 x86-64" / "... x86" (tools/refbuild/version.cmake) */
+#if defined(GENS64_TITLE) /* gens64: "Gens64 v2.21 x86-64" / "... x86" (tools/refbuild/version.cmake) */
 	#define GENS_NAME GENS64_TITLE
 #elif !defined(PUBLIC_RELEASE)
 	#define GENS_NAME GENS_RR_VERSION SUB_STRING

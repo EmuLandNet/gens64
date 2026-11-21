@@ -5,7 +5,7 @@ Gens64 is a Sega Mega Drive / Genesis, Sega CD / Mega CD and 32X emulator for Wi
 native 64-bit program and also builds as a 32-bit one. Movies (.gmv) recorded with Gens Re-Recording
 r341 play back in sync.
 
-Version: 2.20.
+Version: 2.21.
 
 Forum topic: https://www.emu-land.net/forum/index.php?topic=93643
 
